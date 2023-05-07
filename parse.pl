@@ -7,8 +7,31 @@ use LWP::UserAgent;
 use URI::Escape;
 use JSON;
 
-my $file_name = shift @ARGV;
+my ($file_name, $spolehlivost_frazi) = @ARGV;
 
+# Nejprve načteme soubor se spolehlivostí frází
+
+open (PHRASES, '<:encoding(utf8)', $spolehlivost_frazi)
+  or die "Nepodařilo se otevřít soubor '$spolehlivost_frazi' pro čtení: $!";
+
+while (<PHRASES>) {
+  chomp();
+  my $line = $_;
+  if ($line =~ /^(\d+)\t(\d+)\t(\S+)$/) {
+    my $all_occurrences = $1;
+    my $used_as_citation_phrase = $2;
+    my $phrase = $3;
+    my $reliability = $used_as_citation_phrase / $all_occurrences;
+    my $reliability_percent = 100 * sprintf("%.2f", $reliability);
+    print STDERR "Načtena fráze $phrase se spolehlivostí $reliability_percent\n";
+  }
+  else {
+    print STDERR "Řádek s neznámým formátem v souboru $spolehlivost_frazi:\n$line\n";
+  }
+}
+
+exit;
+  
 open my $file_handle, '<:encoding(utf8)', $file_name
   or die "Nepodařilo se otevřít soubor '$file_name' pro čtení: $!";
 
