@@ -6,10 +6,16 @@ use open qw(:std :utf8);
 use LWP::UserAgent;
 use URI::Escape;
 use JSON;
+use Tree::Simple;
+
+my $MIN_RELIABILITY = 10; # minimal required phrase reliability
 
 my ($file_name, $spolehlivost_frazi) = @ARGV;
 
-# Nejprve načteme soubor se spolehlivostí frází
+# Let us first read the file with reliability of citation phrases
+
+my %phrase2reliability; # reliability of the phrase in percents (in how many percents it was used in training data as a citation phrase)
+my %phrase2se_si; # does the phrase require "se/si" to be a citation phrase? (maybe not needed and not yet implemented!)
 
 open (PHRASES, '<:encoding(utf8)', $spolehlivost_frazi)
   or die "Nepodařilo se otevřít soubor '$spolehlivost_frazi' pro čtení: $!";
@@ -17,23 +23,27 @@ open (PHRASES, '<:encoding(utf8)', $spolehlivost_frazi)
 while (<PHRASES>) {
   chomp();
   my $line = $_;
-  if ($line =~ /^(\d+)\t(\d+)\t(\S+)$/) {
+  if ($line =~ /^(\d+)\t(\d+)\t(\S+)\t(\S*)$/) {
     my $all_occurrences = $1;
     my $used_as_citation_phrase = $2;
     my $phrase = $3;
+    my $se_si = $4;
     my $reliability = $used_as_citation_phrase / $all_occurrences;
     my $reliability_percent = 100 * sprintf("%.2f", $reliability);
-    print STDERR "Načtena fráze $phrase se spolehlivostí $reliability_percent\n";
+    print STDERR "Phrase $phrase ($se_si) with reliability $reliability_percent\n";
+    $phrase2reliability{$phrase} = $reliability_percent;
+    $phrase2se_si{$phrase} = $se_si;
   }
   else {
-    print STDERR "Řádek s neznámým formátem v souboru $spolehlivost_frazi:\n$line\n";
+    print STDERR "Unknown format of a line in file $spolehlivost_frazi:\n$line\n";
   }
 }
 
-exit;
-  
+
+# Now let us read the text file where citations should be searched for
+
 open my $file_handle, '<:encoding(utf8)', $file_name
-  or die "Nepodařilo se otevřít soubor '$file_name' pro čtení: $!";
+  or die "Cannot open file '$file_name' for reading: $!";
 
 # Načtení obsahu souboru do proměnné
 my $file_content = do { local $/; <$file_handle> };
@@ -42,15 +52,18 @@ close $file_handle;
 
 #print STDERR $file_content;
 
-# Parsuj file s použitím UDPipe REST API
+
+# Let us parse the file using UDPipe REST API
+
 my $conll_data = call_udpipe($file_content);
 
-# Ulož výsledek do souboru
-open(OUT, '>:encoding(utf8)', "$file_name.conll") or die "Cannot open file $file_name.conll for writing: $!";
+# Store the result to a file (just to have it, not needed for further processing)
+open(OUT, '>:encoding(utf8)', "$file_name.conll") or die "Cannot open file '$file_name.conll' for writing: $!";
 print OUT $conll_data;
 close(OUT);
 
-use Tree::Simple;
+
+# Let us parse the CONLL format into Tree::Simple tree structures (one per sentence)
 
 my @lines = split("\n", $conll_data);
 
@@ -126,6 +139,7 @@ foreach my $line (@lines) {
         
     }
 }
+# If there wasn't an empty line at the end of the file, we need to process the last tree here:
 if ($root) {
     _create_structure($root);
     push(@trees, $root);
@@ -136,10 +150,42 @@ if ($root) {
 # end of Jan Štěpánek's modified cycle for reading UD CONLL
 
 
-foreach my $tree (@trees) {
-  print STDERR "Sentence id=" . attr($tree, 'id') . ": " . attr($tree, 'text') . "\n";
-  print_children($tree, "\t");
+# Now we have dependency trees of the sentences; let us search for citation phrases
+
+foreach $root (@trees) {
+  print STDERR "\n====================================================================\n";
+  print STDERR "Sentence id=" . attr($root, 'id') . ": " . attr($root, 'text') . "\n";
+  # print_children($root, "\t");
+  
+  my @nodes = descendants($root);
+  foreach my $node (@nodes) {
+    my $form_lc = lc(attr($node, 'form'));
+    my $reliability = $phrase2reliability{$form_lc};
+    if ($reliability) {
+      print STDERR "Found phrase $form_lc with reliability $reliability\n";
+      if ($reliability > $MIN_RELIABILITY) {
+        print STDERR " - reliability is greater than threshold $MIN_RELIABILITY\n";
+        if ($form_lc eq 'podle') { # special treatment
+          my $parent = $node->getParent;
+          my $source = attr($parent, 'form');
+          print STDERR " - SOURCE parent: $source\n";
+        }
+        else {
+          my @children = $node->getAllChildren;
+          my @nsubj = grep {attr($_, 'deprel') eq 'nsubj'} @children;
+          if (@nsubj) {
+            my $subject = attr($nsubj[0], 'form');
+            print STDERR " - SOURCE nsubj: $subject\n";
+          }
+        }
+      }
+    }
+  }
 }
+
+
+
+
 
 
 
@@ -150,7 +196,7 @@ sub _create_structure {
     my %node_by_ord = map +(attr($_, 'ord') => $_), $root->getAllChildren;
     foreach my $node ($root->getAllChildren) {
         my $head = attr($node, 'head');
-        print STDERR "_create_structure: head $head\n";
+        # print STDERR "_create_structure: head $head\n";
         if ($head) { # i.e., head is not 0, meaning this node should not be a child of the technical root
             my $parent = $node->getParent();
             $parent->removeChild($node);
@@ -172,7 +218,7 @@ sub print_children {
     }
 }
 
-######### TREE METHODS #########
+######### Simple::Tree METHODS #########
 
 sub set_attr {
   my ($node, $attr, $value) = @_;
@@ -186,6 +232,15 @@ sub attr {
   return $$refha_props{$attr};
 }
 
+sub descendants {
+  my $node = shift;
+  my @children = $node->getAllChildren;
+  foreach my $child ($node->getAllChildren) {
+    push (@children, descendants($child));
+  }
+  return @children;
+}
+  
 
 ######### PARSING THE TEXT WITH UDPIPE #########
 
