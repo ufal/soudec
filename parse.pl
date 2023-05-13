@@ -62,6 +62,15 @@ open(OUT, '>:encoding(utf8)', "$file_name.conll") or die "Cannot open file '$fil
 print OUT $conll_data;
 close(OUT);
 
+# Now let us add info about named entities using NameTag REST API
+
+my $conll_data_ne = call_nametag($conll_data);
+
+# Store the result to a file (just to have it, not needed for further processing)
+open(OUT, '>:encoding(utf8)', "$file_name.conllne") or die "Cannot open file '$file_name.conllne' for writing: $!";
+print OUT $conll_data_ne;
+close(OUT);
+
 
 # Let us parse the CONLL format into Tree::Simple tree structures (one per sentence)
 
@@ -273,7 +282,7 @@ sub call_udpipe {
         my $json_response = decode_json($res->content);
         # Zpracování odpovědi
         my $result = $json_response->{result};
-        # print STDERR "Výsledek: $result\n";
+        # print STDERR "UDPipe result:\n$result\n";
         return $result;
     } else {
         print STDERR "Chyba: " . $res->status_line . "\n";
@@ -281,3 +290,79 @@ sub call_udpipe {
     }
 }
 
+######### NAMED ENTITIES WITH NAMETAG #########
+
+=item call_nametag
+
+Calling NameTag REST API; the text to be searched is passed in the argument in UD CONLL format
+Returns the text in UD CONLL-NE format.
+This function just splits the input conll format to individual sentences (or a few of sentences if $max_sentences is set to a larger number than 1) and calls function call_nametag_part on this part of the input, to avoid the NameTag error caused by a too large argument.
+
+=cut
+
+sub call_nametag {
+    my $conll = shift;
+    
+    my $result = '';
+    
+    # Let us call NameTag api for each X sentences separately, as too large input produces an error.
+    my $max_sentences = 1; # 5 was too large at first attempt, so let us hope 1 is safe enough.
+    
+    my $conll_part = '';
+    my $sent_count = 0;
+    foreach my $line (split /\n/, $conll) {
+      #print STDERR "Processing line $line\n";
+      $conll_part .= $line . "\n";
+      if ($line =~ /^\s*$/) { # empty line means end of sentence
+        #print STDERR "Found an empty line.\n";
+        $sent_count++;
+        if ($sent_count eq $max_sentences) {
+          $result .= call_nametag_part($conll_part);
+          $conll_part = '';
+          $sent_count = 0;
+        }
+      }
+    }
+    if ($conll_part) { # We need to call NameTag one more time
+      $result .= call_nametag_part($conll_part);    
+    }
+    return $result;
+}
+
+=item call_nametag_part
+
+Now actuall calling NameTag REST API for a small part of the input (to avoid error caused by a long argument).
+Returns the text in UD CONLL-NE format.
+If an error occurs, the function just returns the input conll text unchanged.
+
+=cut
+
+sub call_nametag_part {
+    my $conll = shift;
+
+    # Nastavení URL pro volání REST::API s parametry
+    my $url = 'http://lindat.mff.cuni.cz/services/nametag/api/recognize?input=conllu&output=conllu-ne&data=' . uri_escape_utf8($conll);
+
+    # Vytvoření instance LWP::UserAgent
+    my $ua = LWP::UserAgent->new;
+
+    # Vytvoření požadavku
+    my $req = HTTP::Request->new('GET', $url);
+    $req->header('Content-Type' => 'application/json');
+
+    # Odeslání požadavku a získání odpovědi
+    my $res = $ua->request($req);
+
+    # Zkontrolování, zda byla odpověď úspěšná
+    if ($res->is_success) {
+        # Získání odpovědi v JSON formátu
+        my $json_response = decode_json($res->content);
+        # Zpracování odpovědi
+        my $result = $json_response->{result};
+        # print STDERR "NameTag result:\n$result\n";
+        return $result;
+    } else {
+        print STDERR "NameTag error: " . $res->status_line . "\n";
+        return $conll; 
+    }
+}
