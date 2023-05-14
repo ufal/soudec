@@ -20,6 +20,7 @@ my %phrase2se_si; # does the phrase require "se/si" to be a citation phrase? (ma
 open (PHRASES, '<:encoding(utf8)', $spolehlivost_frazi)
   or die "Nepodařilo se otevřít soubor '$spolehlivost_frazi' pro čtení: $!";
 
+my $phrases_count = 0;
 while (<PHRASES>) {
   chomp();
   my $line = $_;
@@ -30,7 +31,8 @@ while (<PHRASES>) {
     my $se_si = $4;
     my $reliability = $used_as_citation_phrase / $all_occurrences;
     my $reliability_percent = 100 * sprintf("%.2f", $reliability);
-    print STDERR "Phrase $phrase ($se_si) with reliability $reliability_percent\n";
+    # print STDERR "Phrase $phrase ($se_si) with reliability $reliability_percent\n";
+    $phrases_count++;
     $phrase2reliability{$phrase} = $reliability_percent;
     $phrase2se_si{$phrase} = $se_si;
   }
@@ -38,6 +40,7 @@ while (<PHRASES>) {
     print STDERR "Unknown format of a line in file $spolehlivost_frazi:\n$line\n";
   }
 }
+print STDERR "$phrases_count phrases have been read from file $spolehlivost_frazi:\n";
 
 
 # Now let us read the text file where citations should be searched for
@@ -177,14 +180,16 @@ foreach $root (@trees) {
         if ($form_lc eq 'podle') { # special treatment
           my $parent = $node->getParent;
           my $source = attr($parent, 'form');
-          print STDERR " - SOURCE parent: $source\n";
+          my $whole_source = get_whole_source($parent);
+          print STDERR " - SOURCE parent: $source\n - WHOLE SOURCE: $whole_source\n";
         }
         else {
           my @children = $node->getAllChildren;
           my @nsubj = grep {attr($_, 'deprel') eq 'nsubj'} @children;
           if (@nsubj) {
             my $subject = attr($nsubj[0], 'form');
-            print STDERR " - SOURCE nsubj: $subject\n";
+            my $whole_source = get_whole_source($nsubj[0]);
+            print STDERR " - SOURCE nsubj: $subject\n - WHOLE SOURCE: $whole_source\n";
           }
         }
       }
@@ -194,9 +199,38 @@ foreach $root (@trees) {
 
 
 
+=item get_whole_source
 
+For the given source node, it collects the whole source text.
 
+=cut
 
+sub get_whole_source {
+  my $node = shift;
+  my @source_nodes = get_source_nodes($node);
+  push(@source_nodes, $node);
+  my @source_nodes_ordered = sort {attr($a, 'ord') <=> attr($b, 'ord')} @source_nodes;
+  my $text = join(' ', map {attr($_, 'form')} @source_nodes_ordered);
+  return $text;
+}
+
+=item get_source_nodes
+
+It recursively adds sons whith deprel nmod, amod, flat and case (with exception of 'podle').
+
+=cut
+
+sub get_source_nodes {
+  my $node = shift;
+  my @source_sons = grep {attr($_, 'lemma') ne 'podle'}
+                    grep {attr($_, 'deprel') =~ /^(nmod|amod|flat|case)$/}
+                    $node->getAllChildren;
+  my @whole_source_nodes = @source_sons;
+  foreach my $son (@source_sons) {
+    push(@whole_source_nodes, get_source_nodes($son));
+  }
+  return @whole_source_nodes;
+}
 
 
 # the following function is modified from Jan Štěpánek's UD TrEd extension
