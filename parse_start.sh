@@ -6,6 +6,16 @@ echo "Searching for sources" >err
 for A in ../data/test/*.txt; do
   echo "=========================================================="
   echo "Searching for sources in $A"
-  echo "=========================================================="
-  ./parse.pl $A ../data/resources/spolehlivost_frazi.csv 2>>err
+
+  B=$(echo $A | sed s/.txt$/.ann/)
+  if [ -e $B ]; then
+    echo "(.ann file provided)"
+    echo "=========================================================="
+    ./parse.pl $A ../data/resources/spolehlivost_frazi.csv $B 2>>err
+  else
+    echo "(no .ann file)"
+    echo "=========================================================="
+    ./parse.pl $A ../data/resources/spolehlivost_frazi.csv 2>>err
+  fi
+
 done

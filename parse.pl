@@ -7,10 +7,13 @@ use LWP::UserAgent;
 use URI::Escape;
 use JSON;
 use Tree::Simple;
+use List::Util qw(min max);
 
 my $MIN_RELIABILITY = 10; # minimal required phrase reliability
 
-my ($file_name, $spolehlivost_frazi) = @ARGV;
+my ($file_name, $spolehlivost_frazi, $ann) = @ARGV;
+
+print STDERR "\n####################################################################\n";
 
 # Let us first read the file with reliability of citation phrases
 
@@ -20,6 +23,7 @@ my %phrase2se_si; # does the phrase require "se/si" to be a citation phrase? (ma
 open (PHRASES, '<:encoding(utf8)', $spolehlivost_frazi)
   or die "Nepodařilo se otevřít soubor '$spolehlivost_frazi' pro čtení: $!";
 
+print STDERR "Reading phrases and their reliability from $spolehlivost_frazi\n";
 my $phrases_count = 0;
 while (<PHRASES>) {
   chomp();
@@ -41,6 +45,43 @@ while (<PHRASES>) {
   }
 }
 print STDERR "$phrases_count phrases have been read from file $spolehlivost_frazi:\n";
+
+
+# If an .ann file with manual annotation is provided for measuring the success rate, read the file now
+# e.g.
+# T16	anonymous-partial 1360 1365	vědců
+# T23	PHRASE 1354 1359	podle
+
+my %h_phrase_range2text;
+my %h_source_range2text;
+my %h_source_range2type;
+
+if ($ann) {
+  open my $ann_handle, '<:encoding(utf8)', $ann
+    or die "Cannot open file '$ann' for reading: $!";
+  print STDERR "Reading manual annotation from $ann\n";
+  while(my $line = <$ann_handle>) {
+    if ($line =~ /^\S+\t(\S+)\ (\d+) (\d+)\t(.+)$/) {
+      my ($event, $start, $end, $text) = ($1, $2, $3, $4);
+      if ($event =~ /PHRASE/) {
+        $h_phrase_range2text{"$start:$end"} = $text;
+      }
+      else {
+        $h_source_range2text{"$start:$end"} = $text;
+        $h_source_range2type{"$start:$end"} = $event;        
+      }
+    }
+  }
+  close($ann_handle);
+  print STDERR " - PHRASES:\n";
+  foreach my $range (keys(%h_phrase_range2text)) {
+    print STDERR "   - $range - $h_phrase_range2text{$range}\n";
+  }
+  print STDERR " - SOURCES:\n";
+  foreach my $range (keys(%h_source_range2text)) {
+    print STDERR "   - $range - $h_source_range2text{$range} - $h_source_range2type{$range}\n";
+  }
+}
 
 
 # Now let us read the text file where citations should be searched for
@@ -127,6 +168,7 @@ foreach my $line (@lines) {
         #    _create_multiword($n, $root, $misc, $form);
         #    next
         #}
+        next if $n =~ /-/; # For now, let us get rid of joined tokens (e.g. 5-6)
 
         #$feats = _create_feats($feats);
         #$deps = [ map {
@@ -147,6 +189,11 @@ foreach my $line (@lines) {
         set_attr($node, 'misc', $misc);
         set_attr($node, 'head', $head);
         
+        if ($misc =~ /TokenRange=(\d+):(\d+)\b/) {
+          set_attr($node, 'start', $1);
+          set_attr($node, 'end', $2);
+        }
+        
         $root->addChild($node);
         
     }
@@ -162,7 +209,11 @@ if ($root) {
 # end of Jan Štěpánek's modified cycle for reading UD CONLL
 
 
+
+###################################################################################
 # Now we have dependency trees of the sentences; let us search for citation phrases
+###################################################################################
+
 
 foreach $root (@trees) {
   print STDERR "\n====================================================================\n";
@@ -174,22 +225,27 @@ foreach $root (@trees) {
     my $form_lc = lc(attr($node, 'form'));
     my $reliability = $phrase2reliability{$form_lc};
     if ($reliability) {
-      print STDERR "Found phrase $form_lc with reliability $reliability\n";
+      print STDERR "Found phrase '$form_lc' with reliability $reliability\n";
       if ($reliability > $MIN_RELIABILITY) {
         print STDERR " - reliability is greater than threshold $MIN_RELIABILITY\n";
+        evaluate('phrase', $node);
         if ($form_lc eq 'podle') { # special treatment
           my $parent = $node->getParent;
           my $source = attr($parent, 'form');
-          my $whole_source = get_whole_source($parent);
+          my @whole_source_nodes = get_whole_source_nodes($parent);
+          my $whole_source = get_text(@whole_source_nodes);
           print STDERR " - SOURCE parent: $source\n - WHOLE SOURCE: $whole_source\n";
+          evaluate('source', @whole_source_nodes);
         }
         else {
           my @children = $node->getAllChildren;
           my @nsubj = grep {attr($_, 'deprel') eq 'nsubj'} @children;
           if (@nsubj) {
             my $subject = attr($nsubj[0], 'form');
-            my $whole_source = get_whole_source($nsubj[0]);
+            my @whole_source_nodes = get_whole_source_nodes($nsubj[0]);
+            my $whole_source = get_text(@whole_source_nodes);
             print STDERR " - SOURCE nsubj: $subject\n - WHOLE SOURCE: $whole_source\n";
+            evaluate('source', @whole_source_nodes);
           }
         }
       }
@@ -198,21 +254,80 @@ foreach $root (@trees) {
 }
 
 
+=item evaluate
 
-=item get_whole_source
-
-For the given source node, it collects the whole source text.
+Checks the event (source or phrase) for presence 
 
 =cut
 
-sub get_whole_source {
+sub evaluate {
+  my ($type, @nodes) = @_;
+  return if !$ann; # do nothing if no manuall annotation was provided
+  
+  my $eval;
+  my $range = get_range(@nodes);
+  if ($type eq 'source') {
+    if ($h_source_range2text{$range}) {
+      $eval = "HIT";
+    }
+    else {
+      $eval = "MISS";
+    }
+  }
+  else { # phrase
+    if ($h_phrase_range2text{$range}) {
+      $eval = "HIT";
+    }
+    else {
+      $eval = "MISS";
+    }
+  }
+  print STDERR "   - evaluation: $eval\n";
+}
+
+
+=item get_range
+
+Returns a text index range for an array of nodes
+For now it ignores a possibility of non-contiguous ranges
+
+=cut
+
+sub get_range {
+  my @nodes = @_;
+  my $start = min(map {attr($_, 'start')} @nodes);
+  my $end = max(map {attr($_, 'end')} @nodes);
+  return "$start:$end";
+}
+
+
+=item get_text
+
+Given an array of nodes, it gives their surface text
+
+=cut
+
+sub get_text {
+  my @nodes = @_;
+  my @nodes_ordered = sort {attr($a, 'ord') <=> attr($b, 'ord')} @nodes;
+  my $text = join(' ', map {attr($_, 'form')} @nodes_ordered);
+  return $text;
+}
+
+
+=item get_whole_source
+
+For the given source node, it collects all nodes representing the whole source.
+
+=cut
+
+sub get_whole_source_nodes {
   my $node = shift;
   my @source_nodes = get_source_nodes($node);
   push(@source_nodes, $node);
-  my @source_nodes_ordered = sort {attr($a, 'ord') <=> attr($b, 'ord')} @source_nodes;
-  my $text = join(' ', map {attr($_, 'form')} @source_nodes_ordered);
-  return $text;
+  return @source_nodes;
 }
+
 
 =item get_source_nodes
 
@@ -222,8 +337,13 @@ It recursively adds sons whith deprel nmod, amod, flat and case (with exception 
 
 sub get_source_nodes {
   my $node = shift;
+  
+  if (attr($node, 'deprel') eq 'acl:relcl') { # rel. clause, e.g. "lidé, které Radiožurnál oslovil"
+    return descendants($node);
+  }
+  
   my @source_sons = grep {attr($_, 'lemma') ne 'podle'}
-                    grep {attr($_, 'deprel') =~ /^(nmod|amod|flat|case)$/}
+                    grep {attr($_, 'deprel') =~ /^(nmod|amod|flat|case|acl:relcl)$/}
                     $node->getAllChildren;
   my @whole_source_nodes = @source_sons;
   foreach my $son (@source_sons) {
@@ -237,6 +357,10 @@ sub get_source_nodes {
 sub _create_structure {
     my ($root) = @_;
     my %node_by_ord = map +(attr($_, 'ord') => $_), $root->getAllChildren;
+    # print STDERR "_create_structure: \%node_by_ord:\n";
+    foreach my $ord (sort {$a <=> $b} keys(%node_by_ord)) {
+      # print STDERR "_create_structure:   - $ord: " . attr($node_by_ord{$ord}, 'form') . "\n";
+    }
     foreach my $node ($root->getAllChildren) {
         my $head = attr($node, 'head');
         # print STDERR "_create_structure: head $head\n";
@@ -265,13 +389,13 @@ sub print_children {
 
 sub set_attr {
   my ($node, $attr, $value) = @_;
-  my $refha_props = $node->getNodeValue($node);
+  my $refha_props = $node->getNodeValue();
   $$refha_props{$attr} = $value;
 }
 
 sub attr {
   my ($node, $attr) = @_;
-  my $refha_props = $node->getNodeValue($node);
+  my $refha_props = $node->getNodeValue();
   return $$refha_props{$attr};
 }
 
@@ -298,7 +422,7 @@ sub call_udpipe {
     my $text = shift;
 
     # Nastavení URL pro volání REST::API s parametry
-    my $url = 'http://lindat.mff.cuni.cz/services/udpipe/api/process?tokenizer&tagger&parser&data=' . uri_escape_utf8($text);
+    my $url = 'http://lindat.mff.cuni.cz/services/udpipe/api/process?tokenizer=ranges&tagger&parser&data=' . uri_escape_utf8($text);
 
     # Vytvoření instance LWP::UserAgent
     my $ua = LWP::UserAgent->new;
