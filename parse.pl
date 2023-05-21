@@ -47,14 +47,23 @@ while (<PHRASES>) {
 print STDERR "$phrases_count phrases have been read from file $spolehlivost_frazi:\n";
 
 
+###################################################################################
 # If an .ann file with manual annotation is provided for measuring the success rate, read the file now
 # e.g.
 # T16	anonymous-partial 1360 1365	vědců
 # T23	PHRASE 1354 1359	podle
+###################################################################################
 
+# hashes to keep info about manual annotation
+my %h_ann_phrase_range2text; # '1354:1359' => 'podle'
+my %h_ann_source_range2text; # '1360:1365' => 'vědců'
+my %h_ann_source_range2type; # '1360:1365' => 'anonymous-partial'
+
+# similar hashes to collect info about automatic recognition, to be compared with manual
 my %h_phrase_range2text;
 my %h_source_range2text;
 my %h_source_range2type;
+
 
 if ($ann) {
   open my $ann_handle, '<:encoding(utf8)', $ann
@@ -64,27 +73,29 @@ if ($ann) {
     if ($line =~ /^\S+\t(\S+)\ (\d+) (\d+)\t(.+)$/) {
       my ($event, $start, $end, $text) = ($1, $2, $3, $4);
       if ($event =~ /PHRASE/) {
-        $h_phrase_range2text{"$start:$end"} = $text;
+        $h_ann_phrase_range2text{"$start:$end"} = $text;
       }
       else {
-        $h_source_range2text{"$start:$end"} = $text;
-        $h_source_range2type{"$start:$end"} = $event;        
+        $h_ann_source_range2text{"$start:$end"} = $text;
+        $h_ann_source_range2type{"$start:$end"} = $event;        
       }
     }
   }
   close($ann_handle);
   print STDERR " - PHRASES:\n";
-  foreach my $range (keys(%h_phrase_range2text)) {
-    print STDERR "   - $range - $h_phrase_range2text{$range}\n";
+  foreach my $range (keys(%h_ann_phrase_range2text)) {
+    print STDERR "   - $range - $h_ann_phrase_range2text{$range}\n";
   }
   print STDERR " - SOURCES:\n";
-  foreach my $range (keys(%h_source_range2text)) {
-    print STDERR "   - $range - $h_source_range2text{$range} - $h_source_range2type{$range}\n";
+  foreach my $range (keys(%h_ann_source_range2text)) {
+    print STDERR "   - $range - $h_ann_source_range2text{$range} - $h_ann_source_range2type{$range}\n";
   }
 }
 
 
+###################################################################################
 # Now let us read the text file where citations should be searched for
+###################################################################################
 
 open my $file_handle, '<:encoding(utf8)', $file_name
   or die "Cannot open file '$file_name' for reading: $!";
@@ -97,7 +108,9 @@ close $file_handle;
 #print STDERR $file_content;
 
 
+###################################################################################
 # Let us parse the file using UDPipe REST API
+###################################################################################
 
 my $conll_data = call_udpipe($file_content);
 
@@ -116,7 +129,9 @@ print OUT $conll_data_ne;
 close(OUT);
 
 
+###################################################################################
 # Let us parse the CONLL format into Tree::Simple tree structures (one per sentence)
+###################################################################################
 
 my @lines = split("\n", $conll_data);
 
@@ -228,14 +243,14 @@ foreach $root (@trees) {
       print STDERR "Found phrase '$form_lc' with reliability $reliability\n";
       if ($reliability > $MIN_RELIABILITY) {
         print STDERR " - reliability is greater than threshold $MIN_RELIABILITY\n";
-        evaluate('phrase', $node);
+        evaluate_single_event('phrase', $node);
         if ($form_lc eq 'podle') { # special treatment
           my $parent = $node->getParent;
           my $source = attr($parent, 'form');
           my @whole_source_nodes = get_whole_source_nodes($parent);
           my $whole_source = get_text(@whole_source_nodes);
           print STDERR " - SOURCE parent: $source\n - WHOLE SOURCE: $whole_source\n";
-          evaluate('source', @whole_source_nodes);
+          evaluate_single_event('source', @whole_source_nodes);
         }
         else {
           my @children = $node->getAllChildren;
@@ -245,7 +260,7 @@ foreach $root (@trees) {
             my @whole_source_nodes = get_whole_source_nodes($nsubj[0]);
             my $whole_source = get_text(@whole_source_nodes);
             print STDERR " - SOURCE nsubj: $subject\n - WHOLE SOURCE: $whole_source\n";
-            evaluate('source', @whole_source_nodes);
+            evaluate_single_event('source', @whole_source_nodes);
           }
         }
       }
@@ -254,32 +269,160 @@ foreach $root (@trees) {
 }
 
 
-=item evaluate
+###################################################################################
+# Now evaluate the results and print info to STDERR
+# (from there it will be collected over multiple texts externally)
+#
+# hashes to keep info about manual annotation:
+# my %h_ann_phrase_range2text; # '1354:1359' => 'podle'
+# my %h_ann_source_range2text; # '1360:1365' => 'vědců'
+# my %h_ann_source_range2type; # '1360:1365' => 'anonymous-partial'
+#
+# similar hashes for automatic recognition, to be compared with manual:
+# my %h_phrase_range2text;
+# my %h_source_range2text;
+# my %h_source_range2type;
+###################################################################################
 
-Checks the event (source or phrase) for presence 
+# phrases:
+
+my @a_phrase_ranges = keys(%h_phrase_range2text);
+foreach my $ann_phrase_range (keys(%h_ann_phrase_range2text)) {
+  my $text = $h_ann_phrase_range2text{$ann_phrase_range};
+  if ($h_phrase_range2text{$ann_phrase_range}) {
+    print STDERR "EVALUATION-EXACT-PHRASE-HIT\t$ann_phrase_range\t$text\t$ann_phrase_range\t$text\n";
+    print STDERR "EVALUATION-PARTIAL-PHRASE-HIT\t$ann_phrase_range\t$text\t$ann_phrase_range\t$text\n";
+  }
+  else {
+    print STDERR "EVALUATION-EXACT-PHRASE-FALSE-NEGATIVE\tN/A\tN/A\t$ann_phrase_range\t$text\n";
+    my $partial_phrase_range = partial_match($ann_phrase_range, \%h_phrase_range2text);
+    if ($partial_phrase_range) {
+      my $partial_text = $h_phrase_range2text{$partial_phrase_range};
+      print STDERR "EVALUATION-PARTIAL-PHRASE-HIT\t$partial_phrase_range\t$partial_text\t$ann_phrase_range\t$text\n";
+    }
+    else {
+      print STDERR "EVALUATION-PARTIAL-PHRASE-FALSE-NEGATIVE\tN/A\tN/A\t$ann_phrase_range\t$text\n";
+    }
+  }
+}
+
+foreach my $phrase_range (keys(%h_phrase_range2text)) {
+  next if $h_ann_phrase_range2text{$phrase_range}; # exact hit, already reported
+  my $text = $h_phrase_range2text{$phrase_range};
+  print STDERR "EVALUATION-EXACT-PHRASE-FALSE-POSITIVE\t$phrase_range\t$text\tN/A\tN/A\n";
+  
+  next if partial_match($phrase_range, \%h_ann_phrase_range2text); # partial hit, already reported
+  print STDERR "EVALUATION-PARTIAL-PHRASE-FALSE-POSITIVE\t$phrase_range\t$text\tN/A\tN/A\n";
+}
+
+# sources:
+
+my @a_source_ranges = keys(%h_source_range2text);
+foreach my $ann_source_range (keys(%h_ann_source_range2text)) {
+  my $text = $h_ann_source_range2text{$ann_source_range};
+  if ($h_source_range2text{$ann_source_range}) {
+    print STDERR "EVALUATION-EXACT-SOURCE-HIT\t$ann_source_range\t$text\t$ann_source_range\t$text\n";
+    print STDERR "EVALUATION-PARTIAL-SOURCE-HIT\t$ann_source_range\t$text\t$ann_source_range\t$text\n";
+  }
+  else {
+    print STDERR "EVALUATION-EXACT-SOURCE-FALSE-NEGATIVE\tN/A\tN/A\t$ann_source_range\t$text\n";
+    my $partial_source_range = partial_match($ann_source_range, \%h_source_range2text);
+    if ($partial_source_range) {
+      my $partial_text = $h_source_range2text{$partial_source_range};
+      print STDERR "EVALUATION-PARTIAL-SOURCE-HIT\t$partial_source_range\t$partial_text\t$ann_source_range\t$text\n";
+    }
+    else {
+      print STDERR "EVALUATION-PARTIAL-SOURCE-FALSE-NEGATIVE\tN/A\tN/A\t$ann_source_range\t$text\n";
+    }
+  }
+}
+
+foreach my $source_range (keys(%h_source_range2text)) {
+  next if $h_ann_source_range2text{$source_range}; # exact hit, already reported
+  my $text = $h_source_range2text{$source_range};
+  print STDERR "EVALUATION-EXACT-SOURCE-FALSE-POSITIVE\t$source_range\t$text\tN/A\tN/A\n";
+  
+  next if partial_match($source_range, \%h_ann_source_range2text); # partial hit, already reported
+  print STDERR "EVALUATION-PARTIAL-SOURCE-FALSE-POSITIVE\t$source_range\t$text\tN/A\tN/A\n";
+}
+
+
+
+
+
+
+=item partial_match
+
+Returns range from keys of given hash that at least partially overlaps with the given range.
+Otherwise returns undef.
 
 =cut
 
-sub evaluate {
-  my ($type, @nodes) = @_;
+sub partial_match {
+  my ($range, $rh_range2text) = @_;
+  if ($range =~ /^(\d+):(\d+)$/) {
+    my ($start, $end) = ($1, $2);
+    my @ranges = keys(%$rh_range2text);
+    foreach my $r (@ranges) {
+      if ($r =~ /^(\d+):(\d+)$/) {
+        my ($s, $e) = ($1, $2);
+        next if ($e<$start or $end<$s);
+        return $r;
+      }
+    }
+  }
+  return undef;
+}
+
+=item evaluate_single_event
+
+Checks the event (source or phrase) with the given nodes representing a text for presence in the manual annotation.
+Prints immediate info about matching/missing
+and collects info about automatic annotation in these hashes:
+my %h_phrase_range2text;
+my %h_source_range2text;
+my %h_source_range2type; (not yet used)
+
+=cut
+
+sub evaluate_single_event {
+  my ($event, @nodes) = @_;
   return if !$ann; # do nothing if no manuall annotation was provided
   
   my $eval;
   my $range = get_range(@nodes);
-  if ($type eq 'source') {
-    if ($h_source_range2text{$range}) {
+  my $text = get_text(@nodes);
+  
+  if ($event eq 'source') {
+    $h_source_range2text{$range} = get_text(@nodes);
+    if ($h_ann_source_range2text{$range}) {
       $eval = "HIT";
     }
     else {
-      $eval = "MISS";
+      my $partial_source_range = partial_match($range, \%h_ann_source_range2text);
+      if ($partial_source_range) {
+        my $partial_text = $h_ann_source_range2text{$partial_source_range};
+        $eval = "PARTIAL: '$text' vs. manual '$partial_text'\n";
+      }
+      else {
+        $eval = "MISS";
+      }
     }
   }
   else { # phrase
-    if ($h_phrase_range2text{$range}) {
+    $h_phrase_range2text{$range} = get_text(@nodes);
+    if ($h_ann_phrase_range2text{$range}) {
       $eval = "HIT";
     }
     else {
-      $eval = "MISS";
+      my $partial_phrase_range = partial_match($range, \%h_ann_phrase_range2text);
+      if ($partial_phrase_range) {
+        my $partial_text = $h_ann_phrase_range2text{$partial_phrase_range};
+        $eval = "PARTIAL: '$text' vs. manual '$partial_text'\n";
+      }
+      else {
+        $eval = "MISS";
+      }
     }
   }
   print STDERR "   - evaluation: $eval\n";
@@ -331,7 +474,7 @@ sub get_whole_source_nodes {
 
 =item get_source_nodes
 
-It recursively adds sons whith deprel nmod, amod, flat and case (with exception of 'podle').
+It recursively adds sons whith deprel nmod, amod, flat, case (with exception of 'podle') and acl:relcl (acl:relcl with the whole subtree right away)
 
 =cut
 
@@ -408,6 +551,14 @@ sub descendants {
   return @children;
 }
   
+sub root {
+  my $node = shift;
+  while ($node->getParent) {
+    $node = $node->getParent;
+  }
+  return $node;
+}
+
 
 ######### PARSING THE TEXT WITH UDPIPE #########
 
