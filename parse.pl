@@ -139,6 +139,9 @@ my @trees = (); # array of trees in the document
 
 my $root; # a single root
 
+my $min_start = 10000; # from indexes of the tokens, we will get indexes of the sentence
+my $max_end = 0;
+
 # the following cycle for reading UD CONLL is modified from Jan Štěpánek's UD TrEd extension
 foreach my $line (@lines) {
     chomp($line);
@@ -158,6 +161,9 @@ foreach my $line (@lines) {
 
     } elsif ($line =~ /^$/) {
         _create_structure($root);
+        set_attr($root, 'start', $min_start);
+        set_attr($root, 'end', $max_end);
+        $min_start = $max_end = 0;
         push(@trees, $root);
         #print STDERR "End of sentence id='" . attr($root, 'id') . "'.\n\n";
         $root = undef;
@@ -205,8 +211,11 @@ foreach my $line (@lines) {
         set_attr($node, 'head', $head);
         
         if ($misc =~ /TokenRange=(\d+):(\d+)\b/) {
-          set_attr($node, 'start', $1);
-          set_attr($node, 'end', $2);
+          my ($start, $end) = ($1, $2);
+          set_attr($node, 'start', $start);
+          set_attr($node, 'end', $end);
+          $min_start = $start if $start < $min_start;
+          $max_end = $end if $end > $max_end;          
         }
         
         $root->addChild($node);
@@ -216,6 +225,8 @@ foreach my $line (@lines) {
 # If there wasn't an empty line at the end of the file, we need to process the last tree here:
 if ($root) {
     _create_structure($root);
+    set_attr($root, 'start', $min_start);
+    set_attr($root, 'end', $max_end);
     push(@trees, $root);
     #print STDERR "End of sentence id='" . attr($root, 'id') . "'.\n\n";
     $root = undef;
@@ -289,19 +300,20 @@ foreach $root (@trees) {
 my @a_phrase_ranges = keys(%h_phrase_range2text);
 foreach my $ann_phrase_range (keys(%h_ann_phrase_range2text)) {
   my $text = $h_ann_phrase_range2text{$ann_phrase_range};
+  my $sentence = get_sentence($ann_phrase_range);
   if ($h_phrase_range2text{$ann_phrase_range}) {
-    print STDERR "EVALUATION-EXACT-PHRASE-HIT\t$ann_phrase_range\t$text\t$ann_phrase_range\t$text\n";
-    print STDERR "EVALUATION-PARTIAL-PHRASE-HIT\t$ann_phrase_range\t$text\t$ann_phrase_range\t$text\n";
+    print_eval('EVALUATION-EXACT-PHRASE-HIT', $ann_phrase_range, $text, $ann_phrase_range, $text, $sentence);
+    print_eval('EVALUATION-PARTIAL-PHRASE-HIT', $ann_phrase_range, $text, $ann_phrase_range, $text, $sentence);
   }
   else {
-    print STDERR "EVALUATION-EXACT-PHRASE-FALSE-NEGATIVE\tN/A\tN/A\t$ann_phrase_range\t$text\n";
+    print_eval('EVALUATION-EXACT-PHRASE-FALSE-NEGATIVE', 'N/A', 'N/A', $ann_phrase_range, $text, $sentence);
     my $partial_phrase_range = partial_match($ann_phrase_range, \%h_phrase_range2text);
     if ($partial_phrase_range) {
       my $partial_text = $h_phrase_range2text{$partial_phrase_range};
-      print STDERR "EVALUATION-PARTIAL-PHRASE-HIT\t$partial_phrase_range\t$partial_text\t$ann_phrase_range\t$text\n";
+      print_eval('EVALUATION-PARTIAL-PHRASE-HIT', $partial_phrase_range, $partial_text, $ann_phrase_range, $text, $sentence);
     }
     else {
-      print STDERR "EVALUATION-PARTIAL-PHRASE-FALSE-NEGATIVE\tN/A\tN/A\t$ann_phrase_range\t$text\n";
+      print_eval('EVALUATION-PARTIAL-PHRASE-FALSE-NEGATIVE', 'N/A', 'N/A', $ann_phrase_range, $text, $sentence);
     }
   }
 }
@@ -309,10 +321,11 @@ foreach my $ann_phrase_range (keys(%h_ann_phrase_range2text)) {
 foreach my $phrase_range (keys(%h_phrase_range2text)) {
   next if $h_ann_phrase_range2text{$phrase_range}; # exact hit, already reported
   my $text = $h_phrase_range2text{$phrase_range};
-  print STDERR "EVALUATION-EXACT-PHRASE-FALSE-POSITIVE\t$phrase_range\t$text\tN/A\tN/A\n";
+  my $sentence = get_sentence($phrase_range);
+  print_eval('EVALUATION-EXACT-PHRASE-FALSE-POSITIVE', $phrase_range, $text, 'N/A', 'N/A', $sentence);
   
   next if partial_match($phrase_range, \%h_ann_phrase_range2text); # partial hit, already reported
-  print STDERR "EVALUATION-PARTIAL-PHRASE-FALSE-POSITIVE\t$phrase_range\t$text\tN/A\tN/A\n";
+  print_eval('EVALUATION-PARTIAL-PHRASE-FALSE-POSITIVE', $phrase_range, $text, 'N/A', 'N/A', $sentence);
 }
 
 # sources:
@@ -320,19 +333,20 @@ foreach my $phrase_range (keys(%h_phrase_range2text)) {
 my @a_source_ranges = keys(%h_source_range2text);
 foreach my $ann_source_range (keys(%h_ann_source_range2text)) {
   my $text = $h_ann_source_range2text{$ann_source_range};
+  my $sentence = get_sentence($ann_source_range);
   if ($h_source_range2text{$ann_source_range}) {
-    print STDERR "EVALUATION-EXACT-SOURCE-HIT\t$ann_source_range\t$text\t$ann_source_range\t$text\n";
-    print STDERR "EVALUATION-PARTIAL-SOURCE-HIT\t$ann_source_range\t$text\t$ann_source_range\t$text\n";
+    print_eval('EVALUATION-EXACT-SOURCE-HIT', $ann_source_range, $text, $ann_source_range, $text, $sentence);
+    print_eval('EVALUATION-PARTIAL-SOURCE-HIT', $ann_source_range, $text, $ann_source_range, $text, $sentence);
   }
   else {
-    print STDERR "EVALUATION-EXACT-SOURCE-FALSE-NEGATIVE\tN/A\tN/A\t$ann_source_range\t$text\n";
+    print_eval('EVALUATION-EXACT-SOURCE-FALSE-NEGATIVE', 'N/A', 'N/A', $ann_source_range, $text, $sentence);
     my $partial_source_range = partial_match($ann_source_range, \%h_source_range2text);
     if ($partial_source_range) {
       my $partial_text = $h_source_range2text{$partial_source_range};
-      print STDERR "EVALUATION-PARTIAL-SOURCE-HIT\t$partial_source_range\t$partial_text\t$ann_source_range\t$text\n";
+      print_eval('EVALUATION-PARTIAL-SOURCE-HIT', $partial_source_range, $partial_text, $ann_source_range, $text, $sentence);
     }
     else {
-      print STDERR "EVALUATION-PARTIAL-SOURCE-FALSE-NEGATIVE\tN/A\tN/A\t$ann_source_range\t$text\n";
+      print_eval('EVALUATION-PARTIAL-SOURCE-FALSE-NEGATIVE', 'N/A', 'N/A', $ann_source_range, $text, $sentence);
     }
   }
 }
@@ -340,15 +354,62 @@ foreach my $ann_source_range (keys(%h_ann_source_range2text)) {
 foreach my $source_range (keys(%h_source_range2text)) {
   next if $h_ann_source_range2text{$source_range}; # exact hit, already reported
   my $text = $h_source_range2text{$source_range};
-  print STDERR "EVALUATION-EXACT-SOURCE-FALSE-POSITIVE\t$source_range\t$text\tN/A\tN/A\n";
+  my $sentence = get_sentence($source_range);
+  print_eval('EVALUATION-EXACT-SOURCE-FALSE-POSITIVE', $source_range, $text, 'N/A', 'N/A', $sentence);
   
   next if partial_match($source_range, \%h_ann_source_range2text); # partial hit, already reported
-  print STDERR "EVALUATION-PARTIAL-SOURCE-FALSE-POSITIVE\t$source_range\t$text\tN/A\tN/A\n";
+  print_eval('EVALUATION-PARTIAL-SOURCE-FALSE-POSITIVE', $source_range, $text, 'N/A', 'N/A', $sentence);
 }
 
 
 
+=item print_eval
 
+Prints a single evaluation out to STDERR in TSV and HTML formats.
+
+=cut
+
+sub print_eval {
+  my ($type, $auto_range, $auto_text, $ann_range, $ann_text, $sentence) = @_;
+  # first print the simple TSV evaluation line:
+  print STDERR "TSV-$type\t$auto_range\t$auto_text\t$ann_range\t$ann_text\t$sentence\n";
+  # now produce the HTML evaluation line:
+  my $color = 'green'; # default for HIT
+  if ($type =~ /NEGATIVE/) {
+    $color = 'blue';
+  }
+  elsif ($type =~ /POSITIVE/) {
+    $color = 'red';
+  }
+  my $background = 'white'; # default for sources
+  if ($type =~ /PHRASE/) {
+    $background = 'beige';
+  }
+  print STDERR "<tr style=\"color: $color; background-color: $background\"><td>HTML-$type</td><td>$auto_text</td><td>$ann_text</td><td>$sentence</td></tr>\n";
+}
+
+
+
+=item get_sentence
+
+Given a range of text indexes (e.g. "124:129"), it returns the sentence to which the range belongs.
+
+=cut
+
+sub get_sentence {
+  my $range = shift;
+  if ($range =~ /^(\d+):(\d+)/) {
+    my ($start, $end) = ($1, $2);
+    foreach $root (@trees) { # go through all sentences
+      if (attr($root, 'start') <= $start and attr($root, 'end') >= $end) { # we found the tree
+        return attr($root, 'text');
+      }
+    }
+  }
+  else {
+    return 'N/A';
+  }
+}
 
 
 =item partial_match
