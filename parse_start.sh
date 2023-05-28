@@ -20,15 +20,13 @@ for A in ../data/test/*.txt; do
 
 done
 
-cat err | grep "TSV-EVALUATION-EXACT" >evaluation-exact.tsv
-cat err | grep "TSV-EVALUATION-PARTIAL" >evaluation-partial.tsv
-
 echo -e "<html>\n<body>\n<h1>Exact-match evaluation</h1>\n" >evaluation-exact.html
-echo -e "<table>\n<tr><th>type</th><th>automatic</th><th>manual</th><th>sentence</th></tr>\n" >>evaluation-exact.html
 echo -e "<p>White background for SOURCES, <span style=\"background-color: beige\">beige background for PHRASES</span>.<br><span style=\"color: green\">Green color for HITS</span>, <span style=\"color: blue\">blue color for FALSE NEGATIVES</span>, <span style=\"color: red\">red color for FALSE POSITIVES</span></p>\n" >>evaluation-exact.html
+echo -e "<table>\n<tr><th>type</th><th>automatic</th><th>manual</th><th>sentence</th></tr>\n" >>evaluation-exact.html
+
 echo -e "<html>\n<body>\n<h1>Partial-match evaluation</h1>\n" >evaluation-partial.html
-echo -e "<table>\n<tr><th>type</th><th>automatic</th><th>manual</th><th>sentence</th></tr>\n" >>evaluation-partial.html
 echo -e "<p>White background for SOURCES, <span style=\"background-color: beige\">beige background for PHRASES</span>.<br><span style=\"color: green\">Green color for HITS</span>, <span style=\"color: blue\">blue color for FALSE NEGATIVES</span>, <span style=\"color: red\">red color for FALSE POSITIVES</span></p>\n" >>evaluation-partial.html
+echo -e "<table>\n<tr><th>type</th><th>automatic</th><th>manual</th><th>sentence</th></tr>\n" >>evaluation-partial.html
 
 cat err | grep "HTML-EVALUATION-EXACT" >>evaluation-exact.html
 cat err | grep "HTML-EVALUATION-PARTIAL" >>evaluation-partial.html
@@ -67,5 +65,5 @@ F1=$(echo "scale=2 ; 2 * $P * $R / ( $P + $R)" | bc)
 
 echo "P=$P, R=$R, F1=$F1"
 
-echo "</body>\n</html>\n" >>evaluation-exact.html
-echo "</table>\n</html>\n" >>evaluation-partial.html
+echo -e "</body>\n</html>\n" >>evaluation-exact.html
+echo -e "</table>\n</html>\n" >>evaluation-partial.html

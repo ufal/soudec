@@ -163,7 +163,8 @@ foreach my $line (@lines) {
         _create_structure($root);
         set_attr($root, 'start', $min_start);
         set_attr($root, 'end', $max_end);
-        $min_start = $max_end = 0;
+        $min_start = $min_start = 10000;
+        $max_end = 0;
         push(@trees, $root);
         #print STDERR "End of sentence id='" . attr($root, 'id') . "'.\n\n";
         $root = undef;
@@ -254,14 +255,14 @@ foreach $root (@trees) {
       print STDERR "Found phrase '$form_lc' with reliability $reliability\n";
       if ($reliability > $MIN_RELIABILITY) {
         print STDERR " - reliability is greater than threshold $MIN_RELIABILITY\n";
-        evaluate_single_event('phrase', $node);
+        evaluate_single_event('phrase', $root, $node);
         if ($form_lc eq 'podle') { # special treatment
           my $parent = $node->getParent;
           my $source = attr($parent, 'form');
           my @whole_source_nodes = get_whole_source_nodes($parent);
           my $whole_source = get_text(@whole_source_nodes);
           print STDERR " - SOURCE parent: $source\n - WHOLE SOURCE: $whole_source\n";
-          evaluate_single_event('source', @whole_source_nodes);
+          evaluate_single_event('source', $root, @whole_source_nodes);
         }
         else {
           my @children = $node->getAllChildren;
@@ -271,94 +272,15 @@ foreach $root (@trees) {
             my @whole_source_nodes = get_whole_source_nodes($nsubj[0]);
             my $whole_source = get_text(@whole_source_nodes);
             print STDERR " - SOURCE nsubj: $subject\n - WHOLE SOURCE: $whole_source\n";
-            evaluate_single_event('source', @whole_source_nodes);
+            evaluate_single_event('source', $root, @whole_source_nodes);
           }
         }
       }
     }
   }
-}
-
-
-###################################################################################
-# Now evaluate the results and print info to STDERR
-# (from there it will be collected over multiple texts externally)
-#
-# hashes to keep info about manual annotation:
-# my %h_ann_phrase_range2text; # '1354:1359' => 'podle'
-# my %h_ann_source_range2text; # '1360:1365' => 'vědců'
-# my %h_ann_source_range2type; # '1360:1365' => 'anonymous-partial'
-#
-# similar hashes for automatic recognition, to be compared with manual:
-# my %h_phrase_range2text;
-# my %h_source_range2text;
-# my %h_source_range2type;
-###################################################################################
-
-# phrases:
-
-my @a_phrase_ranges = keys(%h_phrase_range2text);
-foreach my $ann_phrase_range (keys(%h_ann_phrase_range2text)) {
-  my $text = $h_ann_phrase_range2text{$ann_phrase_range};
-  my $sentence = get_sentence($ann_phrase_range);
-  if ($h_phrase_range2text{$ann_phrase_range}) {
-    print_eval('EVALUATION-EXACT-PHRASE-HIT', $ann_phrase_range, $text, $ann_phrase_range, $text, $sentence);
-    print_eval('EVALUATION-PARTIAL-PHRASE-HIT', $ann_phrase_range, $text, $ann_phrase_range, $text, $sentence);
-  }
-  else {
-    print_eval('EVALUATION-EXACT-PHRASE-FALSE-NEGATIVE', 'N/A', 'N/A', $ann_phrase_range, $text, $sentence);
-    my $partial_phrase_range = partial_match($ann_phrase_range, \%h_phrase_range2text);
-    if ($partial_phrase_range) {
-      my $partial_text = $h_phrase_range2text{$partial_phrase_range};
-      print_eval('EVALUATION-PARTIAL-PHRASE-HIT', $partial_phrase_range, $partial_text, $ann_phrase_range, $text, $sentence);
-    }
-    else {
-      print_eval('EVALUATION-PARTIAL-PHRASE-FALSE-NEGATIVE', 'N/A', 'N/A', $ann_phrase_range, $text, $sentence);
-    }
-  }
-}
-
-foreach my $phrase_range (keys(%h_phrase_range2text)) {
-  next if $h_ann_phrase_range2text{$phrase_range}; # exact hit, already reported
-  my $text = $h_phrase_range2text{$phrase_range};
-  my $sentence = get_sentence($phrase_range);
-  print_eval('EVALUATION-EXACT-PHRASE-FALSE-POSITIVE', $phrase_range, $text, 'N/A', 'N/A', $sentence);
   
-  next if partial_match($phrase_range, \%h_ann_phrase_range2text); # partial hit, already reported
-  print_eval('EVALUATION-PARTIAL-PHRASE-FALSE-POSITIVE', $phrase_range, $text, 'N/A', 'N/A', $sentence);
-}
-
-# sources:
-
-my @a_source_ranges = keys(%h_source_range2text);
-foreach my $ann_source_range (keys(%h_ann_source_range2text)) {
-  my $text = $h_ann_source_range2text{$ann_source_range};
-  my $sentence = get_sentence($ann_source_range);
-  if ($h_source_range2text{$ann_source_range}) {
-    print_eval('EVALUATION-EXACT-SOURCE-HIT', $ann_source_range, $text, $ann_source_range, $text, $sentence);
-    print_eval('EVALUATION-PARTIAL-SOURCE-HIT', $ann_source_range, $text, $ann_source_range, $text, $sentence);
-  }
-  else {
-    print_eval('EVALUATION-EXACT-SOURCE-FALSE-NEGATIVE', 'N/A', 'N/A', $ann_source_range, $text, $sentence);
-    my $partial_source_range = partial_match($ann_source_range, \%h_source_range2text);
-    if ($partial_source_range) {
-      my $partial_text = $h_source_range2text{$partial_source_range};
-      print_eval('EVALUATION-PARTIAL-SOURCE-HIT', $partial_source_range, $partial_text, $ann_source_range, $text, $sentence);
-    }
-    else {
-      print_eval('EVALUATION-PARTIAL-SOURCE-FALSE-NEGATIVE', 'N/A', 'N/A', $ann_source_range, $text, $sentence);
-    }
-  }
-}
-
-foreach my $source_range (keys(%h_source_range2text)) {
-  next if $h_ann_source_range2text{$source_range}; # exact hit, already reported
-  my $text = $h_source_range2text{$source_range};
-  my $sentence = get_sentence($source_range);
-  print_eval('EVALUATION-EXACT-SOURCE-FALSE-POSITIVE', $source_range, $text, 'N/A', 'N/A', $sentence);
+  evaluate_false_negatives($root);
   
-  next if partial_match($source_range, \%h_ann_source_range2text); # partial hit, already reported
-  print_eval('EVALUATION-PARTIAL-SOURCE-FALSE-POSITIVE', $source_range, $text, 'N/A', 'N/A', $sentence);
 }
 
 
@@ -370,7 +292,9 @@ Prints a single evaluation out to STDERR in TSV and HTML formats.
 =cut
 
 sub print_eval {
-  my ($type, $auto_range, $auto_text, $ann_range, $ann_text, $sentence) = @_;
+  my ($type, $auto_range, $auto_text, $ann_range, $ann_text) = @_;
+  my $range = ($auto_range =~/^\d+:\d+$/) ? $auto_range : $ann_range;
+  my $sentence = get_sentence_html($auto_range, $ann_range);
   # first print the simple TSV evaluation line:
   print STDERR "TSV-$type\t$auto_range\t$auto_text\t$ann_range\t$ann_text\t$sentence\n";
   # now produce the HTML evaluation line:
@@ -385,7 +309,7 @@ sub print_eval {
   if ($type =~ /PHRASE/) {
     $background = 'beige';
   }
-  print STDERR "<tr style=\"color: $color; background-color: $background\"><td>HTML-$type</td><td>$auto_text</td><td>$ann_text</td><td>$sentence</td></tr>\n";
+  print STDERR "<tr style=\"color: $color; background-color: $background\"><td>HTML-$type</td><td><b>$auto_text</b></td><td><u>$ann_text</u></td><td>$sentence</td></tr>\n";
 }
 
 
@@ -412,9 +336,76 @@ sub get_sentence {
 }
 
 
+=item get_sentence_html
+
+Given two ranges of text indexes (e.g. "124:129"), it returns the sentence to which they belong.
+The function uses the first range that is in the correct format and suppose that the other one is either to be omitted or from the same sentence.
+Both ranges are marked in the sentence; the first one with bold, the other one with underline.
+
+=cut
+
+sub get_sentence_html {
+  my ($range_auto, $range_manual) = @_;
+
+  print STDERR "get_sentence_html: $range_auto, $range_manual\n";
+  
+  # check if there is auto range given
+  my ($start_auto, $end_auto) = (10000, -1);
+  if ($range_auto and $range_auto =~ /^(\d+):(\d+)/) {
+    ($start_auto, $end_auto) = ($1, $2);
+  }
+
+  # check if there is manual range given
+  my ($start_manual, $end_manual) = (10000, -1);
+  if ($range_manual and $range_manual =~ /^(\d+):(\d+)/) {
+    ($start_manual, $end_manual) = ($1, $2);
+  }
+  
+  print STDERR "get_sentence_html:   $start_auto, $end_auto, $start_manual, $end_manual\n";
+
+  if ($end_auto > 0 or $end_manual > 0) { # at least one of the given ranges was properly defined
+
+    my ($start, $end) = $end_auto > 0 ? ($start_auto, $end_auto) : ($start_manual, $end_manual); # for searching for the sentence
+    print STDERR "get_sentence_html:     start = $start, end = $end\n";
+
+    foreach $root (@trees) { # go through all sentences
+      my ($start_sent, $end_sent) = (attr($root, 'start'), attr($root, 'end'));
+      if ($start_sent <= $start and $end_sent >= $end) { # we found the tree
+        my $sentence_text = attr($root, 'text');
+        my $sentence_html = '';
+        for (my $i = 0; $i < length($sentence_text); $i++) {
+          if ($start_sent + $i == $start_auto) {
+              $sentence_html .= "<b>";
+          }
+          if ($start_sent + $i == $start_manual) {
+              $sentence_html .= "<u>";
+          }
+
+          if ($start_sent + $i == $end_manual) {
+              $sentence_html .= "</u>";
+          }
+          if ($start_sent + $i == $end_auto) {
+              $sentence_html .= "</b>";
+          }
+          
+          $sentence_html .= substr($sentence_text, $i, 1);
+          
+        }
+        return $sentence_html;
+      }
+    }
+  }
+  else {
+    return 'N/A';
+  }
+}
+
+
+
+
 =item partial_match
 
-Returns range from keys of given hash that at least partially overlaps with the given range.
+Returns range (in the form "start:end") from keys of given hash that at´ least partially overlaps with the given range.
 Otherwise returns undef.
 
 =cut
@@ -438,8 +429,9 @@ sub partial_match {
 =item evaluate_single_event
 
 Checks the event (source or phrase) with the given nodes representing a text for presence in the manual annotation.
-Prints immediate info about matching/missing
-and collects info about automatic annotation in these hashes:
+Prints info about matching/missing
+
+Also collects info about automatic annotation in these hashes:
 my %h_phrase_range2text;
 my %h_source_range2text;
 my %h_source_range2type; (not yet used)
@@ -447,46 +439,109 @@ my %h_source_range2type; (not yet used)
 =cut
 
 sub evaluate_single_event {
-  my ($event, @nodes) = @_;
+  my ($event, $root, @nodes) = @_;
   return if !$ann; # do nothing if no manuall annotation was provided
   
-  my $eval;
   my $range = get_range(@nodes);
   my $text = get_text(@nodes);
   
   if ($event eq 'source') {
     $h_source_range2text{$range} = get_text(@nodes);
     if ($h_ann_source_range2text{$range}) {
-      $eval = "HIT";
+      print_eval('EVALUATION-EXACT-SOURCE-HIT', $range, $text, $range, $text);
+      print_eval('EVALUATION-PARTIAL-SOURCE-HIT', $range, $text, $range, $text);
     }
     else {
+      print_eval('EVALUATION-EXACT-SOURCE-FALSE-POSITIVE', $range, $text, 'N/A', 'N/A');
       my $partial_source_range = partial_match($range, \%h_ann_source_range2text);
       if ($partial_source_range) {
         my $partial_text = $h_ann_source_range2text{$partial_source_range};
-        $eval = "PARTIAL: '$text' vs. manual '$partial_text'\n";
+        print_eval('EVALUATION-PARTIAL-SOURCE-HIT', $range, $text, $partial_source_range, $partial_text);
       }
       else {
-        $eval = "MISS";
+        print_eval('EVALUATION-PARTIAL-SOURCE-FALSE-POSITIVE', $range, $text, 'N/A', 'N/A');
       }
     }
   }
   else { # phrase
     $h_phrase_range2text{$range} = get_text(@nodes);
     if ($h_ann_phrase_range2text{$range}) {
-      $eval = "HIT";
+      print_eval('EVALUATION-EXACT-PHRASE-HIT', $range, $text, $range, $text);
+      print_eval('EVALUATION-PARTIAL-PHRASE-HIT', $range, $text, $range, $text);
     }
     else {
+      print_eval('EVALUATION-EXACT-PHRASE-FALSE-POSITIVE', $range, $text, 'N/A', 'N/A');
       my $partial_phrase_range = partial_match($range, \%h_ann_phrase_range2text);
       if ($partial_phrase_range) {
         my $partial_text = $h_ann_phrase_range2text{$partial_phrase_range};
-        $eval = "PARTIAL: '$text' vs. manual '$partial_text'\n";
+        print_eval('EVALUATION-PARTIAL-PHRASE-HIT', $range, $text, $partial_phrase_range, $partial_text);
       }
       else {
-        $eval = "MISS";
+        print_eval('EVALUATION-PARTIAL-PHRASE-FALSE-POSITIVE', $range, $text, 'N/A', 'N/A');
       }
     }
   }
-  print STDERR "   - evaluation: $eval\n";
+}
+
+
+=item evaluate_false_negatives
+
+Finds end prints false negatives for the given sentence.
+# hashes to keep info about manual annotation:
+# my %h_ann_phrase_range2text; # '1354:1359' => 'podle'
+# my %h_ann_source_range2text; # '1360:1365' => 'vědců'
+# my %h_ann_source_range2type; # '1360:1365' => 'anonymous-partial'
+# hashes with automatic annotation:
+my %h_phrase_range2text;
+my %h_source_range2text;
+my %h_source_range2type;
+
+=cut
+
+sub evaluate_false_negatives {
+  my $root = shift;
+  my $sent_start = attr($root, 'start');
+  my $sent_end = attr($root, 'end');
+  print STDERR "evaluate_false_negatives: sentence $sent_start:$sent_end\n";
+
+  # phrases
+  foreach my $ann_phrase_range (keys(%h_ann_phrase_range2text)) {
+    if ($ann_phrase_range =~ /^(\d+):(\d+)$/) {
+      my ($s, $e) = ($1, $2);
+      print STDERR "evaluate_false_negatives:   ann phrase range $s:$e\n";
+      next if ($e<$sent_start or $sent_end<$s); # choose only ranges from the given sentence
+      print STDERR "evaluate_false_negatives:     -within the sentence!\n";
+      next if ($h_phrase_range2text{$ann_phrase_range}); # exact HIT, already reported elsewhere
+      # now we know it is exact miss
+      my $text = $h_ann_phrase_range2text{$ann_phrase_range};
+      my $sentence = get_sentence($ann_phrase_range);
+      print_eval('EVALUATION-EXACT-PHRASE-FALSE-NEGATIVE', 'N/A', 'N/A', $ann_phrase_range, $text);
+      my $partial_phrase_range = partial_match($ann_phrase_range, \%h_phrase_range2text);
+      if (!$partial_phrase_range) {
+        print_eval('EVALUATION-PARTIAL-PHRASE-FALSE-NEGATIVE', 'N/A', 'N/A', $ann_phrase_range, $text);
+      }
+      # partial HIT already reported elsewhere
+    }
+  }
+
+  # sources
+  foreach my $ann_source_range (keys(%h_ann_source_range2text)) {
+    if ($ann_source_range =~ /^(\d+):(\d+)$/) {
+      my ($s, $e) = ($1, $2);
+      print STDERR "evaluate_false_negatives:   ann source range $s:$e\n";
+      next if ($e<$sent_start or $sent_end<$s); # choose only ranges from the given sentence
+      print STDERR "evaluate_false_negatives:     -within the sentence!\n";
+      next if ($h_source_range2text{$ann_source_range}); # exact HIT, already reported elsewhere
+      # now we know it is exact miss
+      my $text = $h_ann_source_range2text{$ann_source_range};
+      print_eval('EVALUATION-EXACT-SOURCE-FALSE-NEGATIVE', 'N/A', 'N/A', $ann_source_range, $text);
+      my $partial_source_range = partial_match($ann_source_range, \%h_source_range2text);
+      if (!$partial_source_range) {
+        print_eval('EVALUATION-PARTIAL-SOURCE-FALSE-NEGATIVE', 'N/A', 'N/A', $ann_source_range, $text);
+      }
+      # partial HIT already reported elsewhere
+    }
+  }
 }
 
 
