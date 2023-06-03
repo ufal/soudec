@@ -241,6 +241,7 @@ if ($root) {
 # Now we have dependency trees of the sentences; let us search for citation phrases
 ###################################################################################
 
+print_header();
 
 foreach $root (@trees) {
   print STDERR "\n====================================================================\n";
@@ -283,6 +284,41 @@ foreach $root (@trees) {
   
 }
 
+print_tail();
+
+
+=item print_header
+
+Prints header info for the document (name of the file, start of the html table)
+
+=cut
+
+sub print_header {
+  print STDERR "<!-- HTML-EVALUATION-EXACT --><h3>$file_name</h3>\n";
+  print STDERR "<!-- HTML-EVALUATION-PARTIAL --><h3>$file_name</h3>\n";
+  if ($ann) {
+    print STDERR "<!-- HTML-EVALUATION-EXACT --><table><tr><th>type</th><th>automatic</th><th>manual</th><th>sentence</th></tr>\n";
+    print STDERR "<!-- HTML-EVALUATION-PARTIAL --><table><tr><th>type</th><th>automatic</th><th>manual</th><th>sentence</th></tr>\n";
+  }
+  else {
+    print STDERR "<!-- HTML-EVALUATION-EXACT --><p>No manual annotation provided.</p>\n";
+    print STDERR "<!-- HTML-EVALUATION-PARTIAL --><p>No manual annotation provided.</p>\n";
+  }
+}
+
+
+=item print_tail
+
+Prints tail info for the document (end of the html table)
+
+=cut
+
+sub print_tail {
+  if ($ann) {
+    print STDERR "<!-- HTML-EVALUATION-EXACT --></table>\n";
+    print STDERR "<!-- HTML-EVALUATION-PARTIAL --></table>\n";
+  }
+}
 
 
 =item print_eval
