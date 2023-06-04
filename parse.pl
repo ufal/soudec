@@ -129,7 +129,84 @@ open(OUT, '>:encoding(utf8)', "$file_name.conll") or die "Cannot open file '$fil
 print OUT $conll_data;
 close(OUT);
 
+###################################################################################
 # Now let us add info about named entities using NameTag REST API
+###################################################################################
+
+=item
+
+NE containers
+
+P - complex person names
+T - complex time expressions
+A - complex address expressions
+C - complex bibliographic expressions
+
+Types of NE
+
+a - Numbers in addresses
+ah - street numbers
+at - phone/fax numbers
+az - zip codes
+
+g - Geographical names
+gc - states
+gh - hydronyms
+gl - nature areas / objects
+gq - urban parts
+gr - territorial names
+gs - streets, squares
+gt - continents
+gu - cities/towns
+g_ - underspecified
+
+i - Institutions
+ia - conferences/contests
+ic - cult./educ./scient. inst.
+if - companies, concerns...
+io - government/political inst.
+i_ - underspecified
+
+m - Media names
+me - email address
+mi - internet links
+mn - periodical
+ms - radio and TV stations
+
+n - Number expressions
+na - age
+nb - vol./page/chap./sec./fig. numbers
+nc - cardinal numbers
+ni - itemizer
+no - ordinal numbers
+ns - sport score
+n_ - underspecified
+
+o - Artifact names
+oa - cultural artifacts (books, movies)
+oe - measure units
+om - currency units
+op - products
+or - directives, norms
+o_ - underspecified
+
+p - Personal names
+pc - inhabitant names
+pd - (academic) titles
+pf - first names
+pm - second names
+pp - relig./myth persons
+ps - surnames
+p_ - underspecified
+
+t - Time expressions
+td - days
+tf - feasts
+th - hours
+tm - months
+ty - years
+
+=cut
 
 my $conll_data_ne = call_nametag($conll_data);
 
@@ -311,7 +388,7 @@ Guesses and returns the type of the source, i.e. one of these values:
         unofficial
         official-political
         official-non-political
-        
+
 =cut
 
 sub guess_source_type {
