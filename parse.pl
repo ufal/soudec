@@ -133,81 +133,6 @@ close(OUT);
 # Now let us add info about named entities using NameTag REST API
 ###################################################################################
 
-=item
-
-NE containers
-
-P - complex person names
-T - complex time expressions
-A - complex address expressions
-C - complex bibliographic expressions
-
-Types of NE
-
-a - Numbers in addresses
-ah - street numbers
-at - phone/fax numbers
-az - zip codes
-
-g - Geographical names
-gc - states
-gh - hydronyms
-gl - nature areas / objects
-gq - urban parts
-gr - territorial names
-gs - streets, squares
-gt - continents
-gu - cities/towns
-g_ - underspecified
-
-i - Institutions
-ia - conferences/contests
-ic - cult./educ./scient. inst.
-if - companies, concerns...
-io - government/political inst.
-i_ - underspecified
-
-m - Media names
-me - email address
-mi - internet links
-mn - periodical
-ms - radio and TV stations
-
-n - Number expressions
-na - age
-nb - vol./page/chap./sec./fig. numbers
-nc - cardinal numbers
-ni - itemizer
-no - ordinal numbers
-ns - sport score
-n_ - underspecified
-
-o - Artifact names
-oa - cultural artifacts (books, movies)
-oe - measure units
-om - currency units
-op - products
-or - directives, norms
-o_ - underspecified
-
-p - Personal names
-pc - inhabitant names
-pd - (academic) titles
-pf - first names
-pm - second names
-pp - relig./myth persons
-ps - surnames
-p_ - underspecified
-
-t - Time expressions
-td - days
-tf - feasts
-th - hours
-tm - months
-ty - years
-
-=cut
-
 my $conll_data_ne = call_nametag($conll_data);
 
 # Store the result to a file (just to have it, not needed for further processing)
@@ -220,7 +145,7 @@ close(OUT);
 # Let us parse the CONLL format into Tree::Simple tree structures (one tree per sentence)
 ###################################################################################
 
-my @lines = split("\n", $conll_data);
+my @lines = split("\n", $conll_data_ne);
 
 my @trees = (); # array of trees in the document
 
@@ -389,14 +314,142 @@ Guesses and returns the type of the source, i.e. one of these values:
         official-political
         official-non-political
 
+NameTag offers these values:
+
+NE containers
+
+P - complex person names
+T - complex time expressions
+A - complex address expressions
+C - complex bibliographic expressions
+
+Types of NE
+
+a - Numbers in addresses
+ah - street numbers
+at - phone/fax numbers
+az - zip codes
+
+g - Geographical names
+gc - states
+gh - hydronyms
+gl - nature areas / objects
+gq - urban parts
+gr - territorial names
+gs - streets, squares
+gt - continents
+gu - cities/towns
+g_ - underspecified
+
+i - Institutions
+ia - conferences/contests
+ic - cult./educ./scient. inst.
+if - companies, concerns...
+io - government/political inst.
+i_ - underspecified
+
+m - Media names
+me - email address
+mi - internet links
+mn - periodical
+ms - radio and TV stations
+
+n - Number expressions
+na - age
+nb - vol./page/chap./sec./fig. numbers
+nc - cardinal numbers
+ni - itemizer
+no - ordinal numbers
+ns - sport score
+n_ - underspecified
+
+o - Artifact names
+oa - cultural artifacts (books, movies)
+oe - measure units
+om - currency units
+op - products
+or - directives, norms
+o_ - underspecified
+
+p - Personal names
+pc - inhabitant names
+pd - (academic) titles
+pf - first names
+pm - second names
+pp - relig./myth persons
+ps - surnames
+p_ - underspecified
+
+t - Time expressions
+td - days
+tf - feasts
+th - hours
+tm - months
+ty - years
+
 =cut
 
 sub guess_source_type {
   my ($root, $phrase_node, @whole_source_nodes) = @_;
-  return 'TODO';
+  my @source_named_entity_classes = map {s/[^a-z]*([a-z][a-z_])_.*/$1/; $_}
+                                    grep {defined and length}
+                                    map {get_misc_value($_, 'NE') or get_extra_NE($_)}
+                                    @whole_source_nodes;
+  my $joined = '~' . join('~', @source_named_entity_classes);
+  
+  my $type = 'anonymous'; # default
+  
+  if ($joined =~ /~io/) { # io - government/political inst.
+    $type = 'official-political';
+  }
+  elsif ($joined =~ /~i/) { # i - Institutions
+    $type = 'official-non-political';
+  }
+  elsif ($joined =~ /~p/) { # p - Personal names
+    $type = 'unofficial';
+  }
+  elsif ($joined =~ /~m[ns]/) { # mn - periodical, ms - radio and TV stations
+    $type = 'unofficial';
+  }
+
+  return "$joined:$type";
 }
 
 
+=item get_extra_NE
+
+Returns a fake NE value for some obvious words, such as 'mluvčí'.
+
+=cut
+
+sub get_extra_NE {
+  my $node = shift;
+  my $lemma = attr($node, 'lemma');
+  if ($lemma eq 'mluvčí') {
+    return 'im';
+  }
+}
+
+
+
+=item get_misc_value
+
+Returns a value of the given property from the misc attribute. Or undef.
+Does not take into account a possibility that the value might contain '\|'!!!
+
+=cut
+
+sub get_misc_value {
+  my ($node, $property) = @_;
+  my $misc = attr($node, 'misc') // '';
+  # print STDERR "get_misc_value: misc=$misc\n";
+  if ($misc =~ /$property=([^|]+)/) {
+    my $value = $1;
+    # print STDERR "get_misc_value: $property=$value\n";
+    return $value;
+  }
+  return undef;
+}  
 
 
 
