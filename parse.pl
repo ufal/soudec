@@ -9,6 +9,12 @@ use JSON;
 use Tree::Simple;
 use List::Util qw(min max);
 
+my %keywords_anonymous = ('zdroj' => 1,
+                          'pozorovatel' => 1,
+                          'informace' => 1,
+                          'mnohý' => 1
+                         );
+
 my $MIN_RELIABILITY = 10; # minimal required phrase reliability
 
 my ($file_name, $spolehlivost_frazi, $ann) = @ARGV;
@@ -397,7 +403,7 @@ sub guess_source_type {
                                     @whole_source_nodes;
   my $joined = '~' . join('~', @source_named_entity_classes);
   
-  my $type = 'anonymous'; # default
+  my $type = 'anonymous-partial'; # default
   
   if ($joined =~ /~io/) { # io - government/political inst.
     $type = 'official-political';
@@ -411,6 +417,9 @@ sub guess_source_type {
   elsif ($joined =~ /~m[ns]/) { # mn - periodical, ms - radio and TV stations
     $type = 'unofficial';
   }
+  elsif ($joined =~ /~sa/) { # sa - source anonymous (fake NE class)
+    $type = 'anonymous';
+  }
 
   return "$joined:$type";
 }
@@ -419,6 +428,7 @@ sub guess_source_type {
 =item get_extra_NE
 
 Returns a fake NE value for some obvious words, such as 'mluvčí'.
+Also gives fake NE value for significantly anonymous words (zdroj, pozorovatel, informace).
 
 =cut
 
@@ -426,7 +436,10 @@ sub get_extra_NE {
   my $node = shift;
   my $lemma = attr($node, 'lemma');
   if ($lemma eq 'mluvčí') {
-    return 'im';
+    return 'im'; # "institution - mluvčí"
+  }
+  if ($keywords_anonymous{$lemma}) {
+    return 'sa' # "source - anonymous"
   }
 }
 
