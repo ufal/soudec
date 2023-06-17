@@ -33,7 +33,7 @@ F1=$(echo "scale=2 ; 2 * $P * $R / ( $P + $R)" | bc)
 
 echo "Overall evaluation of exact source detection:"
 echo "P=$P, R=$R, F1=$F1"
-echo "<p>Overall evaluation of exact source detection: <b>F1=$F1</b></p><p>&nbsp;</p>" >>evaluation-exact.html
+echo "<p>Overall evaluation of exact source detection: <b>F1=$F1</b> (P=$P, R=$R)</p><p>&nbsp;</p>" >>evaluation-exact.html
 echo "<h2>Detailed tables for individual documents</h2>" >>evaluation-exact.html
 
 HITS=$(cat err | grep "TSV-EVALUATION-PARTIAL-SOURCE-HIT" | wc -l)
@@ -46,7 +46,7 @@ F1=$(echo "scale=2 ; 2 * $P * $R / ( $P + $R)" | bc)
 
 echo "Overall evaluation of partial-match source detection:"
 echo "P=$P, R=$R, F1=$F1"
-echo "<p>Overall evaluation of partial-match source detection: <b>F1=$F1</b></p><p>&nbsp;</p>" >>evaluation-partial.html
+echo "<p>Overall evaluation of partial-match source detection: <b>F1=$F1</b> (P=$P, R=$R)</p><p>&nbsp;</p>" >>evaluation-partial.html
 echo "<h2>Detailed tables for individual documents</h2>" >>evaluation-partial.html
 
 echo -e "<p>White background for SOURCES, <span style=\"background-color: beige\">beige background for PHRASES</span>.<br><span style=\"color: green\">Green color for HITS</span>, <span style=\"color: blue\">blue color for FALSE NEGATIVES</span>, <span style=\"color: red\">red color for FALSE POSITIVES</span></p>\n" >>evaluation-exact.html

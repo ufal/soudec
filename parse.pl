@@ -229,7 +229,7 @@ foreach my $line (@lines) {
         set_attr($node, 'misc', $misc);
         set_attr($node, 'head', $head);
         
-        if ($misc =~ /TokenRange=(\d+):(\d+)\b/) {
+        if ($misc and $misc =~ /TokenRange=(\d+):(\d+)\b/) {
           my ($start, $end) = ($1, $2);
           set_attr($node, 'start', $start);
           set_attr($node, 'end', $end);
@@ -264,7 +264,7 @@ print_header();
 foreach $root (@trees) {
   print STDERR "\n====================================================================\n";
   print STDERR "Sentence id=" . attr($root, 'id') . ": " . attr($root, 'text') . "\n";
-  # print_children($root, "\t");
+  print_children($root, "\t");
   
   my @nodes = descendants($root);
   foreach my $node (@nodes) {
@@ -274,29 +274,36 @@ foreach $root (@trees) {
       print STDERR "Found phrase '$form_lc' with reliability $reliability\n";
       if ($reliability > $MIN_RELIABILITY) {
         print STDERR " - reliability is greater than threshold $MIN_RELIABILITY\n";
-        evaluate_single_event('phrase', $root, $node);
-        if ($form_lc eq 'podle') { # special treatment
-          my $parent = $node->getParent;
-          my $source = attr($parent, 'form');
-          my @whole_source_nodes = get_whole_source_nodes($parent);
-          my $whole_source = get_text(@whole_source_nodes);
-          print STDERR " - SOURCE parent: $source\n - WHOLE SOURCE: $whole_source\n";
-          my $source_type = guess_source_type($root, $node, @whole_source_nodes);
-          print STDERR "   - SOURCE TYPE: $source_type\n";
-          evaluate_single_event($source_type, $root, @whole_source_nodes);
-        }
-        else {
-          my @children = $node->getAllChildren;
-          my @nsubj = grep {attr($_, 'deprel') eq 'nsubj'} @children;
-          if (@nsubj) {
-            my $subject = attr($nsubj[0], 'form');
-            my @whole_source_nodes = get_whole_source_nodes($nsubj[0]);
+        # Checking if there is something like a claim, i.e. a finite-verb core object 
+        my @children = $node->getAllChildren;
+        my @possible_claims = grep {is_finite($_)} grep {is_object($_)} @children; # looking for finite-verb objects (i.e., the claim)
+        if (@finite_coreobjects or $form_lc eq 'podle') { # ('podle' is supposed to be connected with a finite verb)
+          evaluate_single_event('phrase', $root, $node);
+          if ($form_lc eq 'podle') { # special treatment
+            my $parent = $node->getParent;
+            my $source = attr($parent, 'form');
+            my @whole_source_nodes = get_whole_source_nodes($parent);
             my $whole_source = get_text(@whole_source_nodes);
-            print STDERR " - SOURCE nsubj: $subject\n - WHOLE SOURCE: $whole_source\n";
+            print STDERR " - SOURCE parent: $source\n - WHOLE SOURCE: $whole_source\n";
             my $source_type = guess_source_type($root, $node, @whole_source_nodes);
             print STDERR "   - SOURCE TYPE: $source_type\n";
             evaluate_single_event($source_type, $root, @whole_source_nodes);
           }
+          else {
+            my @nsubj = grep {attr($_, 'deprel') eq 'nsubj'} @children; # looking for a subject (i.e, the source)
+            if (@nsubj) {
+              my $subject = attr($nsubj[0], 'form');
+              my @whole_source_nodes = get_whole_source_nodes($nsubj[0]);
+              my $whole_source = get_text(@whole_source_nodes);
+              print STDERR " - SOURCE nsubj: $subject\n - WHOLE SOURCE: $whole_source\n";
+              my $source_type = guess_source_type($root, $node, @whole_source_nodes);
+              print STDERR "   - SOURCE TYPE: $source_type\n";
+              evaluate_single_event($source_type, $root, @whole_source_nodes);
+            }
+          }
+        }
+        else {
+          print STDERR "   - no finite-verb core object found!\n";
         }
       }
     }
@@ -308,6 +315,41 @@ foreach $root (@trees) {
 
 print_tail();
 
+
+
+=item is_finite
+
+Checks if the given node represents a finite verb
+
+=cut
+
+sub is_finite {
+  my $node = shift;
+  my $VerbForm = get_feat_value($node, 'VerbForm');
+  print STDERR "is_finite: VerbForm = $VerbForm\n";
+  if ($VerbForm and $VerbForm ne 'Inf') {
+    return 1;
+  }
+  return 0;
+}
+
+
+
+=item is_object
+
+Checks if the given node is a core argument of an object type.
+
+=cut
+
+sub is_core_object {
+  my $node = shift;
+  my $deprel = attr($node, 'deprel') // '';
+  print STDERR "is_core_object: deprel = $deprel\n";
+  if ($deprel =~ /^(obj|iobj|ccomp|xcomp)$/) {
+    return 1;
+  }
+  return 0;
+}
 
 
 =item guess_source_type
@@ -448,7 +490,6 @@ sub get_extra_NE {
 =item get_misc_value
 
 Returns a value of the given property from the misc attribute. Or undef.
-Does not take into account a possibility that the value might contain '\|'!!!
 
 =cut
 
@@ -459,6 +500,26 @@ sub get_misc_value {
   if ($misc =~ /$property=([^|]+)/) {
     my $value = $1;
     # print STDERR "get_misc_value: $property=$value\n";
+    return $value;
+  }
+  return undef;
+}  
+
+
+
+=item get_feat_value
+
+Returns a value of the given property from the feats attribute. Or undef.
+
+=cut
+
+sub get_feat_value {
+  my ($node, $property) = @_;
+  my $feats = attr($node, 'feats') // '';
+  # print STDERR "get_feat_value: feats=$feats\n";
+  if ($feats =~ /$property=([^|]+)/) {
+    my $value = $1;
+    # print STDERR "get_feat_value: $property=$value\n";
     return $value;
   }
   return undef;
