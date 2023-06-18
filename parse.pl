@@ -276,8 +276,7 @@ foreach $root (@trees) {
         print STDERR " - reliability is greater than threshold $MIN_RELIABILITY\n";
         # Checking if there is something like a claim, i.e. a finite-verb core object 
         my @children = $node->getAllChildren;
-        my @possible_claims = grep {is_finite($_)} grep {is_object($_)} @children; # looking for finite-verb objects (i.e., the claim)
-        if (@finite_coreobjects or $form_lc eq 'podle') { # ('podle' is supposed to be connected with a finite verb)
+        if (has_finite_verb_object($node)) {
           evaluate_single_event('phrase', $root, $node);
           if ($form_lc eq 'podle') { # special treatment
             my $parent = $node->getParent;
@@ -330,22 +329,100 @@ sub is_finite {
   if ($VerbForm and $VerbForm ne 'Inf') {
     return 1;
   }
+  # It may also be a copula ("je konzervativní")
+  my @cop_children = grep {attr($_, 'deprel') eq 'cop'} $node->getAllChildren;
+  if (@cop_children) {
+    if (is_finite($cop_children[0])) {
+      return 1;
+    }
+  }
+  # It may be a complex verb ("bude potřebovat")
+  my @finverb_children = grep {get_feat_value($_, 'VerbForm') and get_feat_value($_, 'VerbForm') ne 'Inf'} $node->getAllChildren;
+  if ($VerbForm and @finverb_children) {
+    if (is_finite($finverb_children[0])) {
+      return 1;
+    }
+  }  
+  # It may be a reference to a verbal phrase, such as "potvrzuje to i ..." or "jeho slova potvrzuje i ..."
+  my $form = attr($node, 'form');
+  if ($form =~ /^(slova|to|tom)$/) {
+    return 1;
+  }
   return 0;
 }
 
 
 
-=item is_object
+=item has_finite_verb_object
 
-Checks if the given node is a core argument of an object type.
+Checks if the given node has something like a core finite-verb argument
 
 =cut
 
-sub is_core_object {
+sub has_finite_verb_object {
   my $node = shift;
-  my $deprel = attr($node, 'deprel') // '';
-  print STDERR "is_core_object: deprel = $deprel\n";
-  if ($deprel =~ /^(obj|iobj|ccomp|xcomp)$/) {
+  my $form_lc = lc(attr($node, 'form'));
+  my $lemma = attr($node, 'lemma');
+  my $parent = $node->getParent;
+
+  # First, let us solve 'podle'
+  # 'podle' needs to have a grandparent (finite-verb of the claim)
+  # The parent of 'podle' (the source) should not be the last child of the grandparent (to avoid constructions such ad "udělal jsem to podle příručky");
+  # (Condition "the parent needs to be left from the grandparent" would be too strong, see: "Tak jste podle nich jedni z mála.")
+  if ($form_lc eq 'podle') {
+    my $grandparent = $parent->getParent;
+    return 0 if !$grandparent;
+#    return 0 if !is_finite($grandparent);
+    my $parent_ord = attr($parent, 'ord');
+    my @parent_right_brothers = grep {attr($_, 'ord') > $parent_ord} $grandparent->getAllChildren;
+    if (@parent_right_brothers) {
+      return 1;
+    }
+    return 0;
+  }
+  # Second, let us search for a claim among children
+  my @finite_verb_object_children = grep {attr($_, 'deprel') =~ /^(obj|iobj|ccomp|xcomp|obl:arg)$/}
+                                    grep {is_finite($_)}
+                                    $node->getAllChildren;
+  if (@finite_verb_object_children) {
+    return 1;
+  }
+  # Third, the claim might also be in a parataxis position ("Jak už vědci uvedli při prvním kole vykopávek, jde pro ně o záhadu.")
+  if (attr($node, 'deprel') eq 'parataxis') {
+    if (is_finite($parent)) {
+      return 1;
+    }
+  }
+  # Fourth, "informovat o (cokoli)", e.g. "O rozsudku informoval ..."
+  if ($lemma eq 'informovat') {
+    my @children_with_o = grep {has_child_with_lemma($_, 'o')}
+                          $node->getAllChildren;
+    if (@children_with_o) {
+      return 1;
+    }    
+  }
+  # Fifth, "Čest jeho památce!, uvedl městys na facebooku k úmrtí"
+  my @children_with_excl = grep {has_child_with_lemma($_, '!')}
+                           $node->getAllChildren;
+  if (@children_with_excl) {
+    return 1;
+  }    
+  
+  # Je potřeba vyřešit "Vyplývá to z údajů na internetových stránkách České národní banky.", kde claim je subject ("to") a source je obl:arg (z údajů), soubor doc-8359658.xml.txt.conll
+  
+  return 0;
+}
+
+
+=item has_child_with_lemma
+
+Checks if a lemma is among children
+
+=cut
+
+sub has_child_with_lemma {
+  my ($node, $lemma) = @_;
+  if (grep {attr($_, 'lemma') eq $lemma} $node->getAllChildren) {
     return 1;
   }
   return 0;
