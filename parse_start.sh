@@ -31,9 +31,20 @@ P=$(echo "scale=2 ; $HITS / ( $HITS + $FALSE_POSITIVES )" | bc)
 R=$(echo "scale=2 ; $HITS / ( $HITS + $FALSE_NEGATIVES )" | bc)
 F1=$(echo "scale=2 ; 2 * $P * $R / ( $P + $R)" | bc)
 
+SOURCE_TYPE_HITS=$(cat err | grep "TSV-SOURCETYPE-EXACT-HIT" | wc -l)
+SOURCE_TYPE_MISSES=$(cat err | grep "TSV-SOURCETYPE-EXACT-MISS" | wc -l)
+
+ACC=$(echo "scale=2 ; $SOURCE_TYPE_HITS / ( $SOURCE_TYPE_HITS + $SOURCE_TYPE_MISSES )" | bc)
+
 echo "Overall evaluation of exact source detection:"
+echo "HITS=$HITS, FALSE POSITIVES=$FALSE_POSITIVES, FALSE_NEGATIVES=$FALSE_NEGATIVES"
 echo "P=$P, R=$R, F1=$F1"
-echo "<p>Overall evaluation of exact source detection: <b>F1=$F1</b> (P=$P, R=$R)</p><p>&nbsp;</p>" >>evaluation-exact.html
+echo "Evaluation of exact-match source type classification:"
+echo "SOURCE TYPE HITS=$SOURCE_TYPE_HITS, SOURCE TYPE MISSES=$SOURCE_TYPE_MISSES"
+echo "ACC=$ACC"
+
+echo "<p>Overall evaluation of exact source detection: <b>F1=$F1</b> (P=$P, R=$R, hits=$HITS, false positives=$FALSE_POSITIVES, false negatives=$FALSE_NEGATIVES)</p>" >>evaluation-exact.html
+echo "<p>Evaluation of exact-match source type classification: <b>ACC=$ACC</b> (hits=$SOURCE_TYPE_HITS, misses=$SOURCE_TYPE_MISSES)</p><p>&nbsp;</p>" >>evaluation-exact.html
 echo "<h2>Detailed tables for individual documents</h2>" >>evaluation-exact.html
 
 HITS=$(cat err | grep "TSV-EVALUATION-PARTIAL-SOURCE-HIT" | wc -l)
@@ -44,9 +55,20 @@ P=$(echo "scale=2 ; $HITS / ( $HITS + $FALSE_POSITIVES )" | bc)
 R=$(echo "scale=2 ; $HITS / ( $HITS + $FALSE_NEGATIVES )" | bc)
 F1=$(echo "scale=2 ; 2 * $P * $R / ( $P + $R)" | bc)
 
+SOURCE_TYPE_HITS=$(cat err | grep "TSV-SOURCETYPE-PARTIAL-HIT" | wc -l)
+SOURCE_TYPE_MISSES=$(cat err | grep "TSV-SOURCETYPE-PARTIAL-MISS" | wc -l)
+
+ACC=$(echo "scale=2 ; $SOURCE_TYPE_HITS / ( $SOURCE_TYPE_HITS + $SOURCE_TYPE_MISSES )" | bc)
+
 echo "Overall evaluation of partial-match source detection:"
+echo "HITS=$HITS, FALSE POSITIVES=$FALSE_POSITIVES, FALSE_NEGATIVES=$FALSE_NEGATIVES"
 echo "P=$P, R=$R, F1=$F1"
-echo "<p>Overall evaluation of partial-match source detection: <b>F1=$F1</b> (P=$P, R=$R)</p><p>&nbsp;</p>" >>evaluation-partial.html
+echo "Evaluation of partial-match source type classification:"
+echo "SOURCE TYPE HITS=$SOURCE_TYPE_HITS, SOURCE TYPE MISSES=$SOURCE_TYPE_MISSES"
+echo "ACC=$ACC"
+
+echo "<p>Overall evaluation of partial-match source detection: <b>F1=$F1</b> (P=$P, R=$R, hits=$HITS, false positives=$FALSE_POSITIVES, false negatives=$FALSE_NEGATIVES)</p>" >>evaluation-partial.html
+echo "<p>Evaluation of partial-match source type classification: <b>ACC=$ACC</b> (hits=$SOURCE_TYPE_HITS, misses=$SOURCE_TYPE_MISSES)</p><p>&nbsp;</p>" >>evaluation-partial.html
 echo "<h2>Detailed tables for individual documents</h2>" >>evaluation-partial.html
 
 echo -e "<p>White background for SOURCES, <span style=\"background-color: beige\">beige background for PHRASES</span>.<br><span style=\"color: green\">Green color for HITS</span>, <span style=\"color: blue\">blue color for FALSE NEGATIVES</span>, <span style=\"color: red\">red color for FALSE POSITIVES</span></p>\n" >>evaluation-exact.html

@@ -662,7 +662,22 @@ sub print_eval {
   if ($type =~ /PHRASE/) {
     $background = 'beige';
   }
-  print STDERR "<tr style=\"color: $color; background-color: $background\"><td>HTML-$type</td><td><b>$auto_text</b></td><td>$auto_event</td><td><u>$ann_text</u></td><td>$ann_event</td><td>$sentence</td></tr>\n";
+
+  # now compare the source events (types of sources)
+  my $event_color = $color;
+  if ($type =~ /SOURCE-HIT$/) {
+    my $exactness = $type =~ /PARTIAL/ ? 'PARTIAL' : 'EXACT';
+    my $pure_auto_event = $auto_event;
+    $pure_auto_event =~ s/^.*://; # get rid of info about NEs
+    my $hit = 'HIT'; # let us be optimistic ;-)
+    if ($pure_auto_event ne $ann_event) { # disagreement on the source type
+      $event_color = '#ef6109';
+      $hit = 'MISS';
+    }
+    print STDERR "TSV-SOURCETYPE-$exactness-$hit\t$auto_range\t$auto_text\t$auto_event\t$ann_range\t$ann_text\t$ann_event\t$sentence\n";
+  }
+  
+  print STDERR "<tr style=\"color: $color; background-color: $background\"><td>HTML-$type</td><td><b>$auto_text</b></td><td style=\"color: $event_color\">$auto_event</td><td><u>$ann_text</u></td><td style=\"color: $event_color\">$ann_event</td><td>$sentence</td></tr>\n";
 }
 
 
