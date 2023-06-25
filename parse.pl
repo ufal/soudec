@@ -8,6 +8,8 @@ use URI::Escape;
 use JSON;
 use Tree::Simple;
 use List::Util qw(min max);
+use Getopt::Long; # reading arguments
+use POSIX qw(strftime); # naming a file with date and time
 
 my %keywords_anonymous = ('zdroj' => 1,
                           'pozorovatel' => 1,
@@ -17,7 +19,20 @@ my %keywords_anonymous = ('zdroj' => 1,
 
 my $MIN_RELIABILITY = 10; # minimal required phrase reliability
 
-my ($file_name, $spolehlivost_frazi, $ann) = @ARGV;
+# variables for arguments
+my $input_file;
+my $ann_file;
+my $stdin;
+my $phrase_reliability_file;
+
+# getting the arguements
+GetOptions(
+    'i|input-file=s'  => \$input_file, # the name of the input file
+    'a|ann-file=s'  => \$ann_file, # the name of the file with manual annotation
+    'si|stdin'      => \$stdin, # should the input be read from STDIN?
+    'p|phrase-file=s'  => \$phrase_reliability_file # the name of the file with a list of citation phrases and their reliability
+);
+
 
 print STDERR "\n####################################################################\n";
 
@@ -26,10 +41,10 @@ print STDERR "\n################################################################
 my %phrase2reliability; # reliability of the phrase in percents (in how many percents it was used in training data as a citation phrase)
 my %phrase2se_si; # does the phrase require "se/si" to be a citation phrase? (maybe not needed and not yet implemented!)
 
-open (PHRASES, '<:encoding(utf8)', $spolehlivost_frazi)
-  or die "Nepodařilo se otevřít soubor '$spolehlivost_frazi' pro čtení: $!";
+open (PHRASES, '<:encoding(utf8)', $phrase_reliability_file)
+  or die "Nepodařilo se otevřít soubor '$phrase_reliability_file' pro čtení: $!";
 
-print STDERR "Reading phrases and their reliability from $spolehlivost_frazi\n";
+print STDERR "Reading phrases and their reliability from $phrase_reliability_file\n";
 my $phrases_count = 0;
 while (<PHRASES>) {
   chomp();
@@ -47,10 +62,10 @@ while (<PHRASES>) {
     $phrase2se_si{$phrase} = $se_si;
   }
   else {
-    print STDERR "Unknown format of a line in file $spolehlivost_frazi:\n$line\n";
+    print STDERR "Unknown format of a line in file $phrase_reliability_file:\n$line\n";
   }
 }
-print STDERR "$phrases_count phrases have been read from file $spolehlivost_frazi:\n";
+print STDERR "$phrases_count phrases have been read from file $phrase_reliability_file:\n";
 
 
 ###################################################################################
@@ -81,10 +96,10 @@ my %h_source_range2text;
 my %h_source_range2type;
 
 
-if ($ann) {
-  open my $ann_handle, '<:encoding(utf8)', $ann
-    or die "Cannot open file '$ann' for reading: $!";
-  print STDERR "Reading manual annotation from $ann\n";
+if ($ann_file) {
+  open my $ann_handle, '<:encoding(utf8)', $ann_file
+    or die "Cannot open file '$ann_file' for reading: $!";
+  print STDERR "Reading manual annotation from $ann_file\n";
   while(my $line = <$ann_handle>) {
     if ($line =~ /^\S+\t(\S+)\ (\d+) (\d+)\t(.+)$/) {
       my ($event, $start, $end, $text) = ($1, $2, $3, $4);
@@ -113,25 +128,39 @@ if ($ann) {
 # Now let us read the text file where citations should be searched for
 ###################################################################################
 
-open my $file_handle, '<:encoding(utf8)', $file_name
-  or die "Cannot open file '$file_name' for reading: $!";
+my $input_content;
 
-# Načtení obsahu souboru do proměnné
-my $file_content = do { local $/; <$file_handle> };
+if ($stdin) { # the input text should be read from STDIN
+  $input_content = '';
+  while (<>) {
+    $input_content .= $_;
+  }
+  my $current_datetime = strftime("%Y%m%d_%H%M%S", localtime);
+  $input_file = "stdin_$current_datetime.txt"; # a fake file name for naming the output files
 
-close $file_handle;
+} elsif ($input_file) { # the input text should be read from a file
+  open my $file_handle, '<:encoding(utf8)', $input_file
+    or die "Cannot open file '$input_file' for reading: $!";
 
-#print STDERR $file_content;
+  $input_content = do { local $/; <$file_handle> }; # reading the file into a variable
+  close $file_handle;
+
+} else {
+  print STDERR "No input to process! Exiting!\n";
+  exit -1;
+}
+
+#print STDERR $input_content;
 
 
 ###################################################################################
 # Let us parse the file using UDPipe REST API
 ###################################################################################
 
-my $conll_data = call_udpipe($file_content);
+my $conll_data = call_udpipe($input_content);
 
 # Store the result to a file (just to have it, not needed for further processing)
-open(OUT, '>:encoding(utf8)', "$file_name.conll") or die "Cannot open file '$file_name.conll' for writing: $!";
+open(OUT, '>:encoding(utf8)', "$input_file.conll") or die "Cannot open file '$input_file.conll' for writing: $!";
 print OUT $conll_data;
 close(OUT);
 
@@ -142,7 +171,7 @@ close(OUT);
 my $conll_data_ne = call_nametag($conll_data);
 
 # Store the result to a file (just to have it, not needed for further processing)
-open(OUT, '>:encoding(utf8)', "$file_name.conllne") or die "Cannot open file '$file_name.conllne' for writing: $!";
+open(OUT, '>:encoding(utf8)', "$input_file.conllne") or die "Cannot open file '$input_file.conllne' for writing: $!";
 print OUT $conll_data_ne;
 close(OUT);
 
@@ -324,8 +353,8 @@ Checks if the given node represents a finite verb
 
 sub is_finite {
   my $node = shift;
-  my $VerbForm = get_feat_value($node, 'VerbForm');
-  print STDERR "is_finite: VerbForm = $VerbForm\n";
+  my $VerbForm = get_feat_value($node, 'VerbForm') // '';
+  # print STDERR "is_finite: VerbForm = '$VerbForm'\n";
   if ($VerbForm and $VerbForm ne 'Inf') {
     return 1;
   }
@@ -611,9 +640,9 @@ Prints header info for the document (name of the file, start of the html table)
 =cut
 
 sub print_header {
-  print STDERR "<!-- HTML-EVALUATION-EXACT --><h3>$file_name</h3>\n";
-  print STDERR "<!-- HTML-EVALUATION-PARTIAL --><h3>$file_name</h3>\n";
-  if ($ann) {
+  print STDERR "<!-- HTML-EVALUATION-EXACT --><h3>$input_file</h3>\n";
+  print STDERR "<!-- HTML-EVALUATION-PARTIAL --><h3>$input_file</h3>\n";
+  if ($ann_file) {
     print STDERR "<!-- HTML-EVALUATION-EXACT --><table><tr><th>type</th><th>automatic</th><th>class</th><th>manual</th><th>class</th><th>sentence</th></tr>\n";
     print STDERR "<!-- HTML-EVALUATION-PARTIAL --><table><tr><th>type</th><th>automatic</th><th>class</th><th>manual</th><th>class</th><th>sentence</th></tr>\n";
   }
@@ -631,7 +660,7 @@ Prints tail info for the document (end of the html table)
 =cut
 
 sub print_tail {
-  if ($ann) {
+  if ($ann_file) {
     print STDERR "<!-- HTML-EVALUATION-EXACT --></table>\n";
     print STDERR "<!-- HTML-EVALUATION-PARTIAL --></table>\n";
   }
@@ -818,7 +847,7 @@ my %h_source_range2type; (not yet used)
 
 sub evaluate_single_event {
   my ($event, $root, @nodes) = @_;
-  return if !$ann; # do nothing if no manuall annotation was provided
+  return if !$ann_file; # do nothing if no manuall annotation was provided
   
   my $range = get_range(@nodes);
   my $text = get_text(@nodes);
@@ -880,6 +909,8 @@ my %h_source_range2type;
 
 sub evaluate_false_negatives {
   my $root = shift;
+  return if !$ann_file; # do nothing if no manuall annotation was provided
+
   my $sent_start = attr($root, 'start');
   my $sent_end = attr($root, 'end');
   print STDERR "evaluate_false_negatives: sentence $sent_start:$sent_end\n";
