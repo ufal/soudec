@@ -11,40 +11,77 @@ use List::Util qw(min max);
 use Getopt::Long; # reading arguments
 use POSIX qw(strftime); # naming a file with date and time
 
+# a list of keywords to classify a source as anonymous
 my %keywords_anonymous = ('zdroj' => 1,
                           'pozorovatel' => 1,
                           'informace' => 1,
                           'mnohý' => 1
                          );
 
-my $MIN_RELIABILITY = 10; # minimal required phrase reliability
+# default minimal required phrase reliability
+my $MIN_RELIABILITY_DEFAULT = 10;
 
 # variables for arguments
 my $input_file;
 my $ann_file;
 my $stdin;
 my $phrase_reliability_file;
+my $min_phrase_reliability;
 
 # getting the arguements
 GetOptions(
     'i|input-file=s'  => \$input_file, # the name of the input file
     'a|ann-file=s'  => \$ann_file, # the name of the file with manual annotation
     'si|stdin'      => \$stdin, # should the input be read from STDIN?
-    'p|phrase-file=s'  => \$phrase_reliability_file # the name of the file with a list of citation phrases and their reliability
+    'p|phrase-file=s'  => \$phrase_reliability_file, # the name of the file with a list of citation phrases and their reliability
+    'r|reliability=i'  => \$min_phrase_reliability, # minimal required phrase reliability
 );
 
+###################################################################################
+# Summarize the program arguments to the log
+###################################################################################
 
 print STDERR "\n####################################################################\n";
 
+print STDERR "Arguments:\n";
+
+if ($stdin) {
+  print STDERR " - input: STDIN\n";
+}
+elsif ($input_file) {
+  print STDERR " - input: file $input_file\n";
+}
+
+if ($ann_file) {
+  print STDERR " - file with manual annotation: $ann_file\n";  
+}
+
+if ($phrase_reliability_file) {
+  print STDERR " - phrase reliability file: $phrase_reliability_file\n";
+}
+
+if (!defined $min_phrase_reliability) {
+  print STDERR " - min. phrase reliability: not specified, set to default $MIN_RELIABILITY_DEFAULT\n";
+  $min_phrase_reliability = $MIN_RELIABILITY_DEFAULT;
+}
+else {
+  print STDERR " - min. phrase reliability: $min_phrase_reliability\n";
+}
+
+print STDERR "\n";
+
+###################################################################################
 # Let us first read the file with reliability of citation phrases
+###################################################################################
 
 my %phrase2reliability; # reliability of the phrase in percents (in how many percents it was used in training data as a citation phrase)
 my %phrase2se_si; # does the phrase require "se/si" to be a citation phrase? (maybe not needed and not yet implemented!)
 
-open (PHRASES, '<:encoding(utf8)', $phrase_reliability_file)
-  or die "Nepodařilo se otevřít soubor '$phrase_reliability_file' pro čtení: $!";
-
 print STDERR "Reading phrases and their reliability from $phrase_reliability_file\n";
+
+open (PHRASES, '<:encoding(utf8)', $phrase_reliability_file)
+  or die "Could not open file '$phrase_reliability_file' for reading: $!";
+
 my $phrases_count = 0;
 while (<PHRASES>) {
   chomp();
@@ -97,9 +134,11 @@ my %h_source_range2type;
 
 
 if ($ann_file) {
+  print STDERR "Reading manual annotation from $ann_file\n";
+
   open my $ann_handle, '<:encoding(utf8)', $ann_file
     or die "Cannot open file '$ann_file' for reading: $!";
-  print STDERR "Reading manual annotation from $ann_file\n";
+
   while(my $line = <$ann_handle>) {
     if ($line =~ /^\S+\t(\S+)\ (\d+) (\d+)\t(.+)$/) {
       my ($event, $start, $end, $text) = ($1, $2, $3, $4);
@@ -301,8 +340,8 @@ foreach $root (@trees) {
     my $reliability = $phrase2reliability{$form_lc};
     if ($reliability) {
       print STDERR "Found phrase '$form_lc' with reliability $reliability\n";
-      if ($reliability > $MIN_RELIABILITY) {
-        print STDERR " - reliability is greater than threshold $MIN_RELIABILITY\n";
+      if ($reliability > $min_phrase_reliability) {
+        print STDERR " - reliability is greater than threshold $min_phrase_reliability\n";
         # Checking if there is something like a claim, i.e. a finite-verb core object 
         my @children = $node->getAllChildren;
         if (has_finite_verb_object($node)) {
@@ -895,7 +934,7 @@ sub evaluate_single_event {
 
 =item evaluate_false_negatives
 
-Finds end prints false negatives for the given sentence.
+Finds and prints false negatives for the given sentence.
 # hashes to keep info about manual annotation:
 # my %h_ann_phrase_range2text; # '1354:1359' => 'podle'
 # my %h_ann_source_range2text; # '1360:1365' => 'vědců'
