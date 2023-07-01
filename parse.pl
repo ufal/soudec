@@ -20,6 +20,8 @@ my %keywords_anonymous = ('zdroj' => 1,
 
 # default minimal required phrase reliability
 my $MIN_RELIABILITY_DEFAULT = 10;
+# default output format
+my $OUTPUT_FORMAT_DEFAULT = 'txt';
 
 # variables for arguments
 my $input_file;
@@ -27,6 +29,10 @@ my $ann_file;
 my $stdin;
 my $phrase_reliability_file;
 my $min_phrase_reliability;
+my $output_format;
+my $store_udpipe;
+my $store_nametag;
+
 
 # getting the arguements
 GetOptions(
@@ -35,6 +41,9 @@ GetOptions(
     'si|stdin'      => \$stdin, # should the input be read from STDIN?
     'p|phrase-file=s'  => \$phrase_reliability_file, # the name of the file with a list of citation phrases and their reliability
     'r|reliability=i'  => \$min_phrase_reliability, # minimal required phrase reliability
+    'of|output-format=s' => \$output_format, # output format, possible values: txt, html
+    'su|store-udpipe'    => \$store_udpipe, # should the result of udpipe be stored to a file?
+    'sn|store-nametag'    => \$store_nametag, # should the result of nametag be stored to a file?
 );
 
 ###################################################################################
@@ -66,6 +75,19 @@ if (!defined $min_phrase_reliability) {
 }
 else {
   print STDERR " - min. phrase reliability: $min_phrase_reliability\n";
+}
+
+$output_format = lc($output_format) if $output_format;
+if (!defined $output_format) {
+  print STDERR " - output format: not specified, set to default $OUTPUT_FORMAT_DEFAULT\n";
+  $output_format = $OUTPUT_FORMAT_DEFAULT;
+}
+elsif ($output_format !~ /^(txt|html)$/) {
+  print STDERR " - output format: unknown ($output_format), set to default $OUTPUT_FORMAT_DEFAULT\n";
+  $output_format = $OUTPUT_FORMAT_DEFAULT;
+}
+else {
+  print STDERR " - output format: $output_format\n";
 }
 
 print STDERR "\n";
@@ -198,10 +220,11 @@ if ($stdin) { # the input text should be read from STDIN
 
 my $conll_data = call_udpipe($input_content);
 
-# Store the result to a file (just to have it, not needed for further processing)
-open(OUT, '>:encoding(utf8)', "$input_file.conll") or die "Cannot open file '$input_file.conll' for writing: $!";
-print OUT $conll_data;
-close(OUT);
+if ($store_udpipe) { # Store the result to a file (just to have it, not needed for further processing)
+  open(OUT, '>:encoding(utf8)', "$input_file.conll") or die "Cannot open file '$input_file.conll' for writing: $!";
+  print OUT $conll_data;
+  close(OUT);
+}
 
 ###################################################################################
 # Now let us add info about named entities using NameTag REST API
@@ -209,10 +232,11 @@ close(OUT);
 
 my $conll_data_ne = call_nametag($conll_data);
 
-# Store the result to a file (just to have it, not needed for further processing)
-open(OUT, '>:encoding(utf8)', "$input_file.conllne") or die "Cannot open file '$input_file.conllne' for writing: $!";
-print OUT $conll_data_ne;
-close(OUT);
+if ($store_nametag) { # Store the result to a file (just to have it, not needed for further processing)
+  open(OUT, '>:encoding(utf8)', "$input_file.conllne") or die "Cannot open file '$input_file.conllne' for writing: $!";
+  print OUT $conll_data_ne;
+  close(OUT);
+}
 
 
 ###################################################################################
@@ -327,7 +351,7 @@ if ($root) {
 # Now we have dependency trees of the sentences; let us search for citation phrases
 ###################################################################################
 
-print_header();
+print_log_header();
 
 foreach $root (@trees) {
   print STDERR "\n====================================================================\n";
@@ -380,8 +404,14 @@ foreach $root (@trees) {
   
 }
 
-print_tail();
+print_log_tail();
 
+print_output(); # prints the input text with marked sources in the selected output format to STDOUT
+
+
+################################################################
+########################## FINISHED ############################
+################################################################
 
 
 =item is_finite
@@ -671,14 +701,50 @@ sub get_feat_value {
 }  
 
 
+=item print_output
 
-=item print_header
+Prints the input text with marked sources to STDOUT
+
+=cut
+
+sub print_output {
+
+  if ($output_format eq 'html') {
+    print STDOUT "<html>\n";
+    print STDOUT "<body>\n";
+    print STDOUT "<p>\n";
+  }
+  
+  foreach $root (@trees) {    
+    my @nodes = sort {attr($a, 'ord') <=> attr($b, 'ord')} descendants($root);
+    my $space_before = '';
+    foreach my $node (@nodes) {
+      my $form = attr($node, 'form');
+      my $SpaceAfter = get_misc_value($node, 'SpaceAfter') // '';
+      my $start = attr($node, 'start');
+      my $end = attr($node, 'end');
+      print STDOUT "$space_before$form";
+      $space_before = $SpaceAfter eq 'No' ? '' : ' '; # this way there will not be space after the last token of the sentence
+    }
+    print STDOUT "\n"; # We put each sentence at a new line in the txt format
+  }
+
+  if ($output_format eq 'html') {
+    print STDOUT "</p>\n";
+    print STDOUT "</body>\n";
+    print STDOUT "</html>\n";
+  }
+
+} # print_output
+
+
+=item print_log_header
 
 Prints header info for the document (name of the file, start of the html table)
 
 =cut
 
-sub print_header {
+sub print_log_header {
   print STDERR "<!-- HTML-EVALUATION-EXACT --><h3>$input_file</h3>\n";
   print STDERR "<!-- HTML-EVALUATION-PARTIAL --><h3>$input_file</h3>\n";
   if ($ann_file) {
@@ -692,13 +758,13 @@ sub print_header {
 }
 
 
-=item print_tail
+=item print_log_tail
 
 Prints tail info for the document (end of the html table)
 
 =cut
 
-sub print_tail {
+sub print_log_tail {
   if ($ann_file) {
     print STDERR "<!-- HTML-EVALUATION-EXACT --></table>\n";
     print STDERR "<!-- HTML-EVALUATION-PARTIAL --></table>\n";
