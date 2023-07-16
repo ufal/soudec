@@ -261,7 +261,10 @@ foreach my $line (@lines) {
         #print STDERR "Beginning of a new sentence!\n";
     }
 
-    if ($line =~ /^#\s*sent_id\s=\s*(\S+)/) {
+    if ($line =~ /^#\s*newpar/) { # newpar
+        set_attr($root, 'newpar', 1);
+    }
+    elsif ($line =~ /^#\s*sent_id\s=\s*(\S+)/) {
         my $sent_id = $1; # substr $sent_id, 0, 0, 'PML-' if $sent_id =~ /^(?:[0-9]|PML-)/;
         set_attr($root, 'id', $sent_id);
 
@@ -704,6 +707,7 @@ sub get_feat_value {
 =item print_output
 
 Prints the input text with marked sources to STDOUT
+The format is given in global variable $output_format, may be one of: txt, html
 
 =cut
 
@@ -712,18 +716,66 @@ sub print_output {
   if ($output_format eq 'html') {
     print STDOUT "<html>\n";
     print STDOUT "<body>\n";
-    print STDOUT "<p>\n";
   }
   
-  foreach $root (@trees) {    
+  my $first_par = 1;
+  
+  foreach $root (@trees) {
+  
+    # take care of paragraph separation
+    if (attr($root, 'newpar')) {
+      if ($first_par) {
+        $first_par = 0;
+      }
+      else {
+        print STDOUT $output_format eq 'html' ? "</p>\n" : "\n";
+      }
+      print STDOUT "<p>\n" if $output_format eq 'html';
+    }
+
+    # print the sentence
     my @nodes = sort {attr($a, 'ord') <=> attr($b, 'ord')} descendants($root);
     my $space_before = '';
     foreach my $node (@nodes) {
       my $form = attr($node, 'form');
-      my $SpaceAfter = get_misc_value($node, 'SpaceAfter') // '';
       my $start = attr($node, 'start');
       my $end = attr($node, 'end');
-      print STDOUT "$space_before$form";
+      
+      my $span_start = '';
+      my $span_end = '';
+      my $type_span = '';
+
+      my $source_range = partial_match("$start:$end", \%h_source_range2text) // ''; # is this token a part of a source?
+      if ($source_range =~ /^(\d+):(\d+)$/) {
+        my ($source_start, $source_end) = ($1, $2);
+        if ($start == $source_start) {
+          $span_start = $output_format eq 'html' ? '<span style="font-weight: bold; text-decoration: underline; color: darkgreen">' : '>>';
+        }
+        if ($end == $source_end) {
+          $span_end = $output_format eq 'html' ? '</span>' : '<<';
+          my $source_type = $h_source_range2type{$source_range};
+          if ($source_type) {
+            $type_span = $output_format eq 'html' ? "<span style=\"vertical-align: sub; color: darkblue\">[$source_type]</span>" : "[$source_type]";
+          }
+        }
+      }
+      
+      else { # it is not a part of a source, maybe it is a part of a phrase?
+        my $phrase_range = partial_match("$start:$end", \%h_phrase_range2text) // ''; # is this token a part of a citation phrase?
+        if ($phrase_range =~ /^(\d+):(\d+)$/) {
+          my ($phrase_start, $phrase_end) = ($1, $2);
+          if ($start == $phrase_start) {
+            $span_start = $output_format eq 'html' ? '<span style="font-weight: bold; color: darkred">' : '@';
+          }
+          if ($end == $phrase_end) {
+            $span_end = $output_format eq 'html' ? '</span>' : '@';
+          }
+        }
+      }
+      
+      # print the token
+      my $SpaceAfter = get_misc_value($node, 'SpaceAfter') // '';
+      print STDOUT "$space_before$span_start$form$span_end$type_span";
       $space_before = $SpaceAfter eq 'No' ? '' : ' '; # this way there will not be space after the last token of the sentence
     }
     print STDOUT "\n"; # We put each sentence at a new line in the txt format
@@ -907,7 +959,7 @@ sub get_sentence_html {
 
 =item partial_match
 
-Returns range (in the form "start:end") from keys of given hash that at´ least partially overlaps with the given range.
+Returns range (in the form "start:end") from keys of given hash that at least partially overlaps with the given range.
 Otherwise returns undef.
 
 =cut
@@ -946,7 +998,7 @@ for source, one of:
 Also collects info about automatic annotation in these hashes:
 my %h_phrase_range2text;
 my %h_source_range2text;
-my %h_source_range2type; (not yet used)
+my %h_source_range2type;
 
 =cut
 
@@ -977,6 +1029,7 @@ sub evaluate_single_event {
   }
   else { # source
     $h_source_range2text{$range} = get_text(@nodes);
+    $h_source_range2type{$range} = $event;
     if ($h_ann_source_range2text{$range}) {
       my $event_manual = $h_ann_source_range2type{$range} // 'N/A';
       print_eval('EVALUATION-EXACT-SOURCE-HIT', $range, $text, $event, $range, $text, $event_manual);
