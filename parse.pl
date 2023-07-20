@@ -41,7 +41,7 @@ GetOptions(
     'si|stdin'      => \$stdin, # should the input be read from STDIN?
     'p|phrase-file=s'  => \$phrase_reliability_file, # the name of the file with a list of citation phrases and their reliability
     'r|reliability=i'  => \$min_phrase_reliability, # minimal required phrase reliability
-    'of|output-format=s' => \$output_format, # output format, possible values: txt, html
+    'of|output-format=s' => \$output_format, # output format, possible values: txt, html, conllu
     'su|store-udpipe'    => \$store_udpipe, # should the result of udpipe be stored to a file?
     'sn|store-nametag'    => \$store_nametag, # should the result of nametag be stored to a file?
 );
@@ -82,7 +82,7 @@ if (!defined $output_format) {
   print STDERR " - output format: not specified, set to default $OUTPUT_FORMAT_DEFAULT\n";
   $output_format = $OUTPUT_FORMAT_DEFAULT;
 }
-elsif ($output_format !~ /^(txt|html)$/) {
+elsif ($output_format !~ /^(txt|html|conllu)$/) {
   print STDERR " - output format: unknown ($output_format), set to default $OUTPUT_FORMAT_DEFAULT\n";
   $output_format = $OUTPUT_FORMAT_DEFAULT;
 }
@@ -128,7 +128,8 @@ print STDERR "$phrases_count phrases have been read from file $phrase_reliabilit
 
 
 ###################################################################################
-# If an .ann file with manual annotation is provided for measuring the success rate, read the file now
+# If an .ann file with manual annotation is provided for measuring the success rate,
+# read the file now
 # e.g.
 # T16	anonymous-partial 1360 1365	vědců
 # T23	PHRASE 1354 1359	podle
@@ -252,6 +253,8 @@ my $root; # a single root
 my $min_start = 10000; # from indexes of the tokens, we will get indexes of the sentence
 my $max_end = 0;
 
+my $multiword = ''; # store a multiword line to keep with the following token
+
 # the following cycle for reading UD CONLL is modified from Jan Štěpánek's UD TrEd extension
 foreach my $line (@lines) {
     chomp($line);
@@ -261,18 +264,21 @@ foreach my $line (@lines) {
         #print STDERR "Beginning of a new sentence!\n";
     }
 
-    if ($line =~ /^#\s*newpar/) { # newpar
-        set_attr($root, 'newpar', 1);
-    }
-    elsif ($line =~ /^#\s*sent_id\s=\s*(\S+)/) {
+    if ($line =~ /^#\s*newdoc/) { # newdoc
+        set_attr($root, 'newdoc', $line); # store the whole line incl. e.g. id = ...
+    } elsif ($line =~ /^#\s*newpar/) { # newpar
+        set_attr($root, 'newpar', $line); # store the whole line incl. e.g. id = ...
+    } elsif ($line =~ /^#\s*sent_id\s=\s*(\S+)/) {
         my $sent_id = $1; # substr $sent_id, 0, 0, 'PML-' if $sent_id =~ /^(?:[0-9]|PML-)/;
         set_attr($root, 'id', $sent_id);
-
     } elsif ($line =~ /^#\s*text\s*=\s*(.*)/) {
         set_attr($root, 'text', $1);
         #print STDERR "Reading sentence '$1'\n";
-
-    } elsif ($line =~ /^$/) {
+    } elsif ($line =~ /^#/) { # other comment, store it as well (all other comments in one attribute other_comment with newlines included)
+        my $other_comment_so_far = attr($root, 'other_comment') // '';
+        set_attr($root, 'other_comment', $other_comment_so_far . $line . "\n");
+        
+    } elsif ($line =~ /^$/) { # empty line, i.e. end of a sentence
         _create_structure($root);
         set_attr($root, 'start', $min_start);
         set_attr($root, 'end', $max_end);
@@ -282,17 +288,7 @@ foreach my $line (@lines) {
         #print STDERR "End of sentence id='" . attr($root, 'id') . "'.\n\n";
         $root = undef;
 
-    } elsif ($line =~ /^#\s+new(doc|par)(?:\s+id = (.*))?/) {
-        my $docparid = '';
-        if ($2) {
-          $docparid = $2;
-        }
-        set_attr($root, "$1", "docparid");
-
-    } elsif ($line =~ /^#/) {
-        #$root->{comment} = 'Treex::PML::Factory'->createList([@{ $root->{comment} || [] }, substr $_, 1 ]);
-
-    } else {
+    } else { # a token
         my ($n, $form, $lemma, $upos, $xpos, $feats, $head, $deprel,
             $deps, $misc) = split (/\t/, $line);
         $_ eq '_' and undef $_
@@ -303,8 +299,11 @@ foreach my $line (@lines) {
         #    _create_multiword($n, $root, $misc, $form);
         #    next
         #}
-        next if $n =~ /-/; # For now, let us get rid of joined tokens (e.g. 5-6)
-
+        if ($n =~ /-/) { # a multiword line, store it to keep with the next token
+          $multiword = $line;
+          next;
+        }
+        
         #$feats = _create_feats($feats);
         #$deps = [ map {
         #    my ($parent, $func) = split /:/;
@@ -323,6 +322,11 @@ foreach my $line (@lines) {
         set_attr($node, 'deps', $deps); # 'Treex::PML::Factory'->createList($deps),
         set_attr($node, 'misc', $misc);
         set_attr($node, 'head', $head);
+        
+        if ($multiword) { # the previous line was a multiword, store it at the current token
+          set_attr($node, 'multiword', $multiword);
+          $multiword = '';
+        }
         
         if ($misc and $misc =~ /TokenRange=(\d+):(\d+)\b/) {
           my ($start, $end) = ($1, $2);
@@ -707,23 +711,34 @@ sub get_feat_value {
 =item print_output
 
 Prints the input text with marked sources to STDOUT
-The format is given in global variable $output_format, may be one of: txt, html
+The format is given in global variable $output_format, may be one of: txt, html, conllu
 
 =cut
 
 sub print_output {
 
+  # FILE HEADER
+  
   if ($output_format eq 'html') {
     print STDOUT "<html>\n";
     print STDOUT "<body>\n";
   }
   
-  my $first_par = 1;
+  my $first_par = 1; # for paragraph separation in txt and html formats (first par in the file should not be separated)
+  
+  # for conllu:
+  my $SD_phrase_count = 0; # counting citation phrases
+  my $SD_source_count = 0; # counting citation sources
+  my $SD_count; # for keeping the number of the current event
+  my $inside_SD = 0; # for dealing with multi-token events
+  my $end_of_SD = 0; # dtto
+  my $SD_type = ''; # type of the event - P for phrases, S for sources
+  my $SD_subtype = ''; # source type
   
   foreach $root (@trees) {
   
-    # take care of paragraph separation
-    if (attr($root, 'newpar')) {
+    # PARAGRAPH SEPARATION (txt, html)
+    if (attr($root, 'newpar') and $output_format =~ /^(txt|html)$/) {
       if ($first_par) {
         $first_par = 0;
       }
@@ -732,11 +747,27 @@ sub print_output {
       }
       print STDOUT "<p>\n" if $output_format eq 'html';
     }
+    
+    # SENTENCE HEADER (conllu)
+    if ($output_format eq 'conllu') {
+      print STDOUT attr($root, 'other_comment');
+      my $newdoc = attr($root, 'newdoc') // '';
+      print STDOUT "$newdoc\n" if $newdoc;
+      my $newpar = attr($root, 'newpar') // '';
+      print STDOUT "$newpar\n" if $newpar;
+      my $sent_id = attr($root, 'id') // '';
+      print STDOUT "# sent_id = $sent_id\n" if $sent_id;
+      my $text = attr($root, 'text') // '';
+      print STDOUT "# text = $text\n" if $text;
+    }
 
-    # print the sentence
+    # PRINT THE SENTENCE TOKEN BY TOKEN
     my @nodes = sort {attr($a, 'ord') <=> attr($b, 'ord')} descendants($root);
     my $space_before = '';
+
     foreach my $node (@nodes) {
+    
+      # COLLECT INFO ABOUT THE TOKEN
       my $form = attr($node, 'form');
       my $start = attr($node, 'start');
       my $end = attr($node, 'end');
@@ -750,9 +781,22 @@ sub print_output {
         my ($source_start, $source_end) = ($1, $2);
         if ($start == $source_start) {
           $span_start = $output_format eq 'html' ? '<span style="font-weight: bold; text-decoration: underline; color: darkgreen">' : '>>';
+          $SD_source_count++;
+          $SD_count = $SD_source_count;
+          $inside_SD = 1;
+          $SD_type = 'S';
+          my $source_type = $h_source_range2type{$source_range};
+          if ($source_type) {
+            $SD_subtype = 'a' if $source_type =~ /anonymous/;
+            $SD_subtype = 'ap' if $source_type =~ /anonymous-partial/;
+            $SD_subtype = 'u' if $source_type =~ /unofficial/;
+            $SD_subtype = 'op' if $source_type =~ /official-political/;
+            $SD_subtype = 'onp' if $source_type =~ /official-non-political/;
+          }
         }
         if ($end == $source_end) {
           $span_end = $output_format eq 'html' ? '</span>' : '<<';
+          $end_of_SD = 1;
           my $source_type = $h_source_range2type{$source_range};
           if ($source_type) {
             $type_span = $output_format eq 'html' ? "<span style=\"vertical-align: sub; color: darkblue\">[$source_type]</span>" : "[$source_type]";
@@ -766,19 +810,67 @@ sub print_output {
           my ($phrase_start, $phrase_end) = ($1, $2);
           if ($start == $phrase_start) {
             $span_start = $output_format eq 'html' ? '<span style="font-weight: bold; color: darkred">' : '@';
+            $SD_phrase_count++;
+            $SD_count = $SD_phrase_count;
+            $inside_SD = 1;
+            $SD_type = 'P';
           }
           if ($end == $phrase_end) {
             $span_end = $output_format eq 'html' ? '</span>' : '@';
+            $end_of_SD = 1;
           }
         }
       }
       
-      # print the token
-      my $SpaceAfter = get_misc_value($node, 'SpaceAfter') // '';
-      print STDOUT "$space_before$span_start$form$span_end$type_span";
-      $space_before = $SpaceAfter eq 'No' ? '' : ' '; # this way there will not be space after the last token of the sentence
+      # PRINT THE TOKEN
+      if ($output_format =~ /^(txt|html)$/) {
+        my $SpaceAfter = get_misc_value($node, 'SpaceAfter') // '';
+        print STDOUT "$space_before$span_start$form$span_end$type_span";
+        $space_before = $SpaceAfter eq 'No' ? '' : ' '; # this way there will not be space after the last token of the sentence
+      }
+      elsif ($output_format eq 'conllu') {
+        my $ord = attr($node, 'ord') // '_';
+        my $lemma = attr($node, 'lemma') // '_';
+        my $deprel = attr($node, 'deprel') // '_';
+        my $upostag = attr($node, 'upostag') // '_';
+        my $xpostag = attr($node, 'xpostag') // '_';
+        my $feats = attr($node, 'feats') // '_';
+        my $deps = attr($node, 'deps') // '_';
+        my $misc = attr($node, 'misc') // '_';
+        
+        if ($inside_SD) { # add info to $misc about detected events
+          my $event = 'SD=' . $SD_type . '_' . $SD_count;
+          $event .= '_' . $SD_subtype if ($SD_subtype);
+          
+          if ($misc eq '_') {
+            $misc = $event;
+          }
+          else {
+            my @miscs = split('\|', $misc);
+            push(@miscs, $event);
+            my @miscs_sorted = sort {$a cmp $b} @miscs;
+            $misc = join('|', @miscs_sorted);
+          }
+          
+          if ($end_of_SD) {
+            $inside_SD = 0;
+            $end_of_SD = 0;
+            $SD_type = '';
+            $SD_subtype = '';
+          }
+        }
+        
+        my $head = attr($node, 'head') // '_';
+        
+        my $multiword = attr($node, 'multiword') // '';
+        if ($multiword) {
+          print STDOUT "$multiword\n";
+        }
+        
+        print STDOUT "$ord\t$form\t$lemma\t$upostag\t$xpostag\t$feats\t$head\t$deprel\t$deps\t$misc\n";
+      }
     }
-    print STDOUT "\n"; # We put each sentence at a new line in the txt format
+    print STDOUT "\n"; # We put each sentence at a new line in the txt format; an empty line ends a sentence also in the conllu format and we do not mind an empty line in the html format
   }
 
   if ($output_format eq 'html') {

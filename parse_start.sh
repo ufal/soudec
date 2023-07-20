@@ -11,7 +11,7 @@ for A in ../data/test/*.txt; do
   if [ -e $B ]; then
     echo "(.ann file provided)"
     echo "=========================================================="
-    ./parse.pl --input-file $A --phrase-file ../data/resources/spolehlivost_frazi.csv --ann-file $B --store-nametag --output-format txt 2>>err
+    ./parse.pl --input-file $A --phrase-file ../data/resources/spolehlivost_frazi.csv --ann-file $B --store-nametag --output-format conllu 2>>err
   else
     echo "(no .ann file)"
     echo "=========================================================="
