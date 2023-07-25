@@ -1,0 +1,112 @@
+<html>
+<head>
+  <title>SouDeC</title>
+
+  <meta charset="utf-8">
+
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap-theme.min.css">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css">
+
+  <link rel="stylesheet" href="css/lindat.css" type="text/css" />
+  <link rel="stylesheet" href="css/soudec.css" type="text/css" />
+</head>
+
+<body>
+   <div class="lindat-common">
+      <div class="container">
+        <!-- breadcrumb -->
+        <!--ul class="breadcrumb">
+          <li><a href="//lindat.mff.cuni.cz/">LINDAT/CLARIN</a></li>
+          <li><a href="//lindat.mff.cuni.cz/services/">Services</a></li>
+          <li class="active">UDPipe</li>
+        </ul-->
+
+        <!-- Service title -->
+        <h1 class="text-center">SouDeC</h1>
+
+        <!-- menu -->
+        <ul class="nav nav-tabs text-center" style="margin-bottom: 10px">
+          <li ><a href="info.html"><span class="fa fa-info-circle"></span> About</a></li>
+          <li  class="active"><a href="index.html"><span class="fa fa-cogs"></span> Run</a></li>
+          <li ><a href="api-reference.html"><span class="fa fa-list"></span> REST API Documentation</a></li>
+        </ul>
+
+<div>
+<p>
+SouDeC (Source Detection and Classification) is an on-line tool and REST API service for detecting and classifying sources in Czech texts.
+</p>
+<p>
+It is available under the Creative Commons 
+<a href="http://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA</a> license.
+</p>
+<p>
+Copyright 2023 by Institute of Formal and Applied Linguistics, Faculty of
+Mathematics and Physics, Charles University, Czech Republic.
+</p>
+<p>
+Description of the available methods is available in the 
+<a href="api-reference.html">API Documentation</a>.
+</p>
+
+
+<div class="panel panel-info">
+  <div class="panel-heading">Service</div>
+  <div class="panel-body">
+
+    <p>The service is freely available for testing. Respect the
+    <a href="http://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA</a>
+    licence; <b>explicit written permission of the authors is
+    required for any commercial exploitation of the system</b>. If you use the
+    service, you agree that data obtained by us during such use can be used for further
+    improvements of the systems at UFAL. All comments and reactions are welcome.</p>
+
+    <div id="error" class="alert alert-danger" style="display: none"></div>
+    <div class="form-horizontal">
+      <div class="form-group row">
+        <label class="col-sm-2 control-label">Input:</label>
+        <div class="col-sm-10">
+          <label title="Tokenize input using a tokenizer" class="radio-inline" id="option_input_plaintext"><input name="option_input" type="radio" value="plaintext" checked/>Plain text</label>
+          <label title="Tokenize a pre-segmented input using a tokenizer" class="radio-inline" id="option_input_presegmented"><input name="option_input" type="radio" value="presegmented"/>Pre-segmented</label>
+        </div>
+      </div>
+      <div class="form-group row">
+        <label class="col-sm-2 control-label">Output:</label>
+        <div class="col-sm-10">
+          <label title="TXT with sources and phrases marked with special characters" class="radio-inline" id="option_output_txt"><input name="option_output" type="radio" value="txt"/>TXT (<a href="http://ufal.mff.cuni.cz/soudec/1/users-manual#run_ner_output_formats">marked with special characters</a>)</label>
+          <label title="HTML with colour-marked sources and phrases" class="radio-inline" id="option_output_html"><input name="option_output" type="radio" value="html" checked/>HTML (<a href="http://ufal.mff.cuni.cz/soudec/1/users-manual#run_ner_output_formats">colour-marked</a>)</label>
+          <label title="CoNLL-U format with sources and phrases in MISC" class="radio-inline" id="option_output_conllu"><input name="option_output" type="radio" value="conllu"/>CoNLL-U (<a href="http://ufal.mff.cuni.cz/soudec/1/users-manual#run_ner_output_formats">CoNLL-U+NE+SD</a>)</label>
+        </div>
+      </div>
+    </div>
+
+    <ul class="nav nav-tabs nav-justified nav-tabs-green">
+     <li class="active"><a href="#input_text" data-toggle="tab"><span class="fa fa-font"></span> Input Text</a></li>
+    </ul>
+    <div class="tab-content" id="input_tabs" style="border-right: 1px solid #ddd; border-left: 1px solid #ddd; border-bottom: 1px solid #ddd; border-bottom-right-radius: 5px; border-bottom-left-radius: 5px; padding: 15px">
+     <div class="tab-pane active" id="input_text">
+      <textarea id="input" class="form-control" rows="10" cols="80"></textarea>
+     </div>
+    </div>
+ 
+    <button id="submit" class="btn btn-primary form-control" type="submit" style="margin-top: 15px; margin-bottom: 15px" onclick="doSubmit()"><span class="fa fa-arrow-down"></span> Process Input <span class="fa fa-arrow-down"></span></button>
+
+    <ul class="nav nav-tabs nav-justified nav-tabs-green">
+     <li class="active"><a href="#output_formatted" data-toggle="tab"><span class="fa fa-table"></span> Output</a></li>
+    </ul>
+    <div class="tab-content" id="output_tabs" style="border-right: 1px solid #ddd; border-left: 1px solid #ddd; border-bottom: 1px solid #ddd; border-bottom-right-radius: 5px; border-bottom-left-radius: 5px; padding: 15px">
+     <div class="tab-pane active" id="output_formatted">
+     </div>
+    </div>
+
+    <h3 id="acknowledgements_title" style="display: none; margin-top: 15px">Acknowledgements</h3>
+    <p id="acknowledgements_text" style="display: none"> </p>
+  </div>
+</div>
+
+
+
+
+</div>
+</body>
+</html>
