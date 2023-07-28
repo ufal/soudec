@@ -2,11 +2,6 @@
 
 <?php require('about.html') ?>
 
-<p>
-Description of the available methods is available in the <a href="api-reference.php">API
-Documentation</a>.
-</p>
-
 <script type="text/javascript"><!--
   var input_file_content = null;
   var output_file_content = null;
