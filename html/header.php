@@ -11,9 +11,9 @@
   <link rel="stylesheet" href="css/lindat.css" type="text/css" />
   <link rel="stylesheet" href="css/soudec.css" type="text/css" />
 
-  <!--script src="//code.jquery.com/jquery-1.11.3.min.js" type="text/javascript"></script>
-  <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
-  <script src="//cdn.rawgit.com/google/code-prettify/master/loader/run_prettify.js" type="text/javascript"></script-->
+  <script src="https://code.jquery.com/jquery-1.11.3.min.js" type="text/javascript"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
+  <script src="https://cdn.rawgit.com/google/code-prettify/master/loader/run_prettify.js" type="text/javascript"></script>
 </head>
 
 <body id="lindat-services">

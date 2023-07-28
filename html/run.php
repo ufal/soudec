@@ -8,20 +8,13 @@
   var output_file_table = null;
 
   function doSubmit() {
-    var model = jQuery('#model :selected').text();
-    if (!model) return;
+    //var model = jQuery('#model :selected').text();
+    //if (!model) return;
 
-    var text;
-    var input_tab = jQuery('#input_tabs>.tab-pane.active');
-    if (input_tab.length > 0 && input_tab.attr('id') == 'input_file') {
-      if (!input_file_content) { alert('Please load file first.'); return; }
-      text = input_file_content;
-    } else {
-      text = jQuery('#input').val();
-    }
+    var text = jQuery('#input').val();
 
-    var options = {model: model, data: text};
-    var input = jQuery('input[name=option_input]:checked').val();
+    var options = {data: text};
+    /*var input = jQuery('input[name=option_input]:checked').val();
     if (input && input == "tokenizer") {
       options.tokenizer = "";
       var opts = ["presegmented", "ranges", "normalized_spaces"];
@@ -29,9 +22,7 @@
         if (jQuery("#tokenizer_" + opts[i]).prop('checked')) options.tokenizer += (options.tokenizer ? ";" : "") + opts[i];
     } else {
       options.input = input ? input : "conllu";
-    }
-    if (jQuery('#tagger').prop('checked')) options.tagger = "";
-    if (jQuery('#parser').prop('checked')) options.parser = "";
+    }*/
 
     var form_data = null;
     if (window.FormData) {
@@ -41,23 +32,16 @@
     }
 
     output_file_content = null;
-    output_file_table = null;
-    output_file_tree = null;
     jQuery('#submit').html('<span class="fa fa-cog"></span> Waiting for Results <span class="fa fa-cog"></span>');
     jQuery('#submit').prop('disabled', true);
-    jQuery.ajax('//lindat.mff.cuni.cz/services/udpipe/api/process',
+    jQuery.ajax('//quest.ms.mff.cuni.cz/soudec/api/process',
            {data: form_data ? form_data : options, processData: form_data ? false : true,
             contentType: form_data ? false : 'application/x-www-form-urlencoded; charset=UTF-8',
             dataType: "json", type: "POST", success: function(json) {
       try {
         if ("result" in json) {
           output_file_content = json.result;
-          jQuery('#output_text').html('<button id="save_file" class="btn btn-success form-control" type="submit" onclick="saveFile()"><span class="fa fa-download"></span> Save Output File</span></button><div class="well" id="output_text_content" style="white-space: pre-wrap; margin-top: 15px"></div>');
-          jQuery('#output_text_content').text(output_file_content);
-
-          var output_tab = jQuery('#output_tabs>.tab-pane.active');
-          if (output_tab.length > 0 && output_tab.attr('id') == 'output_table') showTable(); else jQuery('#output_table').empty();
-          if (output_tab.length > 0 && output_tab.attr('id') == 'output_tree') showTree(); else jQuery('#output_tree').empty();
+          jQuery('#output_formatted').text(output_file_content);
 
           var acknowledgements = "";
           for (var a in json.acknowledgements)
@@ -71,8 +55,6 @@
         jQuery('#submit').prop('disabled', false);
       }
     }, error: function(jqXHR, textStatus) {
-      jQuery('#output_text').empty();
-      jQuery('#output_tree').empty();
       alert("An error occurred" + ("responseText" in jqXHR ? ": " + jqXHR.responseText : "!"));
     }, complete: function() {
       jQuery('#submit').html('<span class="fa fa-arrow-down"></span> Process Input <span class="fa fa-arrow-down"></span>');
