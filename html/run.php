@@ -12,17 +12,13 @@
     //if (!model) return;
 
     var text = jQuery('#input').val();
-
-    var options = {data: text};
-    /*var input = jQuery('input[name=option_input]:checked').val();
-    if (input && input == "tokenizer") {
-      options.tokenizer = "";
-      var opts = ["presegmented", "ranges", "normalized_spaces"];
-      for (var i in opts)
-        if (jQuery("#tokenizer_" + opts[i]).prop('checked')) options.tokenizer += (options.tokenizer ? ";" : "") + opts[i];
-    } else {
-      options.input = input ? input : "conllu";
-    }*/
+    // console.log("doSubmit: Input text: ", text);
+    var input_format = jQuery('input[name=option_input]:checked').val();
+    // console.log("doSubmit: Input format: ", input_format);
+    var output_format = jQuery('input[name=option_output]:checked').val();
+    // console.log("doSubmit: Output format: ", output_format);
+    var options = {data: text, input: input_format, output: output_format};
+    // console.log("doSubmit: options: ", options);
 
     var form_data = null;
     if (window.FormData) {
@@ -39,8 +35,9 @@
             contentType: form_data ? false : 'application/x-www-form-urlencoded; charset=UTF-8',
             dataType: "json", type: "POST", success: function(json) {
       try {
-        if ("result" in json) {
+	  if ("result" in json) {
           output_file_content = json.result;
+          // console.log("result in json: ", output_file_content);
           jQuery('#output_formatted').text(output_file_content);
 
           var acknowledgements = "";
