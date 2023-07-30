@@ -43,19 +43,30 @@ any '/api/test' => sub {
 };
 
 # Endpoint pro detect
-any '/api/process' => sub {
+any '/api/detect' => sub {
     my $c = shift;
     if ($c->req->method eq 'POST') {
+
         # Zde můžete zpracovat data odeslaná v těle požadavku POST
-        my $data = $c->req->json;
+	# my $data = $c->req->json;
+        my $text = $c->param('text'); # input text
+        my $input_format = $c->param('input'); # input format
+        my $output_format = $c->param('output'); # output format
+
         # Pro ilustraci jen odeslat data zpět jako odpověď
-        return $c->render(json => { message => 'This is the process function called via POST.',
-                                    result => 'A dummy result' });
+        return $c->render(json => { message => 'This is the detect function called via POST.',
+                                    result => "input format: '$input_format', output format: '$output_format', text: '$text'" });
     }
-    else {
-        # Zpracování GET požadavku stejně jako dříve
-        return $c->render(json => { message => 'This is the process function called via GET.',
-                                    result => 'A dummy result' });
+    else { # GET
+
+        # Přečtěte parametry z GET requestu
+        my $text = $c->param('text'); # input text
+        my $input_format = $c->param('input'); # input format
+        my $output_format = $c->param('output'); # output format
+
+        # Zpracování GET požadavku
+        return $c->render(json => { message => 'This is the detect function called via GET.',
+                                    result => "input format: '$input_format', output format: '$output_format', text: '$text'" });
     }
 };
 
