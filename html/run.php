@@ -11,13 +11,13 @@
     //var model = jQuery('#model :selected').text();
     //if (!model) return;
 
-    var text = jQuery('#input').val();
-    // console.log("doSubmit: Input text: ", text);
+    var input_text = jQuery('#input').val();
+    // console.log("doSubmit: Input text: ", input_text);
     var input_format = jQuery('input[name=option_input]:checked').val();
     // console.log("doSubmit: Input format: ", input_format);
     var output_format = jQuery('input[name=option_output]:checked').val();
     // console.log("doSubmit: Output format: ", output_format);
-    var options = {data: text, input: input_format, output: output_format};
+    var options = {text: input_text, input: input_format, output: output_format};
     // console.log("doSubmit: options: ", options);
 
     var form_data = null;
