@@ -114,8 +114,8 @@
      </div>
     </div>
 
-    <h3 id="acknowledgements_title" style="display: none; margin-top: 15px">Acknowledgements</h3>
-    <p id="acknowledgements_text" style="display: none"> </p>
+    <h3 id="acknowledgements_title" style="margin-top: 15px">Acknowledgements</h3>
+    <p id="acknowledgements_text">Supported by project Signál a šum...</p>
   </div>
 </div>
 
