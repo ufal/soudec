@@ -30,7 +30,7 @@
     output_file_content = null;
     jQuery('#submit').html('<span class="fa fa-cog"></span> Waiting for Results <span class="fa fa-cog"></span>');
     jQuery('#submit').prop('disabled', true);
-    jQuery.ajax('//quest.ms.mff.cuni.cz/soudec/api/process',
+    jQuery.ajax('//quest.ms.mff.cuni.cz/soudec/api/detect',
            {data: form_data ? form_data : options, processData: form_data ? false : true,
             contentType: form_data ? false : 'application/x-www-form-urlencoded; charset=UTF-8',
             dataType: "json", type: "POST", success: function(json) {
