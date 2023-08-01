@@ -32,6 +32,7 @@ my $min_phrase_reliability;
 my $output_format;
 my $store_udpipe;
 my $store_nametag;
+my $store_soudec;
 
 
 # getting the arguements
@@ -44,6 +45,7 @@ GetOptions(
     'of|output-format=s' => \$output_format, # output format, possible values: txt, html, conllu
     'su|store-udpipe'    => \$store_udpipe, # should the result of udpipe be stored to a file?
     'sn|store-nametag'    => \$store_nametag, # should the result of nametag be stored to a file?
+    'ss|store-soudec'    => \$store_soudec, # should the result of soudec detection be stored to a (conllu) file?
 );
 
 ###################################################################################
@@ -89,6 +91,17 @@ elsif ($output_format !~ /^(txt|html|conllu)$/) {
 else {
   print STDERR " - output format: $output_format\n";
 }
+
+if ($store_udpipe) {
+  print STDERR " - store output: udpipe\n";
+}
+if ($store_nametag) {
+  print STDERR " - store output: nametag (includes output of udpipe)\n";
+}
+if ($store_soudec) {
+  print STDERR " - store output: soudec (in conllu format; includes output of udpipe and nametag)\n";
+}
+
 
 print STDERR "\n";
 

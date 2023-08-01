@@ -24,6 +24,8 @@
 
 
 use Mojolicious::Lite;
+use IPC::Run qw(run);
+
 
 # Endpoint pro test
 any '/api/test' => sub {
@@ -36,7 +38,7 @@ any '/api/test' => sub {
                                     result => 'A dummy result' });
     }
     else {
-        # Zpracování GET požadavku stejně jako dříve
+        # Zpracování GET požadavku
         return $c->render(json => { message => 'This is the test function called via GET.',
                                     result => 'A dummy result' });
     }
@@ -48,14 +50,25 @@ any '/api/detect' => sub {
     if ($c->req->method eq 'POST') {
 
         # Zde můžete zpracovat data odeslaná v těle požadavku POST
-	# my $data = $c->req->json;
         my $text = $c->param('text'); # input text
         my $input_format = $c->param('input'); # input format
         my $output_format = $c->param('output'); # output format
 
-        # Pro ilustraci jen odeslat data zpět jako odpověď
-        return $c->render(json => { message => 'This is the detect function called via POST.',
-                                    result => "input format: '$input_format', output format: '$output_format', text: '$text'" });
+	# Spuštění skriptu parse.pl s předáním parametrů a standardního vstupu
+        my @cmd = ('perl', 'parse.pl',
+		   '--stdin',
+		   '--store-nametag',
+		   '--phrase-file', 'resources/spolehlivost_frazi.csv',
+		   #'--input-format', $input_format, 
+		   '--output-format', $output_format);
+        my $stdin_data = $text;
+
+        my $result;
+        run \@cmd, \$stdin_data, \$result;
+
+        # Vytvoření dpovědi
+        return $c->render(json => { message => 'This is the detect function called via POST; input format=$input_format, output format=$output_format.',
+                                    result => "$result" });
     }
     else { # GET
 
