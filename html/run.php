@@ -36,17 +36,9 @@
             dataType: "json", type: "POST", success: function(json) {
       try {
 	  if ("result" in json) {
-          output_file_content = json.result;
-          // console.log("result in json: ", output_file_content);
-          jQuery('#output_formatted').text(output_file_content);
-
-          var acknowledgements = "";
-          for (var a in json.acknowledgements)
-            acknowledgements += "<a href='" + json.acknowledgements[a] + "'>" + json.acknowledgements[a] + "</a><br/>";
-          jQuery('#acknowledgements_text').html(acknowledgements).show();
-          jQuery('#acknowledgements_title').show();
-          jQuery('#acknowledgements_text').show();
-        }
+	    output_file_content = json.result;
+            jQuery('#output_formatted').html(output_file_content);
+          }
       } catch(e) {
         jQuery('#submit').html('<span class="fa fa-arrow-down"></span> Process Input <span class="fa fa-arrow-down"></span>');
         jQuery('#submit').prop('disabled', false);
@@ -116,6 +108,7 @@
 
     <h3 id="acknowledgements_title" style="margin-top: 15px">Acknowledgements</h3>
     <p id="acknowledgements_text">Supported by project Signál a šum...</p>
+    <p id="acknowledgements_text">Pozor na licenci volaných služeb, obzvláště když poskytuju jako výstup conllu!</p>
   </div>
 </div>
 
