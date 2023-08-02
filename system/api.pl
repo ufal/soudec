@@ -22,9 +22,17 @@
 # Pak funguje např.
 # curl http://localhost/api/test
 
-
+use strict;
+use warnings;
 use Mojolicious::Lite;
 use IPC::Run qw(run);
+use Encode;
+# use Data::Dumper;
+
+# STDIN and STDOUT in UTF-8
+binmode STDIN, ':encoding(UTF-8)';
+binmode STDOUT, ':encoding(UTF-8)';
+binmode STDERR, ':encoding(UTF-8)';
 
 
 # Endpoint pro test
@@ -62,13 +70,16 @@ any '/api/detect' => sub {
 		   #'--input-format', $input_format, 
 		   '--output-format', $output_format);
         my $stdin_data = $text;
-
         my $result;
         run \@cmd, \$stdin_data, \$result;
 
-        # Vytvoření dpovědi
-        return $c->render(json => { message => 'This is the detect function called via POST; input format=$input_format, output format=$output_format.',
-                                    result => "$result" });
+	my $result_utf8 = decode_utf8($result);
+        # Vytvoření odpovědi
+	$c->res->headers->content_type('application/json; charset=UTF-8');
+	my $data = {message => 'This is the detect function called via POST; input format=$input_format, output format=$output_format.',
+                                    result => "$result_utf8" };
+        # print STDERR Dumper($data);
+	return $c->render(json => $data);
     }
     else { # GET
 

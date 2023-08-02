@@ -11,6 +11,11 @@ use List::Util qw(min max);
 use Getopt::Long; # reading arguments
 use POSIX qw(strftime); # naming a file with date and time
 
+# STDIN and STDOUT in UTF-8
+binmode STDIN, ':encoding(UTF-8)';
+binmode STDOUT, ':encoding(UTF-8)';
+
+
 # a list of keywords to classify a source as anonymous
 my %keywords_anonymous = ('zdroj' => 1,
                           'pozorovatel' => 1,
