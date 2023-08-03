@@ -1114,47 +1114,50 @@ my %h_source_range2type;
 
 sub evaluate_single_event {
   my ($event, $root, @nodes) = @_;
-  return if !$ann_file; # do nothing if no manuall annotation was provided
   
   my $range = get_range(@nodes);
   my $text = get_text(@nodes);
   
   if ($event eq 'phrase') {
     $h_phrase_range2text{$range} = get_text(@nodes);
-    if ($h_ann_phrase_range2text{$range}) {
-      print_eval('EVALUATION-EXACT-PHRASE-HIT', $range, $text, '-', $range, $text, '-');
-      print_eval('EVALUATION-PARTIAL-PHRASE-HIT', $range, $text, '-', $range, $text, '-');
-    }
-    else {
-      print_eval('EVALUATION-EXACT-PHRASE-FALSE-POSITIVE', $range, $text, '-', 'N/A', 'N/A', '-');
-      my $partial_phrase_range = partial_match($range, \%h_ann_phrase_range2text);
-      if ($partial_phrase_range) {
-        my $partial_text = $h_ann_phrase_range2text{$partial_phrase_range};
-        print_eval('EVALUATION-PARTIAL-PHRASE-HIT', $range, $text, '-', $partial_phrase_range, $partial_text, '-');
+    if ($ann_file) { # evaluate the event against manual annotation
+      if ($h_ann_phrase_range2text{$range}) {
+        print_eval('EVALUATION-EXACT-PHRASE-HIT', $range, $text, '-', $range, $text, '-');
+        print_eval('EVALUATION-PARTIAL-PHRASE-HIT', $range, $text, '-', $range, $text, '-');
       }
       else {
-        print_eval('EVALUATION-PARTIAL-PHRASE-FALSE-POSITIVE', $range, $text, '-', 'N/A', 'N/A', '-');
+        print_eval('EVALUATION-EXACT-PHRASE-FALSE-POSITIVE', $range, $text, '-', 'N/A', 'N/A', '-');
+        my $partial_phrase_range = partial_match($range, \%h_ann_phrase_range2text);
+        if ($partial_phrase_range) {
+          my $partial_text = $h_ann_phrase_range2text{$partial_phrase_range};
+          print_eval('EVALUATION-PARTIAL-PHRASE-HIT', $range, $text, '-', $partial_phrase_range, $partial_text, '-');
+        }
+        else {
+          print_eval('EVALUATION-PARTIAL-PHRASE-FALSE-POSITIVE', $range, $text, '-', 'N/A', 'N/A', '-');
+        }
       }
     }
   }
   else { # source
     $h_source_range2text{$range} = get_text(@nodes);
     $h_source_range2type{$range} = $event;
-    if ($h_ann_source_range2text{$range}) {
-      my $event_manual = $h_ann_source_range2type{$range} // 'N/A';
-      print_eval('EVALUATION-EXACT-SOURCE-HIT', $range, $text, $event, $range, $text, $event_manual);
-      print_eval('EVALUATION-PARTIAL-SOURCE-HIT', $range, $text, $event, $range, $text, $event_manual);
-    }
-    else {
-      print_eval('EVALUATION-EXACT-SOURCE-FALSE-POSITIVE', $range, $text, $event, 'N/A', 'N/A', 'N/A');
-      my $partial_source_range = partial_match($range, \%h_ann_source_range2text);
-      if ($partial_source_range) {
-        my $partial_text = $h_ann_source_range2text{$partial_source_range};
-        my $event_manual = $h_ann_source_range2type{$partial_source_range} // 'N/A';
-        print_eval('EVALUATION-PARTIAL-SOURCE-HIT', $range, $text, $event, $partial_source_range, $partial_text, $event_manual);
+    if ($ann_file) { # evaluate the event against manual annotation
+      if ($h_ann_source_range2text{$range}) {
+        my $event_manual = $h_ann_source_range2type{$range} // 'N/A';
+        print_eval('EVALUATION-EXACT-SOURCE-HIT', $range, $text, $event, $range, $text, $event_manual);
+        print_eval('EVALUATION-PARTIAL-SOURCE-HIT', $range, $text, $event, $range, $text, $event_manual);
       }
       else {
-        print_eval('EVALUATION-PARTIAL-SOURCE-FALSE-POSITIVE', $range, $text, $event, 'N/A', 'N/A', 'N/A');
+        print_eval('EVALUATION-EXACT-SOURCE-FALSE-POSITIVE', $range, $text, $event, 'N/A', 'N/A', 'N/A');
+        my $partial_source_range = partial_match($range, \%h_ann_source_range2text);
+        if ($partial_source_range) {
+          my $partial_text = $h_ann_source_range2text{$partial_source_range};
+          my $event_manual = $h_ann_source_range2type{$partial_source_range} // 'N/A';
+          print_eval('EVALUATION-PARTIAL-SOURCE-HIT', $range, $text, $event, $partial_source_range, $partial_text, $event_manual);
+        }
+        else {
+          print_eval('EVALUATION-PARTIAL-SOURCE-FALSE-POSITIVE', $range, $text, $event, 'N/A', 'N/A', 'N/A');
+        }
       }
     }
   }
