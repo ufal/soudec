@@ -36,8 +36,10 @@
             dataType: "json", type: "POST", success: function(json) {
       try {
 	  if ("result" in json) {
-	    output_file_content = json.result;
-            jQuery('#output_formatted').html(output_file_content);
+              output_file_content = json.result;
+              // Přidání <br> ke každému novému řádku v proměnné output_file_content
+              var formatted_content = output_format == "html" ? output_file_content : output_file_content.replace(/\n/g, "\n<br>");
+              jQuery('#output_formatted').html(formatted_content);
           }
       } catch(e) {
         jQuery('#submit').html('<span class="fa fa-arrow-down"></span> Process Input <span class="fa fa-arrow-down"></span>');
