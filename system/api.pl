@@ -67,7 +67,7 @@ any '/api/detect' => sub {
 		   '--stdin',
 		   '--store-nametag',
 		   '--phrase-file', 'resources/spolehlivost_frazi.csv',
-		   #'--input-format', $input_format, 
+		   '--input-format', $input_format, 
 		   '--output-format', $output_format);
         my $stdin_data = $text;
         my $result;

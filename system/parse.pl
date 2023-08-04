@@ -27,11 +27,14 @@ my %keywords_anonymous = ('zdroj' => 1,
 my $MIN_RELIABILITY_DEFAULT = 10;
 # default output format
 my $OUTPUT_FORMAT_DEFAULT = 'txt';
+# default input format
+my $INPUT_FORMAT_DEFAULT = 'txt';
 
 # variables for arguments
 my $input_file;
 my $ann_file;
 my $stdin;
+my $input_format;
 my $phrase_reliability_file;
 my $min_phrase_reliability;
 my $output_format;
@@ -45,6 +48,7 @@ GetOptions(
     'i|input-file=s'  => \$input_file, # the name of the input file
     'a|ann-file=s'  => \$ann_file, # the name of the file with manual annotation
     'si|stdin'      => \$stdin, # should the input be read from STDIN?
+    'if|input-format=s' => \$input_format, # input format, possible values: txt, presegmented
     'p|phrase-file=s'  => \$phrase_reliability_file, # the name of the file with a list of citation phrases and their reliability
     'r|reliability=i'  => \$min_phrase_reliability, # minimal required phrase reliability
     'of|output-format=s' => \$output_format, # output format, possible values: txt, html, conllu
@@ -66,6 +70,18 @@ if ($stdin) {
 }
 elsif ($input_file) {
   print STDERR " - input: file $input_file\n";
+}
+
+if (!defined $input_format) {
+  print STDERR " - input format: not specified, set to default $INPUT_FORMAT_DEFAULT\n";
+  $input_format = $INPUT_FORMAT_DEFAULT;
+}
+elsif ($input_format !~ /^(txt|presegmented)$/) {
+  print STDERR " - input format: unknown ($input_format), set to default $INPUT_FORMAT_DEFAULT\n";
+  $input_format = $INPUT_FORMAT_DEFAULT;
+}
+else {
+  print STDERR " - input format: $input_format\n";
 }
 
 if ($ann_file) {
@@ -743,7 +759,9 @@ sub print_output {
   }
   
   my $first_par = 1; # for paragraph separation in txt and html formats (first par in the file should not be separated)
-  
+
+  my $first_sent = 1; # for sentence separation in txt and html formats (first sentence in the file should not be separated)
+
   # for conllu:
   my $SD_phrase_count = 0; # counting citation phrases
   my $SD_source_count = 0; # counting citation sources
@@ -757,11 +775,12 @@ sub print_output {
   
     # PARAGRAPH SEPARATION (txt, html)
     if (attr($root, 'newpar') and $output_format =~ /^(txt|html)$/) {
+      $first_sent = 1;
       if ($first_par) {
         $first_par = 0;
       }
       else {
-        print STDOUT $output_format eq 'html' ? "</p>\n" : "\n";
+        print STDOUT $output_format eq 'html' ? "\n</p>\n" : "\n\n";
       }
       print STDOUT "<p>\n" if $output_format eq 'html';
     }
@@ -777,6 +796,24 @@ sub print_output {
       print STDOUT "# sent_id = $sent_id\n" if $sent_id;
       my $text = attr($root, 'text') // '';
       print STDOUT "# text = $text\n" if $text;
+    }
+
+    # sentence separation in txt and html formats
+    if ($output_format =~ /^(txt|html)$/) {
+      if ($first_sent) {
+        $first_sent = 0;
+      }
+      else {
+        if ($input_format eq 'presegmented') { # each sentence should go to its own line
+          print STDOUT "\n";
+          if ($output_format eq 'html') {
+            print STDOUT '<br>';
+          }
+        }
+        else {
+          print STDOUT ' ';
+        }
+      }
     }
 
     # PRINT THE SENTENCE TOKEN BY TOKEN
@@ -888,11 +925,16 @@ sub print_output {
         print STDOUT "$ord\t$form\t$lemma\t$upostag\t$xpostag\t$feats\t$head\t$deprel\t$deps\t$misc\n";
       }
     }
-    print STDOUT "\n"; # We put each sentence at a new line in the txt format; an empty line ends a sentence also in the conllu format and we do not mind an empty line in the html format
+
+    # sentence separation in the conllu format needs to be here (also the last sentence should be ended with \n)
+    if ($output_format eq 'conllu') {
+      print STDOUT "\n"; # an empty line ends a sentence in the conllu format    
+    }
+    
   }
 
   if ($output_format eq 'html') {
-    print STDOUT "</p>\n";
+    print STDOUT "\n</p>\n";
     print STDOUT "</body>\n";
     print STDOUT "</html>\n";
   }
@@ -1372,8 +1414,13 @@ sub call_udpipe {
     my $text = shift;
 
     # Nastavení URL pro volání REST::API s parametry
-    my $url = 'http://lindat.mff.cuni.cz/services/udpipe/api/process?tokenizer=ranges&tagger&parser&data=' . uri_escape_utf8($text);
+    my $tokenizer = 'tokenizer=ranges';
+    if ($input_format eq 'presegmented') {
+      $tokenizer .= ';presegmented';
+    }
+    my $url = 'http://lindat.mff.cuni.cz/services/udpipe/api/process?' . $tokenizer . '&tagger&parser&data=' . uri_escape_utf8($text);
 
+    print STDERR "url = $url\n";
     # Vytvoření instance LWP::UserAgent
     my $ua = LWP::UserAgent->new;
 
