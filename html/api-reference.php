@@ -13,20 +13,13 @@
 <p>SouDeC REST API web service is available on
 <code>http(s)://quest.ms.mff.cuni.cz/soudec/api/</code>.</p>
 
-<p>The web service is freely available. Respect the
-<a href="http://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA</a>
-licence; <b>explicit written permission of the authors is
-required for any commercial exploitation of the system</b>. If you use the
-service, you agree that data obtained by us during such use can be used for further
-improvements of the systems at UFAL. All comments and reactions are welcome.</p>
+<?php require('licence.html') ?>
 
 <h2 id="api_reference">API Reference</h2>
 
-<p>The SouDeC REST API can be accessed directly or via any other web
+<p>The SouDeC REST API can be accessed <a href="run.php">directly</a> or via web
 programming tools that support standard HTTP request methods and JSON for output
 handling.</p>
-
-<p>BELOW JUST A COPY FROM UDPIPE - to be changed!</p>
 
 <table class='table table-striped table-bordered'>
 <tr>
@@ -35,26 +28,22 @@ handling.</p>
     <th>HTTP Method</th>
 </tr>
 <tr>
-    <td><a href="#process">process</a></td>
-    <td><a href="http://ufal.mff.cuni.cz/udpipe/users-manual#run_udpipe">process supplied data</a></td>
+    <td><a href="#detect">detect</a></td>
+    <td><a href="http://ufal.mff.cuni.cz/soudec/users-manual#run_soudec">detect and classify sources</a></td>
     <td>GET/POST</td>
 </tr>
 </table>
 
 
-<h3>Method <a id='process'>process</a></h3>
+<h3>Method <a id='detect'>detect</a></h3>
 
-<p>Process given data as described <a href="http://ufal.mff.cuni.cz/udpipe/users-manual#run_udpipe">in the User's Manual</a>.</p>
+<p>Process the given data as described <a href="http://ufal.mff.cuni.cz/soudec/users-manual#run_soudec">in the User's Manual</a>.</p>
 
 <table class='table table-striped table-bordered'>
 <tr><th>Parameter</th><th>Mandatory</th><th>Data type</th><th>Description</th></tr>
-<tr><td>data</td><td>yes</td><td>string</td><td>Input text in <b>UTF-8</b>.</td></tr>
-<tr><td>model</td><td>no</td><td>string</td><td>Model to use; see <a href="#model_selection">model selection</a> for model matching rules.</td></tr>
-<tr><td>tokenizer</td><td>no</td><td>string</td><td>If the option is present, the input is assumed to be in plain text and is tokenized. If the parameter has a value, it is passed to the tokenizer as <a href="https://ufal.mff.cuni.cz/udpipe/users-manual#run_udpipe_tokenizer">tokenizer options</a>.</td></tr>
-<tr><td>input</td><td>no</td><td>string (<code>conllu</code> / <code>generic_tokenizer</code> / <code>horizontal</code> / <code>vertical</code>)</td><td>If the tokenizer is not used, the input is assumed to be in the specified <a href="http://ufal.mff.cuni.cz/udpipe/users-manual#run_udpipe_input">input format (eventually with options)</a>; default <code>conllu</code>.</td></tr>
-<tr><td>tagger</td><td>no</td><td>string</td><td>If the option is present, the input is POS tagged and lemmatized. If the parameter has a value, it is passed to the tagger.</td></tr>
-<tr><td>parser</td><td>no</td><td>string</td><td>If the option is present, the input is dependency parsed. If the parameter has a value, it is passed to the parser.</td></tr>
-<tr><td>output</td><td>no</td><td>string (<code>conllu</code> / <code>horizontal</code> / <code>matxin</code> / <code>plaintext</code> / <code>vertical</code>)</td><td>The <a href="http://ufal.mff.cuni.cz/udpipe/users-manual#run_udpipe_output">output format (eventually with options)</a> to use; default <code>conllu</code>.</td></tr>
+<tr><td>text</td><td>yes</td><td>string</td><td>Input text in <b>UTF-8</b>.</td></tr>
+<tr><td>input</td><td>no</td><td>string</td><td>Input format; possible values: <code>txt</code> (default), <code>presegmented</code>, see <a href="#input_format">input format</a> for details.</td></tr>
+<tr><td>output</td><td>no</td><td>string</td><td>Output format; possible values: <code>txt</code> (default), <code>html</code>, <code>conllu</code>, see <a href="#output_format">output format</a> for details.</td></tr>
 </table>
 
 <p>
@@ -63,43 +52,22 @@ following structure:</p>
 
 <pre class="prettyprint lang-json">
 {
- "model": "Model used",
- "acknowledgements": ["URL with acknowledgements", ...],
  "result": "processed_output"
 }
 </pre>
 
-The <code>processed_output</code> is the output of the UDPipe in the requested output format.
+The <code>processed_output</code> is the output of SouDeC in the requested output format.
+
 
 <h4>Browser Examples</h4>
 <table style='width: 100%'>
- <tr><td style='vertical-align: middle'><pre style='margin-bottom: 0; white-space: pre-wrap' class="prettyprint lang-html">http://lindat.mff.cuni.cz/services/udpipe/api/process?tokenizer&amp;tagger&amp;parser&amp;data=Děti pojedou k babičce. Už se těší.</pre></td>
-     <td style='vertical-align: middle; width: 6em'><button style='width: 100%' type="button" class="btn btn-success btn-xs" onclick="window.open('http://lindat.mff.cuni.cz/services/udpipe/api/process?tokenizer&amp;tagger&amp;parser&amp;data=Děti pojedou k babičce. Už se těší.')">try&nbsp;this</button></td></tr>
+ <tr><td style='vertical-align: middle'><pre style='margin-bottom: 0; white-space: pre-wrap' class="prettyprint lang-html">http://quest.ms.mff.cuni.cz/soudec/api/detect?input=txt&amp;output=txt&amp;text=SouDec tvrdí, že tohle je citace.</pre></td>
+     <td style='vertical-align: middle; width: 6em'><button style='width: 100%' type="button" class="btn btn-success btn-xs" onclick="window.open('http://quest.ms.mff.cuni.cz/soudec/api/detect?input=txt&amp;output=txt&amp;text=SouDec tvrdí, že tohle je citace.')">try&nbsp;this</button></td></tr>
 </table>
 
 <hr />
 
-<h2 id="model_selection">Model Selection</h2>
-
-<p>There are several possibilities how to select required model using
-the <code>model</code> option:</p>
-
-<ul>
-  <li>If <code>model</code> option is not specified, the default model
-  (returned by <a href="#models">models</a> method) is used &ndash; this is
-  guaranteed to be the latest Czech model.</li>
-
-  <li>The <code>model</code> option can specify one of the models returned
-  by the <a href="#models">models</a> method.</li>
-
-  <li>The <code>model</code> option may be only several first words of model
-  name. In this case, the latest most suitable model is used.</li>
-
-  <li>The <code>model</code> can be ISO 639-1 or ISO 639-2 code of a language.
-  If available, newest model for the requested language is used.</li>
-</ul>
-
-<p><span class="fa fa-info-circle"></span> Note that the last two possibilities allow using <code>czech</code>, <code>cs</code>, <code>ces</code>, <code>cze</code>, <code>english</code>, <code>en</code> or <code>eng</code> as models.</p>
+<p>CHANGE FROM HERE!!!</p>
 
 <hr />
 

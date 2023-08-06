@@ -60,12 +60,7 @@
   <div class="panel-heading">Service</div>
   <div class="panel-body">
 
-    <p>The service is freely available for testing. Respect the
-    <a href="http://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA</a>
-    licence; <b>explicit written permission of the authors is
-    required for any commercial exploitation of the system</b>. If you use the
-    service, you agree that data obtained by us during such use can be used for further
-    improvements of the systems at UFAL. All comments and reactions are welcome.</p>
+    <?php require('licence.html') ?>
 
     <div id="error" class="alert alert-danger" style="display: none"></div>
 
@@ -108,9 +103,8 @@
      </div>
     </div>
 
-    <h3 id="acknowledgements_title" style="margin-top: 15px">Acknowledgements</h3>
-    <p id="acknowledgements_text">Supported by project Signál a šum...</p>
-    <p id="acknowledgements_text">Pozor na licenci volaných služeb, obzvláště když poskytuju jako výstup conllu!</p>
+    <h3 id="acknowledgements_title" style="margin-top: 30px">Acknowledgements</h3>
+    <p id="acknowledgements_text">The development of SouDeC was financed by the TAČR project TL05000057: Signál a šum v éře Žurnalistiky 5.0 - komparativní perspektiva novinářských žánrů automatizovaných obsahů.</p>
   </div>
 </div>
 

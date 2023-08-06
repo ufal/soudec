@@ -26,7 +26,7 @@
       <td>Linux</td>
   </tr>
   <tr>
-      <th>License</th>
+      <th>Licence</th>
       <td><a href="http://creativecommons.org/licenses/by-nc-sa/3.0/">CC BY-NC-SA</a></td>
   </tr>
   <tr>
