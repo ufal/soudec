@@ -55,9 +55,9 @@ any '/api/test' => sub {
 # Endpoint pro detect
 any '/api/detect' => sub {
     my $c = shift;
-    if ($c->req->method eq 'POST') {
+    #if ($c->req->method eq 'POST') {
 
-        # Zde můžete zpracovat data odeslaná v těle požadavku POST
+        my $method = $c->req->method;
         my $text = $c->param('text'); # input text
         my $input_format = $c->param('input'); # input format
         my $output_format = $c->param('output'); # output format
@@ -76,22 +76,22 @@ any '/api/detect' => sub {
 	my $result_utf8 = decode_utf8($result);
         # Vytvoření odpovědi
 	$c->res->headers->content_type('application/json; charset=UTF-8');
-	my $data = {message => 'This is the detect function called via POST; input format=$input_format, output format=$output_format.',
+	my $data = {message => "This is the detect function of the SouDec service called via $method; input format=$input_format, output format=$output_format.",
                                     result => "$result_utf8" };
         # print STDERR Dumper($data);
 	return $c->render(json => $data);
-    }
-    else { # GET
+    # }
+    # else { # GET
 
-        # Přečtěte parametry z GET requestu
-        my $text = $c->param('text'); # input text
-        my $input_format = $c->param('input'); # input format
-        my $output_format = $c->param('output'); # output format
+        # # Přečtěte parametry z GET requestu
+	# my $text = $c->param('text'); # input text
+	# my $input_format = $c->param('input'); # input format
+	# my $output_format = $c->param('output'); # output format
 
-        # Zpracování GET požadavku
-        return $c->render(json => { message => 'This is the detect function called via GET.',
-                                    result => "input format: '$input_format', output format: '$output_format', text: '$text'" });
-    }
+        # # Zpracování GET požadavku
+	# return $c->render(json => { message => 'This is the detect function called via GET.',
+	#                                    result => "input format: '$input_format', output format: '$output_format', text: '$text'" });
+    #}
 };
 
 app->start;
