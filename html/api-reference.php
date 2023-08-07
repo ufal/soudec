@@ -59,15 +59,11 @@ following structure:</p>
 The <code>processed_output</code> is the output of SouDeC in the requested output format.
 
 
-<h4>Browser Examples</h4>
+<h2 style="margin-top: 20px">Browser Example</h2>
 <table style='width: 100%'>
  <tr><td style='vertical-align: middle'><pre style='margin-bottom: 0; white-space: pre-wrap' class="prettyprint lang-html">http://quest.ms.mff.cuni.cz/soudec/api/detect?input=txt&amp;output=txt&amp;text=SouDec tvrdí, že tohle je citace.</pre></td>
      <td style='vertical-align: middle; width: 6em'><button style='width: 100%' type="button" class="btn btn-success btn-xs" onclick="window.open('http://quest.ms.mff.cuni.cz/soudec/api/detect?input=txt&amp;output=txt&amp;text=SouDec tvrdí, že tohle je citace.')">try&nbsp;this</button></td></tr>
 </table>
-
-<hr />
-
-<p>CHANGE FROM HERE!!!</p>
 
 <hr />
 
@@ -76,15 +72,12 @@ The <code>processed_output</code> is the output of SouDeC in the requested outpu
 The described API can be comfortably used by <code>curl</code>. Several examples follow:
 
 <h3>Passing Input on Command Line (if UTF-8 locale is being used)</h3>
-<pre style="white-space: pre-wrap" class="prettyprint lang-sh">curl --data 'tokenizer=&tagger=&parser=&data=Děti pojedou k babičce. Už se těší.' http://lindat.mff.cuni.cz/services/udpipe/api/process</pre>
+<pre style="white-space: pre-wrap" class="prettyprint lang-sh">curl --data 'input=txt&amp;output=txt&amp;text=SouDec tvrdí, že tohle je citace.' http://quest.ms.mff.cuni.cz/soudec/api/detect</pre>
 
 <h3>Using Files as Input (files must be in UTF-8 encoding)</h3>
-<pre style="white-space: pre-wrap" class="prettyprint lang-sh">curl -F data=@input_file.txt -F tokenizer= -F tagger= -F parser= http://lindat.mff.cuni.cz/services/udpipe/api/process</pre>
-
-<h3>Specifying Model Parameters</h3>
-<pre style="white-space: pre-wrap" class="prettyprint lang-sh">curl -F data=@input_file.txt -F model=english -F tokenizer= -F tagger= -F parser= http://lindat.mff.cuni.cz/services/udpipe/api/process</pre>
+<pre style="white-space: pre-wrap" class="prettyprint lang-sh">curl --data-urlencode 'input=txt' --data-urlencode 'output=html' --data-urlencode 'text@input_file.txt' http://quest.ms.mff.cuni.cz/soudec/api/detect</pre>
 
 <h3>Converting JSON Result to Plain Text</h3>
-<pre style="white-space: pre-wrap" class="prettyprint lang-sh">curl -F data=@input_file.txt -F model=english -F tokenizer= -F tagger= -F parser= http://lindat.mff.cuni.cz/services/udpipe/api/process | PYTHONIOENCODING=utf-8 python -c "import sys,json; sys.stdout.write(json.load(sys.stdin)['result'])"</pre>
+<pre style="white-space: pre-wrap" class="prettyprint lang-sh">curl --data 'input=txt&amp;output=txt&amp;text=SouDec tvrdí, že tohle je citace.' http://quest.ms.mff.cuni.cz/soudec/api/detect | PYTHONIOENCODING=utf-8 python -c "import sys,json; sys.stdout.write(json.load(sys.stdin)['result'])"</pre>
 
 <?php require('footer.php') ?>
