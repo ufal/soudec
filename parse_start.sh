@@ -1,7 +1,7 @@
 
 echo "Searching for sources" >err
 
-#./system/parse.pl ../data/test/doc-1.xml.txt system/resources/spolehlivost_frazi.csv 2>err
+#./system/soudec.pl ../data/test/doc-1.xml.txt system/resources/phrases_reliability.csv 2>err
 
 for A in ../data/test/*.txt; do
   echo "=========================================================="
@@ -11,11 +11,11 @@ for A in ../data/test/*.txt; do
   if [ -e $B ]; then
     echo "(.ann file provided)"
     echo "=========================================================="
-    ./system/parse.pl --input-file $A --phrase-file system/resources/spolehlivost_frazi.csv --ann-file $B --store-nametag --output-format conllu 2>>err
+    ./system/soudec.pl --input-file $A --phrase-file system/resources/phrases_reliability.csv --ann-file $B --store-nametag --output-format conllu 2>>err
   else
     echo "(no .ann file)"
     echo "=========================================================="
-    ./system/parse.pl -i $A -p system/resources/spolehlivost_frazi.csv -sn -of txt 2>>err
+    ./system/soudec.pl -i $A -p system/resources/phrases_reliability.csv -sn -of txt 2>>err
   fi
 
 done
