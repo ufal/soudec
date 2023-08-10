@@ -30,7 +30,7 @@ my $OUTPUT_FORMAT_DEFAULT = 'txt';
 # default input format
 my $INPUT_FORMAT_DEFAULT = 'txt';
 # default phrase reliability file
-my $PHRASE_RELIABILITY_FILE_DEFAULT = 'resources/phrase_reliability.csv';
+my $PHRASE_RELIABILITY_FILE_DEFAULT = 'resources/phrases_reliability.csv';
 
 # variables for arguments
 my $input_file;
