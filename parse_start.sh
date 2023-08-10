@@ -1,8 +1,6 @@
 
 echo "Searching for sources" >err
 
-#./system/soudec.pl ../data/test/doc-1.xml.txt system/resources/phrases_reliability.csv 2>err
-
 for A in ../data/test/*.txt; do
   echo "=========================================================="
   echo "Searching for sources in $A"

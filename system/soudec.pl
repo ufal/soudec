@@ -10,6 +10,7 @@ use Tree::Simple;
 use List::Util qw(min max);
 use Getopt::Long; # reading arguments
 use POSIX qw(strftime); # naming a file with date and time
+use File::Basename;
 
 # STDIN and STDOUT in UTF-8
 binmode STDIN, ':encoding(UTF-8)';
@@ -92,7 +93,9 @@ if ($ann_file) {
 
 if (!defined $phrase_reliability_file) {
   print STDERR " - phrase reliability file: not specified, set to default $PHRASE_RELIABILITY_FILE_DEFAULT\n";
-  $phrase_reliability_file = $PHRASE_RELIABILITY_FILE_DEFAULT;
+  my $script_path = $0;  # Získá název spuštěného skriptu s cestou
+  my $script_dir = dirname($script_path);  # Získá pouze adresář ze získané cesty
+  $phrase_reliability_file = "$script_dir/$PHRASE_RELIABILITY_FILE_DEFAULT";
 }
 else {
   print STDERR " - phrase reliability file: $phrase_reliability_file\n";
