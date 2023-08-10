@@ -62,11 +62,11 @@ any '/api/detect' => sub {
         my $input_format = $c->param('input'); # input format
         my $output_format = $c->param('output'); # output format
 
-	# Spuštění skriptu parse.pl s předáním parametrů a standardního vstupu
-        my @cmd = ('perl', 'parse.pl',
+	# Spuštění skriptu soudec.pl s předáním parametrů a standardního vstupu
+        my @cmd = ('perl', 'soudec.pl',
 		   '--stdin',
 		   '--store-nametag',
-		   '--phrase-file', 'resources/spolehlivost_frazi.csv',
+		   '--phrase-file', 'resources/phrases_reliability.csv',
 		   '--input-format', $input_format, 
 		   '--output-format', $output_format);
         my $stdin_data = $text;

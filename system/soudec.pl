@@ -29,6 +29,8 @@ my $MIN_RELIABILITY_DEFAULT = 10;
 my $OUTPUT_FORMAT_DEFAULT = 'txt';
 # default input format
 my $INPUT_FORMAT_DEFAULT = 'txt';
+# default phrase reliability file
+my $PHRASE_RELIABILITY_FILE_DEFAULT = 'resources/phrase_reliability.csv';
 
 # variables for arguments
 my $input_file;
@@ -88,7 +90,11 @@ if ($ann_file) {
   print STDERR " - file with manual annotation: $ann_file\n";  
 }
 
-if ($phrase_reliability_file) {
+if (!defined $phrase_reliability_file) {
+  print STDERR " - phrase reliability file: not specified, set to default $PHRASE_RELIABILITY_FILE_DEFAULT\n";
+  $phrase_reliability_file = $PHRASE_RELIABILITY_FILE_DEFAULT;
+}
+else {
   print STDERR " - phrase reliability file: $phrase_reliability_file\n";
 }
 
