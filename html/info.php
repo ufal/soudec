@@ -11,11 +11,11 @@
   </tr>
   <tr>
       <th>Homepage</th>
-      <td><a href="http://quest.ms.mff.cuni.cz/soudec">http://quest.ms.mff.cuni.cz/soudec</a></td>
+      <td><a href="http://ufal.mff.cuni.cz/soudec/" target="_blank">http://ufal.mff.cuni.cz/soudec/</a></td>
   </tr>
   <tr>
       <th>Development repository</th>
-      <td><a href="https://svn.ms.mff.cuni.cz/svn/signal_a_sum/source_detection/Perl_UDPipeREST/">https://svn.ms.mff.cuni.cz/svn/signal_a_sum/source_detection/Perl_UDPipeREST/</a></td>
+      <td><a href="https://svn.ms.mff.cuni.cz/svn/signal_a_sum/source_detection/Perl_UDPipeREST/" target="_blank">https://svn.ms.mff.cuni.cz/svn/signal_a_sum/source_detection/Perl_UDPipeREST/</a></td>
   </tr>
   <tr>
       <th>Status</th>
@@ -27,7 +27,7 @@
   </tr>
   <tr>
       <th>Licence</th>
-      <td><a href="http://creativecommons.org/licenses/by-nc-sa/3.0/">CC BY-NC-SA</a></td>
+      <td><a href="http://creativecommons.org/licenses/by-nc-sa/3.0/" target="_blank">CC BY-NC-SA</a></td>
   </tr>
   <tr>
       <th>Contact</th>
