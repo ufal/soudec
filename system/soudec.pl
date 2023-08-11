@@ -16,6 +16,7 @@ use File::Basename;
 binmode STDIN, ':encoding(UTF-8)';
 binmode STDOUT, ':encoding(UTF-8)';
 
+my $VER = '1.0'; # version of the program
 
 # a list of keywords to classify a source as anonymous
 my %keywords_anonymous = ('zdroj' => 1,
@@ -42,7 +43,8 @@ my $phrase_reliability_file;
 my $min_phrase_reliability;
 my $output_format;
 my $store_conllu;
-
+my $version;
+my $help;
 
 # getting the arguements
 GetOptions(
@@ -54,10 +56,36 @@ GetOptions(
     'r|reliability=i'  => \$min_phrase_reliability, # minimal required phrase reliability
     'of|output-format=s' => \$output_format, # output format, possible values: txt, html, conllu
     'sc|store-conllu'    => \$store_conllu, # should the result of soudec detection be logged as a conllu file?
+    'v|version'    => \$version, # print the version of the program and exit
+    'h|help'    => \$help, # print a short help and exit
 );
 
+if ($version) {
+  print "SouDeC version $VER.\n";
+  exit 0;
+}
+
+if ($help) {
+  print "SouDeC version $VER.\n";
+  my $text = <<'END_TEXT';
+Usage: soudec.pl [options]
+options:  -i|--input-file [input text file name]
+          -a|--ann-file [manual annotation file name]
+         -si|--stdin (input text provided via stdin)
+         -if|--input-format [input format: txt (default) or presegmented]
+          -p|--phrase-file [phrases reliability file name]
+          -r|--reliability [minimal required phrase reliability]
+         -of|--output-format [output format: txt (default), html, conllu]
+         -sc|--store-conllu (log the output of UDPipe parser, NameTag and SouDeC to a conllu file)
+          -v|--version (prints the version of the program and ends)
+          -h|--help (prints a short help and ends)
+END_TEXT
+  print $text;
+  exit 0;
+}
+
 ###################################################################################
-# Summarize the program arguments to the log
+# Summarize the program arguments to the log (except for --version and --help)
 ###################################################################################
 
 print STDERR "\n####################################################################\n";
