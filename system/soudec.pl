@@ -41,9 +41,7 @@ my $input_format;
 my $phrase_reliability_file;
 my $min_phrase_reliability;
 my $output_format;
-my $store_udpipe;
-my $store_nametag;
-my $store_soudec;
+my $store_conllu;
 
 
 # getting the arguements
@@ -55,9 +53,7 @@ GetOptions(
     'p|phrase-file=s'  => \$phrase_reliability_file, # the name of the file with a list of citation phrases and their reliability
     'r|reliability=i'  => \$min_phrase_reliability, # minimal required phrase reliability
     'of|output-format=s' => \$output_format, # output format, possible values: txt, html, conllu
-    'su|store-udpipe'    => \$store_udpipe, # should the result of udpipe be stored to a file?
-    'sn|store-nametag'    => \$store_nametag, # should the result of nametag be stored to a file?
-    'ss|store-soudec'    => \$store_soudec, # should the result of soudec detection be stored to a (conllu) file?
+    'sc|store-conllu'    => \$store_conllu, # should the result of soudec detection be logged as a conllu file?
 );
 
 ###################################################################################
@@ -122,14 +118,8 @@ else {
   print STDERR " - output format: $output_format\n";
 }
 
-if ($store_udpipe) {
-  print STDERR " - store output: udpipe\n";
-}
-if ($store_nametag) {
-  print STDERR " - store output: nametag (includes output of udpipe)\n";
-}
-if ($store_soudec) {
-  print STDERR " - store output: soudec (in conllu format; includes output of udpipe and nametag)\n";
+if ($store_conllu) {
+  print STDERR " - log output in a conllu file; includes output of udpipe and nametag)\n";
 }
 
 
@@ -264,11 +254,10 @@ if ($stdin) { # the input text should be read from STDIN
 
 my $conll_data = call_udpipe($input_content);
 
-if ($store_udpipe) { # Store the result to a file (just to have it, not needed for further processing)
-  open(OUT, '>:encoding(utf8)', "$input_file.conll") or die "Cannot open file '$input_file.conll' for writing: $!";
-  print OUT $conll_data;
-  close(OUT);
-}
+# Store the result to a file (just to have it, not needed for further processing)
+#  open(OUT, '>:encoding(utf8)', "$input_file.conll") or die "Cannot open file '$input_file.conll' for writing: $!";
+#  print OUT $conll_data;
+#  close(OUT);
 
 ###################################################################################
 # Now let us add info about named entities using NameTag REST API
@@ -276,11 +265,11 @@ if ($store_udpipe) { # Store the result to a file (just to have it, not needed f
 
 my $conll_data_ne = call_nametag($conll_data);
 
-if ($store_nametag) { # Store the result to a file (just to have it, not needed for further processing)
-  open(OUT, '>:encoding(utf8)', "$input_file.conllne") or die "Cannot open file '$input_file.conllne' for writing: $!";
-  print OUT $conll_data_ne;
-  close(OUT);
-}
+# Store the result to a file (just to have it, not needed for further processing)
+#  open(OUT, '>:encoding(utf8)', "$input_file.conllne") or die "Cannot open file '$input_file.conllne' for writing: $!";
+#  print OUT $conll_data_ne;
+#  close(OUT);
+
 
 
 ###################################################################################
@@ -456,8 +445,16 @@ foreach $root (@trees) {
 
 print_log_tail();
 
-print_output(); # prints the input text with marked sources in the selected output format to STDOUT
+# print the input text with marked sources in the selected output format to STDOUT
+my $output = get_output($output_format); 
+print $output;
 
+if ($store_conllu) { # log the input text with marked sources in the conllu format in a file
+  $output = get_output('conllu') if $output_format ne 'conllu';
+  open(OUT, '>:encoding(utf8)', "$input_file.conllu") or die "Cannot open file '$input_file.conllu' for writing: $!";
+  print OUT $output;
+  close(OUT);
+}
 
 ################################################################
 ########################## FINISHED ############################
@@ -751,20 +748,21 @@ sub get_feat_value {
 }  
 
 
-=item print_output
+=item get_output
 
-Prints the input text with marked sources to STDOUT
-The format is given in global variable $output_format, may be one of: txt, html, conllu
+Returns the input text with marked sources in the given format (one of: txt, html, conllu).
 
 =cut
 
-sub print_output {
+sub get_output {
+  my $format = shift;
+  my $output = '';
 
   # FILE HEADER
   
-  if ($output_format eq 'html') {
-    print STDOUT "<html>\n";
-    print STDOUT "<body>\n";
+  if ($format eq 'html') {
+    $output .= "<html>\n";
+    $output .= "<body>\n";
   }
   
   my $first_par = 1; # for paragraph separation in txt and html formats (first par in the file should not be separated)
@@ -783,44 +781,44 @@ sub print_output {
   foreach $root (@trees) {
   
     # PARAGRAPH SEPARATION (txt, html)
-    if (attr($root, 'newpar') and $output_format =~ /^(txt|html)$/) {
+    if (attr($root, 'newpar') and $format =~ /^(txt|html)$/) {
       $first_sent = 1;
       if ($first_par) {
         $first_par = 0;
       }
       else {
-        print STDOUT $output_format eq 'html' ? "\n</p>\n" : "\n\n";
+        $output .= $format eq 'html' ? "\n</p>\n" : "\n\n";
       }
-      print STDOUT "<p>\n" if $output_format eq 'html';
+      $output .= "<p>\n" if $format eq 'html';
     }
     
     # SENTENCE HEADER (conllu)
-    if ($output_format eq 'conllu') {
-      print STDOUT attr($root, 'other_comment');
+    if ($format eq 'conllu') {
+      $output .= attr($root, 'other_comment') // '';
       my $newdoc = attr($root, 'newdoc') // '';
-      print STDOUT "$newdoc\n" if $newdoc;
+      $output .= "$newdoc\n" if $newdoc;
       my $newpar = attr($root, 'newpar') // '';
-      print STDOUT "$newpar\n" if $newpar;
+      $output .= "$newpar\n" if $newpar;
       my $sent_id = attr($root, 'id') // '';
-      print STDOUT "# sent_id = $sent_id\n" if $sent_id;
+      $output .= "# sent_id = $sent_id\n" if $sent_id;
       my $text = attr($root, 'text') // '';
-      print STDOUT "# text = $text\n" if $text;
+      $output .= "# text = $text\n" if $text;
     }
 
     # sentence separation in txt and html formats
-    if ($output_format =~ /^(txt|html)$/) {
+    if ($format =~ /^(txt|html)$/) {
       if ($first_sent) {
         $first_sent = 0;
       }
       else {
         if ($input_format eq 'presegmented') { # each sentence should go to its own line
-          print STDOUT "\n";
-          if ($output_format eq 'html') {
-            print STDOUT '<br>';
+          $output .= "\n";
+          if ($format eq 'html') {
+            $output .= '<br>';
           }
         }
         else {
-          print STDOUT ' ';
+          $output .= ' ';
         }
       }
     }
@@ -844,7 +842,7 @@ sub print_output {
       if ($source_range =~ /^(\d+):(\d+)$/) {
         my ($source_start, $source_end) = ($1, $2);
         if ($start == $source_start) {
-          $span_start = $output_format eq 'html' ? '<span style="font-weight: bold; text-decoration: underline; color: darkgreen">' : '>>';
+          $span_start = $format eq 'html' ? '<span style="font-weight: bold; text-decoration: underline; color: darkgreen">' : '>>';
           $SD_source_count++;
           $SD_count = $SD_source_count;
           $inside_SD = 1;
@@ -859,11 +857,11 @@ sub print_output {
           }
         }
         if ($end == $source_end) {
-          $span_end = $output_format eq 'html' ? '</span>' : '<<';
+          $span_end = $format eq 'html' ? '</span>' : '<<';
           $end_of_SD = 1;
           my $source_type = $h_source_range2type{$source_range};
           if ($source_type) {
-            $type_span = $output_format eq 'html' ? "<span style=\"vertical-align: sub; color: darkblue\">[$source_type]</span>" : "[$source_type]";
+            $type_span = $format eq 'html' ? "<span style=\"vertical-align: sub; color: darkblue\">[$source_type]</span>" : "[$source_type]";
           }
         }
       }
@@ -873,26 +871,26 @@ sub print_output {
         if ($phrase_range =~ /^(\d+):(\d+)$/) {
           my ($phrase_start, $phrase_end) = ($1, $2);
           if ($start == $phrase_start) {
-            $span_start = $output_format eq 'html' ? '<span style="font-weight: bold; color: darkred">' : '@';
+            $span_start = $format eq 'html' ? '<span style="font-weight: bold; color: darkred">' : '@';
             $SD_phrase_count++;
             $SD_count = $SD_phrase_count;
             $inside_SD = 1;
             $SD_type = 'P';
           }
           if ($end == $phrase_end) {
-            $span_end = $output_format eq 'html' ? '</span>' : '@';
+            $span_end = $format eq 'html' ? '</span>' : '@';
             $end_of_SD = 1;
           }
         }
       }
       
       # PRINT THE TOKEN
-      if ($output_format =~ /^(txt|html)$/) {
+      if ($format =~ /^(txt|html)$/) {
         my $SpaceAfter = get_misc_value($node, 'SpaceAfter') // '';
-        print STDOUT "$space_before$span_start$form$span_end$type_span";
+        $output .= "$space_before$span_start$form$span_end$type_span";
         $space_before = $SpaceAfter eq 'No' ? '' : ' '; # this way there will not be space after the last token of the sentence
       }
-      elsif ($output_format eq 'conllu') {
+      elsif ($format eq 'conllu') {
         my $ord = attr($node, 'ord') // '_';
         my $lemma = attr($node, 'lemma') // '_';
         my $deprel = attr($node, 'deprel') // '_';
@@ -928,27 +926,29 @@ sub print_output {
         
         my $multiword = attr($node, 'multiword') // '';
         if ($multiword) {
-          print STDOUT "$multiword\n";
+          $output .= "$multiword\n";
         }
         
-        print STDOUT "$ord\t$form\t$lemma\t$upostag\t$xpostag\t$feats\t$head\t$deprel\t$deps\t$misc\n";
+        $output .= "$ord\t$form\t$lemma\t$upostag\t$xpostag\t$feats\t$head\t$deprel\t$deps\t$misc\n";
       }
     }
 
     # sentence separation in the conllu format needs to be here (also the last sentence should be ended with \n)
-    if ($output_format eq 'conllu') {
-      print STDOUT "\n"; # an empty line ends a sentence in the conllu format    
+    if ($format eq 'conllu') {
+      $output .= "\n"; # an empty line ends a sentence in the conllu format    
     }
     
   }
 
-  if ($output_format eq 'html') {
-    print STDOUT "\n</p>\n";
-    print STDOUT "</body>\n";
-    print STDOUT "</html>\n";
+  if ($format eq 'html') {
+    $output .= "\n</p>\n";
+    $output .= "</body>\n";
+    $output .= "</html>\n";
   }
 
-} # print_output
+  return $output;
+  
+} # get_output
 
 
 =item print_log_header
