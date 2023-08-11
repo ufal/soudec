@@ -76,7 +76,7 @@ options:  -i|--input-file [input text file name]
           -p|--phrase-file [phrases reliability file name]
           -r|--reliability [minimal required phrase reliability]
          -of|--output-format [output format: txt (default), html, conllu]
-         -sc|--store-conllu (log the output of UDPipe parser, NameTag and SouDeC to a conllu file)
+         -sc|--store-conllu (log the output of UDPipe parser, NameTag and SouDeC to a CONLL-U file)
           -v|--version (prints the version of the program and ends)
           -h|--help (prints a short help and ends)
 END_TEXT
