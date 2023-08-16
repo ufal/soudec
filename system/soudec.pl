@@ -60,6 +60,11 @@ GetOptions(
     'h|help'    => \$help, # print a short help and exit
 );
 
+
+my $script_path = $0;  # Získá název spuštěného skriptu s cestou
+my $script_dir = dirname($script_path);  # Získá pouze adresář ze získané cesty
+
+
 if ($version) {
   print "SouDeC version $VER.\n";
   exit 0;
@@ -117,8 +122,6 @@ if ($ann_file) {
 
 if (!defined $phrase_reliability_file) {
   print STDERR " - phrase reliability file: not specified, set to default $PHRASE_RELIABILITY_FILE_DEFAULT\n";
-  my $script_path = $0;  # Získá název spuštěného skriptu s cestou
-  my $script_dir = dirname($script_path);  # Získá pouze adresář ze získané cesty
   $phrase_reliability_file = "$script_dir/$PHRASE_RELIABILITY_FILE_DEFAULT";
 }
 else {
@@ -479,7 +482,7 @@ print $output;
 
 if ($store_conllu) { # log the input text with marked sources in the conllu format in a file
   $output = get_output('conllu') if $output_format ne 'conllu';
-  open(OUT, '>:encoding(utf8)', "$input_file.conllu") or die "Cannot open file '$input_file.conllu' for writing: $!";
+  open(OUT, '>:encoding(utf8)', "$script_dir/log/$input_file.conllu") or die "Cannot open file '$script_dir/log/$input_file.conllu' for writing: $!";
   print OUT $output;
   close(OUT);
 }

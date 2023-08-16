@@ -27,6 +27,7 @@ use warnings;
 use Mojolicious::Lite;
 use IPC::Run qw(run);
 use Encode;
+use File::Basename;
 # use Data::Dumper;
 
 # STDIN and STDOUT in UTF-8
@@ -34,6 +35,8 @@ binmode STDIN, ':encoding(UTF-8)';
 binmode STDOUT, ':encoding(UTF-8)';
 binmode STDERR, ':encoding(UTF-8)';
 
+my $script_path = $0;  # Získá název spuštěného skriptu s cestou
+my $script_dir = dirname($script_path);  # Získá pouze adresář ze získané cesty
 
 # Endpoint pro test
 any '/api/test' => sub {
@@ -63,10 +66,10 @@ any '/api/detect' => sub {
         my $output_format = $c->param('output'); # output format
 
 	# Spuštění skriptu soudec.pl s předáním parametrů a standardního vstupu
-        my @cmd = ('perl', 'soudec.pl',
+        my @cmd = ('/usr/bin/perl', "$script_dir/soudec.pl",
 		   '--stdin',
-		   '--store-nametag',
-		   '--phrase-file', 'resources/phrases_reliability.csv',
+		   '--store-conllu',
+		   '--phrase-file', "$script_dir/resources/phrases_reliability.csv",
 		   '--input-format', $input_format, 
 		   '--output-format', $output_format);
         my $stdin_data = $text;
