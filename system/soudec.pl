@@ -160,8 +160,8 @@ print STDERR "\n";
 # Let us first read the file with reliability of citation phrases
 ###################################################################################
 
-my %phrase2reliability; # reliability of the phrase in percents (in how many percents it was used in training data as a citation phrase)
-my %phrase2se_si; # does the phrase require "se/si" to be a citation phrase? (maybe not needed and not yet implemented!)
+my %phrase_lemma2reliability; # reliability of the phrase lemmas (if found with the constraints) in percents (in how many percents it was used in training data as a citation phrase)
+my %phrase_lemma2constraint; # which constraint does the phrase require (if any)
 
 print STDERR "Reading phrases and their reliability from $phrase_reliability_file\n";
 
@@ -175,14 +175,14 @@ while (<PHRASES>) {
   if ($line =~ /^(\d+)\t(\d+)\t(\S+)\t(\S*)$/) {
     my $all_occurrences = $1;
     my $used_as_citation_phrase = $2;
-    my $phrase = $3;
-    my $se_si = $4;
+    my $lemma = $3;
+    my $constraint = $4 // 'no_constraint';
     my $reliability = $used_as_citation_phrase / $all_occurrences;
     my $reliability_percent = 100 * sprintf("%.2f", $reliability);
-    # print STDERR "Phrase $phrase ($se_si) with reliability $reliability_percent\n";
+    $phrase_lemma2reliability{$lemma} = $reliability_percent;
+    print STDERR "Phrase $lemma (with constraint $constraint) and reliability $reliability_percent\n";
     $phrases_count++;
-    $phrase2reliability{$phrase} = $reliability_percent;
-    $phrase2se_si{$phrase} = $se_si;
+    $phrase_lemma2constraint{$lemma} = $constraint if $constraint ne 'no_constraint';
   }
   else {
     print STDERR "Unknown format of a line in file $phrase_reliability_file:\n$line\n";
@@ -430,17 +430,23 @@ foreach $root (@trees) {
   
   my @nodes = descendants($root);
   foreach my $node (@nodes) {
-    my $form_lc = lc(attr($node, 'form'));
-    my $reliability = $phrase2reliability{$form_lc};
+    my $lemma = attr($node, 'lemma');
+    my $constraint = $phrase_lemma2constraint{$lemma};
+    if (!check_constraint($node, $lemma, $constraint)) { # check if the constraint is met (e.g., se/si is present)
+      print STDERR "Found phrase lemma '$lemma' but the constraint ($constraint) is not met.\n";
+      next;
+    }
+    my $reliability = $phrase_lemma2reliability{$lemma};
     if ($reliability) {
-      print STDERR "Found phrase '$form_lc' with reliability $reliability\n";
+      my $constrain_info = $constraint ? " (with constraint: $constraint)" : '';
+      print STDERR "Found phrase lemma '$lemma'$constrain_info with reliability $reliability\n";
       if ($reliability > $min_phrase_reliability) {
         print STDERR " - reliability is greater than threshold $min_phrase_reliability\n";
         # Checking if there is something like a claim, i.e. a finite-verb core object 
         my @children = $node->getAllChildren;
         if (has_finite_verb_object($node)) {
           evaluate_single_event('phrase', $root, $node);
-          if ($form_lc eq 'podle') { # special treatment
+          if ($constraint eq 'PREP') { # special treatment of 'podle' and 'dle'
             my $parent = $node->getParent;
             my $source = attr($parent, 'form');
             my @whole_source_nodes = get_whole_source_nodes($parent);
@@ -490,6 +496,44 @@ if ($store_conllu) { # log the input text with marked sources in the conllu form
 ################################################################
 ########################## FINISHED ############################
 ################################################################
+
+
+=item check_constraint
+
+Check if the constraint is met at the node. The constraint can have one of the following formats:
+- a single word form - it must be a child of the given node (e.g., 'si' in 'myslí si')
+- a set of word forms separated by '|' - all these word forms must be children of the given node (e.g., 'se|slyšet' in 'nechal se slyšet')
+- a pair of word forms separated by '-' - the first word form must be a child and the second one its child (e.g. 'za-to' in 'má za to')
+- PREP - the node must be a preposition ('podle', 'dle')
+- a single word form followed by '!' - it must be a child of the given node and the claimed content in the tree is controled by this child (e.g. 'hovořit' in 'začal hovořit')
+
+=cut
+
+sub check_constraint {
+  my ($node, $lemma, $constraint) = @_;
+  
+  return 1 if !$constraint;
+  
+  my $xpostag = attr($node, 'xpostag') // '';
+  return 1 if ($constraint eq 'PREP' and $xpostag =~ /^R/);
+ 
+  my @children = $node->getAllChildren;
+  my @required_children_forms_lc = map {s/!//; $_} split('\|', $constraint); # get the individul required children (without '!')
+  foreach my $required_child_form_lc(@required_children_forms_lc) {
+    if ($required_child_form_lc =~ /^(\S+)-(\S+)$/) { # a hierarchy required (e.g. 'za-to' in 'má za to')
+      my ($child_form_lc, $grandchild_form_lc) = ($1, $2);
+      my @good_children = grep {$child_form_lc eq lc(attr($_, 'form'))} @children;
+      return 0 if !@good_children;
+      my $good_child = $good_children[0]; # I doubt there might be more
+      my @good_grandchildren = grep {$grandchild_form_lc eq lc(attr($_, 'form'))} $good_child->getAllChildren;
+      return 0 if !@good_grandchildren;
+    }
+    else { # only a single word form required
+      return 0 if !grep {$required_child_form_lc eq lc(attr($_, 'form'))} @children;
+    }
+  }
+  return 1;
+}
 
 
 =item is_finite
