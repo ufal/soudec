@@ -432,20 +432,20 @@ foreach $root (@trees) {
   foreach my $node (@nodes) {
     my $lemma = attr($node, 'lemma');
     my $constraint = $phrase_lemma2constraint{$lemma};
-    if (!check_constraint($node, $lemma, $constraint)) { # check if the constraint is met (e.g., se/si is present)
+    my ($claim_parent, @phrase_nodes) = check_constraint($node, $lemma, $constraint); # check if the constraint is met (e.g., se/si is present) and return the expected parent of the claim and all nodes belonging to the phrase
+    if (!$claim_parent) {
       print STDERR "Found phrase lemma '$lemma' but the constraint ($constraint) is not met.\n";
       next;
     }
     my $reliability = $phrase_lemma2reliability{$lemma};
     if ($reliability) {
-      my $constrain_info = $constraint ? " (with constraint: $constraint)" : '';
-      print STDERR "Found phrase lemma '$lemma'$constrain_info with reliability $reliability\n";
+      my $constraint_info = $constraint ? " (with constraint: $constraint)" : '';
+      print STDERR "Found phrase lemma '$lemma'$constraint_info with reliability $reliability\n";
       if ($reliability > $min_phrase_reliability) {
         print STDERR " - reliability is greater than threshold $min_phrase_reliability\n";
         # Checking if there is something like a claim, i.e. a finite-verb core object 
-        my @children = $node->getAllChildren;
-        if (has_finite_verb_object($node)) {
-          evaluate_single_event('phrase', $root, $node);
+        if (has_finite_verb_object($claim_parent)) {
+          evaluate_single_event('phrase', $root, @phrase_nodes);
           if ($constraint eq 'PREP') { # special treatment of 'podle' and 'dle'
             my $parent = $node->getParent;
             my $source = attr($parent, 'form');
@@ -457,7 +457,7 @@ foreach $root (@trees) {
             evaluate_single_event($source_type, $root, @whole_source_nodes);
           }
           else {
-            my @nsubj = grep {attr($_, 'deprel') eq 'nsubj'} @children; # looking for a subject (i.e, the source)
+            my @nsubj = grep {attr($_, 'deprel') eq 'nsubj'} $node->getAllChildren; # looking for a subject (i.e, the source)
             if (@nsubj) {
               my $subject = attr($nsubj[0], 'form');
               my @whole_source_nodes = get_whole_source_nodes($nsubj[0]);
@@ -502,37 +502,65 @@ if ($store_conllu) { # log the input text with marked sources in the conllu form
 
 Check if the constraint is met at the node. The constraint can have one of the following formats:
 - a single word form - it must be a child of the given node (e.g., 'si' in 'myslí si')
-- a set of word forms separated by '|' - all these word forms must be children of the given node (e.g., 'se|slyšet' in 'nechal se slyšet')
+- a set of word forms (or pairs of word forms, see just below) separated by '|' - all these word forms must be children of the given node (e.g., 'se|slyšet' in 'nechal se slyšet')
 - a pair of word forms separated by '-' - the first word form must be a child and the second one its child (e.g. 'za-to' in 'má za to')
 - PREP - the node must be a preposition ('podle', 'dle')
-- a single word form followed by '!' - it must be a child of the given node and the claimed content in the tree is controled by this child (e.g. 'hovořit' in 'začal hovořit')
+
+Any (presumably only one) word form in the formats above may be followed by '!' - it is the expected parent of the claim in the tree (e.g. 'hovořit' in 'začal hovořit')
+
+Returns undef if the constraints are not met.
+Otherwise returns the expected parent of the claim and all nodes belonging to the phrase.
 
 =cut
 
 sub check_constraint {
   my ($node, $lemma, $constraint) = @_;
-  
-  return 1 if !$constraint;
+
+  my $claim_parent = $node;
+  my @phrase_nodes = ($node);
+    
+  return ($claim_parent, @phrase_nodes) if !$constraint;
   
   my $xpostag = attr($node, 'xpostag') // '';
-  return 1 if ($constraint eq 'PREP' and $xpostag =~ /^R/);
+  return ($claim_parent, @phrase_nodes) if ($constraint eq 'PREP' and $xpostag =~ /^R/);
  
   my @children = $node->getAllChildren;
-  my @required_children_forms_lc = map {s/!//; $_} split('\|', $constraint); # get the individul required children (without '!')
-  foreach my $required_child_form_lc(@required_children_forms_lc) {
+  my @required_children_forms_lc = split('\|', $constraint); # get the individul required children (possibly with '!')
+  foreach my $required_child_form_lc (@required_children_forms_lc) {
     if ($required_child_form_lc =~ /^(\S+)-(\S+)$/) { # a hierarchy required (e.g. 'za-to' in 'má za to')
       my ($child_form_lc, $grandchild_form_lc) = ($1, $2);
+      my $required_child_is_claim_parent = $child_form_lc =~ /!/;
+      $child_form_lc =~ s/!//;      
       my @good_children = grep {$child_form_lc eq lc(attr($_, 'form'))} @children;
-      return 0 if !@good_children;
+      return undef if !@good_children;
       my $good_child = $good_children[0]; # I doubt there might be more
+      push(@phrase_nodes, $good_child);
+      if ($required_child_is_claim_parent) { # it is also the expected parent of the claim
+        $claim_parent = $good_child;
+      }      
+      my $required_grandchild_is_claim_parent = $grandchild_form_lc =~ /!/;
+      $grandchild_form_lc =~ s/!//;      
       my @good_grandchildren = grep {$grandchild_form_lc eq lc(attr($_, 'form'))} $good_child->getAllChildren;
-      return 0 if !@good_grandchildren;
+      return undef if !@good_grandchildren;
+      my $good_grandchild = $good_grandchildren[0]; # I doubt there might be more
+      push(@phrase_nodes, $good_grandchild);
+      if ($required_grandchild_is_claim_parent) { # it is also the expected parent of the claim
+        $claim_parent = $good_grandchild;
+      }      
     }
-    else { # only a single word form required
-      return 0 if !grep {$required_child_form_lc eq lc(attr($_, 'form'))} @children;
+    else { # only words from among the children are required
+      my $required_child_is_claim_parent = $required_child_form_lc =~ /!/;
+      $required_child_form_lc =~ s/!//;
+      my @good_children = grep {$required_child_form_lc eq lc(attr($_, 'form'))} @children;
+      return undef if !@good_children;
+      my $good_child = $good_children[0]; # I doubt there might be more
+      push(@phrase_nodes, $good_child);
+      if ($required_child_is_claim_parent) { # it is also the expected parent of the claim
+        $claim_parent = $good_child;
+      }
     }
   }
-  return 1;
+  return ($claim_parent, @phrase_nodes);
 }
 
 
