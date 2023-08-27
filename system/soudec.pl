@@ -197,10 +197,14 @@ print STDERR "$phrases_count phrases have been read from file $phrase_reliabilit
 # e.g.
 # T16	anonymous-partial 1360 1365	vědců
 # T23	PHRASE 1354 1359	podle
+#
+# Discontinuous indexes are possible, e.g.:
+# "Vědci si donedávna mysleli" -> "si mysleli":
+# T2	PHRASE 7 9;20 27	si mysleli
 ###################################################################################
 
 # hashes to keep info about manual annotation
-my %h_ann_phrase_range2text; # '1354:1359' => 'podle'
+my %h_ann_phrase_range2text; # '1354:1359' => 'podle' or '7:9;20:27' => 'si mysleli'
 my %h_ann_source_range2text; # '1360:1365' => 'vědců'
 my %h_ann_source_range2type; # '1360:1365' => 'anonymous-partial'
 
@@ -227,14 +231,15 @@ if ($ann_file) {
     or die "Cannot open file '$ann_file' for reading: $!";
 
   while(my $line = <$ann_handle>) {
-    if ($line =~ /^\S+\t(\S+)\ (\d+) (\d+)\t(.+)$/) {
-      my ($event, $start, $end, $text) = ($1, $2, $3, $4);
+    if ($line =~ /^\S+\t(\S+)\ ([\d; ]+)\t(.+)$/) {
+      my ($event, $range, $text) = ($1, $2, $3);
+      $range =~ s/\ /:/g;
       if ($event =~ /PHRASE/) {
-        $h_ann_phrase_range2text{"$start:$end"} = $text;
+        $h_ann_phrase_range2text{$range} = $text;
       }
       else {
-        $h_ann_source_range2text{"$start:$end"} = $text;
-        $h_ann_source_range2type{"$start:$end"} = $event;        
+        $h_ann_source_range2text{$range} = $text;
+        $h_ann_source_range2type{$range} = $event;        
       }
     }
   }
@@ -942,14 +947,15 @@ sub get_output {
       my $type_span = '';
 
       my $source_range = partial_match("$start:$end", \%h_source_range2text) // ''; # is this token a part of a source?
-      if ($source_range =~ /^(\d+):(\d+)$/) {
-        my ($source_start, $source_end) = ($1, $2);
-        if ($start == $source_start) {
-          $span_start = $format eq 'html' ? '<span style="font-weight: bold; text-decoration: underline; color: darkgreen">' : '>>';
+      if ($source_range) {
+        if ($source_range =~ /^$start:/) { # first token in this source
           $SD_source_count++;
           $SD_count = $SD_source_count;
+        }
+        if ($source_range =~ /\b$start:/) { # first token in one of contiguous parts of the source
+          $span_start = $format eq 'html' ? '<span style="font-weight: bold; text-decoration: underline; color: darkgreen">' : '>>';
           $inside_SD = 1;
-          $SD_type = 'S';
+          $SD_type = 'S';        
           my $source_type = $h_source_range2type{$source_range};
           if ($source_type) {
             $SD_subtype = 'a' if $source_type =~ /anonymous/;
@@ -959,9 +965,11 @@ sub get_output {
             $SD_subtype = 'onp' if $source_type =~ /official-non-political/;
           }
         }
-        if ($end == $source_end) {
+        if ($source_range =~ /:$end\b/) { # last token in one of contiguous parts of the source
           $span_end = $format eq 'html' ? '</span>' : '<<';
           $end_of_SD = 1;
+        }
+        if ($source_range =~ /:$end$/) { # last token of the source
           my $source_type = $h_source_range2type{$source_range};
           if ($source_type) {
             $type_span = $format eq 'html' ? "<span style=\"vertical-align: sub; color: darkblue\">[$source_type]</span>" : "[$source_type]";
@@ -971,19 +979,18 @@ sub get_output {
       
       else { # it is not a part of a source, maybe it is a part of a phrase?
         my $phrase_range = partial_match("$start:$end", \%h_phrase_range2text) // ''; # is this token a part of a citation phrase?
-        if ($phrase_range =~ /^(\d+):(\d+)$/) {
-          my ($phrase_start, $phrase_end) = ($1, $2);
-          if ($start == $phrase_start) {
-            $span_start = $format eq 'html' ? '<span style="font-weight: bold; color: darkred">' : '@';
-            $SD_phrase_count++;
-            $SD_count = $SD_phrase_count;
-            $inside_SD = 1;
-            $SD_type = 'P';
-          }
-          if ($end == $phrase_end) {
-            $span_end = $format eq 'html' ? '</span>' : '@';
-            $end_of_SD = 1;
-          }
+        if ($phrase_range =~ /^$start:/) { # first token in this phrase
+          $SD_phrase_count++;
+          $SD_count = $SD_phrase_count;
+        }
+        if ($phrase_range =~ /\b$start:/) { # first token in one of contiguous parts of the phrase
+          $span_start = $format eq 'html' ? '<span style="font-weight: bold; color: darkred">' : '@';
+          $inside_SD = 1;
+          $SD_type = 'P';        
+        }
+        if ($phrase_range =~ /:$end\b/) { # last token in one of contiguous parts of the phrase
+          $span_end = $format eq 'html' ? '</span>' : '@';
+          $end_of_SD = 1;
         }
       }
       
@@ -1223,21 +1230,29 @@ sub get_sentence_html {
 
 =item partial_match
 
-Returns range (in the form "start:end") from keys of given hash that at least partially overlaps with the given range.
+Returns range (in the form "start:end", or a sequence of these separated by ';') from keys of given hash that at least partially overlaps with the given range.
 Otherwise returns undef.
 
 =cut
 
 sub partial_match {
   my ($range, $rh_range2text) = @_;
-  if ($range =~ /^(\d+):(\d+)$/) {
-    my ($start, $end) = ($1, $2);
-    my @ranges = keys(%$rh_range2text);
-    foreach my $r (@ranges) {
-      if ($r =~ /^(\d+):(\d+)$/) {
-        my ($s, $e) = ($1, $2);
-        next if ($e<$start or $end<$s);
-        return $r;
+  # print STDERR "partial_match: input range: $range\n";
+  my @range_parts = split(';', $range);
+  foreach my $range_part (@range_parts) { # for each consequent range
+    if ($range_part =~ /^(\d+):(\d+)$/) {
+      my ($start, $end) = ($1, $2);
+      my @ranges = keys(%$rh_range2text);
+      foreach my $r (@ranges) {
+        my @r_parts = split(';', $r);
+        foreach my $r_part (@r_parts) { # for each consequent range from the key
+          if ($r_part =~ /^(\d+):(\d+)$/) {
+            my ($s, $e) = ($1, $2);
+            next if ($e<$start or $end<$s);
+            # print STDERR "partial_match:  - SUCCESS, matches with $r!\n";
+            return $r;
+          }
+        }
       }
     }
   }
@@ -1385,15 +1400,36 @@ sub evaluate_false_negatives {
 =item get_range
 
 Returns a text index range for an array of nodes
-For now it ignores a possibility of non-contiguous ranges
+For non-contiguous ranges, the individual contiguous parts are separated by ';'
 
 =cut
 
 sub get_range {
-  my @nodes = @_;
-  my $start = min(map {attr($_, 'start')} @nodes);
-  my $end = max(map {attr($_, 'end')} @nodes);
-  return "$start:$end";
+  my @nodes = sort {attr($a, 'start') <=> attr($b, 'start')} @_;
+  return '' if !@nodes;
+  # print STDERR "get_range: nodes: " . join(' ', map {attr($_, 'form')} @nodes) . "\n";
+  my $range = '';
+  my $start = shift(@nodes);
+  my $end = $start;
+  my $prev = $start;
+  foreach my $node (@nodes) { # go through the remaining nodes
+    if (attr($prev, 'end') + 1 >= attr($node, 'start')) { # the nodes are consequent
+      $end = $node;
+      $prev = $node;
+    }
+    else { # there is a gap between $prev and $node
+      my $sep = $range ? ';' : '';
+      $range .= $sep . attr($start, 'start') . ':' . attr($end, 'end');
+      $start = $node;
+      $end = $node;
+      $prev = $node;
+    }
+  }
+  # now process the last contiguous part
+  my $sep = $range ? ';' : '';
+  $range .= $sep . attr($start, 'start') . ':' . attr($end, 'end');
+  # print STDERR "get_range: result: $range\n";
+  return $range;
 }
 
 
