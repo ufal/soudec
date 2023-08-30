@@ -513,6 +513,10 @@ Check if the constraint is met at the node. The constraint can have one of the f
 
 Any (presumably only one) word form in the formats above may be followed by '!' - it is the expected parent of the claim in the tree (e.g. 'hovořit' in 'začal hovořit')
 
+Also checks if the given phrase node is morphologically acceptable - i.e.:
+ - not an infinitive (unless PREP)
+ - not negative
+
 Returns undef if the constraints are not met.
 Otherwise returns the expected parent of the claim and all nodes belonging to the phrase.
 
@@ -523,12 +527,20 @@ sub check_constraint {
 
   my $claim_parent = $node;
   my @phrase_nodes = ($node);
-    
-  return ($claim_parent, @phrase_nodes) if !$constraint;
-  
+
   my $xpostag = attr($node, 'xpostag') // '';
-  return ($claim_parent, @phrase_nodes) if ($constraint eq 'PREP' and $xpostag =~ /^R/);
+  return ($claim_parent, @phrase_nodes) if ($constraint and $constraint eq 'PREP' and $xpostag =~ /^R/);
  
+  # check morphological properties of the node:
+  my $feats = attr($node, 'feats') // '';
+  print STDERR "check_constraint: checking morphology: feats='$feats'\n";
+  return undef if ($feats =~ /\bVerbForm=Inf\b/); # We do not want infinitive
+  print STDERR " - morphology OK\n";
+  #return undef if $feats =~ /\bPolarity=Neg\b/; # We do not want negation
+
+  return ($claim_parent, @phrase_nodes) if !$constraint;
+
+  # now check the constraints:
   my @children = $node->getAllChildren;
   my @required_children_forms_lc = split('\|', $constraint); # get the individul required children (possibly with '!')
   foreach my $required_child_form_lc (@required_children_forms_lc) {
@@ -635,7 +647,7 @@ sub has_finite_verb_object {
   }
   # Second, let us search for a claim among children
   my @finite_verb_object_children = grep {attr($_, 'deprel') =~ /^(obj|iobj|ccomp|xcomp|obl:arg)$/}
-                                    grep {is_finite($_)}
+                                    grep {is_finite($_) or lc(attr($_, 'form')) eq 'to'}
                                     $node->getAllChildren;
   if (@finite_verb_object_children) {
     return 1;
