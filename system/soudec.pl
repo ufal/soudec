@@ -450,7 +450,7 @@ foreach $root (@trees) {
         print STDERR " - reliability is greater than threshold $min_phrase_reliability\n";
         # Checking if there is something like a claim, i.e. a finite-verb core object 
         if (has_finite_verb_object($claim_parent)) {
-          evaluate_single_event('phrase', $root, @phrase_nodes);
+          evaluate_single_event('phrase', $lemma, $constraint || 'no_constraint', $root, @phrase_nodes);
           if ($constraint eq 'PREP') { # special treatment of 'podle' and 'dle'
             my $parent = $node->getParent;
             my $source = attr($parent, 'form');
@@ -459,7 +459,7 @@ foreach $root (@trees) {
             print STDERR " - SOURCE parent: $source\n - WHOLE SOURCE: $whole_source\n";
             my $source_type = guess_source_type($root, $node, @whole_source_nodes);
             print STDERR "   - SOURCE TYPE: $source_type\n";
-            evaluate_single_event($source_type, $root, @whole_source_nodes);
+            evaluate_single_event($source_type, $lemma, 'N/A', $root, @whole_source_nodes);
           }
           else {
             my @nsubj = grep {attr($_, 'deprel') eq 'nsubj'} $node->getAllChildren; # looking for a subject (i.e, the source)
@@ -470,7 +470,7 @@ foreach $root (@trees) {
               print STDERR " - SOURCE nsubj: $subject\n - WHOLE SOURCE: $whole_source\n";
               my $source_type = guess_source_type($root, $node, @whole_source_nodes);
               print STDERR "   - SOURCE TYPE: $source_type\n";
-              evaluate_single_event($source_type, $root, @whole_source_nodes);
+              evaluate_single_event($source_type, $lemma, 'N/A', $root, @whole_source_nodes);
             }
           }
         }
@@ -645,7 +645,7 @@ sub has_finite_verb_object {
     }
     return 0;
   }
-  # Second, let us search for a claim among children
+  # Second, let us search for a claim among the children
   my @finite_verb_object_children = grep {attr($_, 'deprel') =~ /^(obj|iobj|ccomp|xcomp|obl:arg)$/}
                                     grep {is_finite($_) or lc(attr($_, 'form')) eq 'to'}
                                     $node->getAllChildren;
@@ -1291,10 +1291,12 @@ my %h_phrase_range2text;
 my %h_source_range2text;
 my %h_source_range2type;
 
+The log going to STDERR is used to counting the reliability of phrases (that's why $lemma and $constraint are among arguments).
+
 =cut
 
 sub evaluate_single_event {
-  my ($event, $root, @nodes) = @_;
+  my ($event, $lemma, $constraint, $root, @nodes) = @_;
   
   my $range = get_range(@nodes);
   my $text = get_text(@nodes);
@@ -1305,6 +1307,7 @@ sub evaluate_single_event {
       if ($h_ann_phrase_range2text{$range}) {
         print_eval('EVALUATION-EXACT-PHRASE-HIT', $range, $text, '-', $range, $text, '-');
         print_eval('EVALUATION-PARTIAL-PHRASE-HIT', $range, $text, '-', $range, $text, '-');
+        print STDERR "RELIABILITY_COUNT\t$lemma\t$constraint\tHIT\n";
       }
       else {
         print_eval('EVALUATION-EXACT-PHRASE-FALSE-POSITIVE', $range, $text, '-', 'N/A', 'N/A', '-');
@@ -1312,9 +1315,11 @@ sub evaluate_single_event {
         if ($partial_phrase_range) {
           my $partial_text = $h_ann_phrase_range2text{$partial_phrase_range};
           print_eval('EVALUATION-PARTIAL-PHRASE-HIT', $range, $text, '-', $partial_phrase_range, $partial_text, '-');
+          print STDERR "RELIABILITY_COUNT\t$lemma\t$constraint\tHIT_PARTIAL\n";
         }
         else {
           print_eval('EVALUATION-PARTIAL-PHRASE-FALSE-POSITIVE', $range, $text, '-', 'N/A', 'N/A', '-');
+          print STDERR "RELIABILITY_COUNT\t$lemma\t$constraint\tFALSE_POSITIVE\n";
         }
       }
     }
