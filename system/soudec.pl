@@ -634,7 +634,7 @@ sub has_finite_verb_object {
   # 'podle' needs to have a grandparent (finite-verb of the claim)
   # The parent of 'podle' (the source) should not be the last child of the grandparent (to avoid constructions such ad "udělal jsem to podle příručky");
   # (Condition "the parent needs to be left from the grandparent" would be too strong, see: "Tak jste podle nich jedni z mála.")
-  if ($form_lc eq 'podle') {
+  if ($form_lc =~ /^(podle|dle)$/) {
     my $grandparent = $parent->getParent;
     return 0 if !$grandparent;
 #    return 0 if !is_finite($grandparent);
@@ -646,8 +646,8 @@ sub has_finite_verb_object {
     return 0;
   }
   # Second, let us search for a claim among the children
-  my @finite_verb_object_children = grep {attr($_, 'deprel') =~ /^(obj|iobj|ccomp|xcomp|obl:arg)$/}
-                                    grep {is_finite($_) or lc(attr($_, 'form')) eq 'to'}
+  my @finite_verb_object_children = grep {attr($_, 'deprel') =~ /^(obj|iobj|ccomp|xcomp|obl:arg|acl)$/}
+                                    grep {is_finite($_)}
                                     $node->getAllChildren;
   if (@finite_verb_object_children) {
     return 1;
