@@ -437,46 +437,48 @@ foreach $root (@trees) {
   foreach my $node (@nodes) {
     my $lemma = attr($node, 'lemma');
     my $constraint = $phrase_lemma2constraint{$lemma};
+    if (!defined($constraint)) {
+      next; # the lemma is not among citation phrases
+    }
+    my $reliability = $phrase_lemma2reliability{$lemma} // 0;
+    my $constraint_info = $constraint ? " (with constraint: $constraint)" : '';
+    print STDERR "Found phrase lemma '$lemma'$constraint_info with reliability $reliability\n";
+
     my ($claim_parent, @phrase_nodes) = check_constraint($node, $lemma, $constraint); # check if the constraint is met (e.g., se/si is present) and return the expected parent of the claim and all nodes belonging to the phrase
     if (!$claim_parent) {
       print STDERR "Found phrase lemma '$lemma' but the constraint ($constraint) is not met.\n";
       next;
     }
-    my $reliability = $phrase_lemma2reliability{$lemma};
-    if ($reliability) {
-      my $constraint_info = $constraint ? " (with constraint: $constraint)" : '';
-      print STDERR "Found phrase lemma '$lemma'$constraint_info with reliability $reliability\n";
-      if ($reliability > $min_phrase_reliability) {
-        print STDERR " - reliability is greater than threshold $min_phrase_reliability\n";
-        # Checking if there is something like a claim, i.e. a finite-verb core object 
-        if (has_finite_verb_object($claim_parent)) {
-          evaluate_single_event('phrase', $lemma, $constraint || 'no_constraint', $root, @phrase_nodes);
-          if ($constraint eq 'PREP') { # special treatment of 'podle' and 'dle'
-            my $parent = $node->getParent;
-            my $source = attr($parent, 'form');
-            my @whole_source_nodes = get_whole_source_nodes($parent);
+    if ($reliability >= $min_phrase_reliability) {
+      print STDERR " - reliability is greater than threshold $min_phrase_reliability\n";
+      # Checking if there is something like a claim, i.e. a finite-verb core object 
+      if (has_finite_verb_object($claim_parent)) {
+        evaluate_single_event('phrase', $lemma, $constraint || 'no_constraint', $root, @phrase_nodes);
+        if ($constraint eq 'PREP') { # special treatment of 'podle' and 'dle'
+          my $parent = $node->getParent;
+          my $source = attr($parent, 'form');
+          my @whole_source_nodes = get_whole_source_nodes($parent);
+          my $whole_source = get_text(@whole_source_nodes);
+          print STDERR " - SOURCE parent: $source\n - WHOLE SOURCE: $whole_source\n";
+          my $source_type = guess_source_type($root, $node, @whole_source_nodes);
+          print STDERR "   - SOURCE TYPE: $source_type\n";
+          evaluate_single_event($source_type, $lemma, 'N/A', $root, @whole_source_nodes);
+        }
+        else {
+          my @nsubj = grep {attr($_, 'deprel') eq 'nsubj'} $node->getAllChildren; # looking for a subject (i.e, the source)
+          if (@nsubj) {
+            my $subject = attr($nsubj[0], 'form');
+            my @whole_source_nodes = get_whole_source_nodes($nsubj[0]);
             my $whole_source = get_text(@whole_source_nodes);
-            print STDERR " - SOURCE parent: $source\n - WHOLE SOURCE: $whole_source\n";
+            print STDERR " - SOURCE nsubj: $subject\n - WHOLE SOURCE: $whole_source\n";
             my $source_type = guess_source_type($root, $node, @whole_source_nodes);
             print STDERR "   - SOURCE TYPE: $source_type\n";
             evaluate_single_event($source_type, $lemma, 'N/A', $root, @whole_source_nodes);
           }
-          else {
-            my @nsubj = grep {attr($_, 'deprel') eq 'nsubj'} $node->getAllChildren; # looking for a subject (i.e, the source)
-            if (@nsubj) {
-              my $subject = attr($nsubj[0], 'form');
-              my @whole_source_nodes = get_whole_source_nodes($nsubj[0]);
-              my $whole_source = get_text(@whole_source_nodes);
-              print STDERR " - SOURCE nsubj: $subject\n - WHOLE SOURCE: $whole_source\n";
-              my $source_type = guess_source_type($root, $node, @whole_source_nodes);
-              print STDERR "   - SOURCE TYPE: $source_type\n";
-              evaluate_single_event($source_type, $lemma, 'N/A', $root, @whole_source_nodes);
-            }
-          }
         }
-        else {
-          print STDERR "   - no finite-verb core object found!\n";
-        }
+      }
+      else {
+        print STDERR "   - no finite-verb core object found!\n";
       }
     }
   }
@@ -505,11 +507,15 @@ if ($store_conllu) { # log the input text with marked sources in the conllu form
 
 =item check_constraint
 
-Check if the constraint is met at the node. The constraint can have one of the following formats:
+Check if the constraint is met at the node.
+The constraint may be a single one or a sequence of different single constraints separated by '|'. Each such separate constraint is checked individually; the first one that matches is used.
+
+The single constraint can have one of the following formats:
 - a single word form - it must be a child of the given node (e.g., 'si' in 'myslí si')
-- a set of word forms (or pairs of word forms, see just below) separated by '|' - all these word forms must be children of the given node (e.g., 'se|slyšet' in 'nechal se slyšet')
+- a set of word forms (or pairs of word forms, see just below) separated by '/' - all these word forms must be children of the given node (e.g., 'se/slyšet' in 'nechal se slyšet')
 - a pair of word forms separated by '-' - the first word form must be a child and the second one its child (e.g. 'za-to' in 'má za to')
 - PREP - the node must be a preposition ('podle', 'dle')
+- POSTPOS - the attribution phrase is in post position, i.g. "To tak není, pousmál se Honza". It means that "pousmál" with deprel "conj" is a son of "není"; can be combined with other required word forms (separated by '/'), e.g. 'se/POSTPOS' in "pousmál se"
 
 Any (presumably only one) word form in the formats above may be followed by '!' - it is the expected parent of the claim in the tree (e.g. 'hovořit' in 'začal hovořit')
 
@@ -524,59 +530,110 @@ Otherwise returns the expected parent of the claim and all nodes belonging to th
 
 sub check_constraint {
   my ($node, $lemma, $constraint) = @_;
+  
+  my @single_constraints = split(/\|/, $constraint);
+  print STDERR "check_constraint: single constraints: " . join(', ', @single_constraints) . "\n";
+  
+  foreach my $single_constraint (@single_constraints) {
+    print STDERR "check_constraint: checking single constraint '$single_constraint'\n";
+    my ($claim_parent, @phrase_nodes) = check_single_constraint($node, $lemma, $single_constraint);
+    if ($claim_parent) {
+      return ($claim_parent, @phrase_nodes);
+    }
+  }
+  
+  print STDERR "check_constraint: no single constraint matched, giving up.\n";
+  return undef; # none of the single constraints matched
+}
 
-  my $claim_parent = $node;
+
+sub check_single_constraint {
+  my ($node, $lemma, $constraint) = @_;
+
+  print STDERR "check_single_constraint: checking single constraint '$constraint'\n";
+
+  my $claim_parent;
   my @phrase_nodes = ($node);
 
+  my $deprel = attr($node, 'deprel') // '';
+  
   my $xpostag = attr($node, 'xpostag') // '';
-  return ($claim_parent, @phrase_nodes) if ($constraint and $constraint eq 'PREP' and $xpostag =~ /^R/);
+  if ($constraint and $constraint eq 'PREP' and $xpostag =~ /^R/) {
+    print STDERR " - PREP, constraint OK\n";
+    return ($node, @phrase_nodes);
+  }
  
   # check morphological properties of the node:
   my $feats = attr($node, 'feats') // '';
   print STDERR "check_constraint: checking morphology: feats='$feats'\n";
-  return undef if ($feats =~ /\bVerbForm=Inf\b/); # We do not want infinitive
+  if ($feats =~ /\bVerbForm=Inf\b/) { # We do not want infinitive
+    print STDERR " - we do not want infinitive, returning undef\n";
+    return undef;
+  }
   print STDERR " - morphology OK\n";
   #return undef if $feats =~ /\bPolarity=Neg\b/; # We do not want negation
 
-  return ($claim_parent, @phrase_nodes) if !$constraint;
+  if (!$constraint) { # no constraint, i.e. trivially matched
+    print STDERR " - no constraint, i.e. trivially matched\n";
+    return ($node, @phrase_nodes) if !$constraint;
+  }
 
   # now check the constraints:
   my @children = $node->getAllChildren;
-  my @required_children_forms_lc = split('\|', $constraint); # get the individul required children (possibly with '!')
+  my @required_children_forms_lc = split('\/', $constraint); # get the individul required children (possibly with '!')
   foreach my $required_child_form_lc (@required_children_forms_lc) {
-    if ($required_child_form_lc =~ /^(\S+)-(\S+)$/) { # a hierarchy required (e.g. 'za-to' in 'má za to')
+    print STDERR " - checking if '$required_child_form_lc' is present/fulfilled\n";
+    if ($required_child_form_lc eq 'POSTPOS') { # the attribution is in post position, i.e. the claim is the parent (i.e. a child of the grandparent)
+      if ($deprel ne 'conj') {
+        print STDERR " - constraint POSTPOS but deprel is not 'conj'; returning undef\n";
+        return undef;
+      }
+      print STDERR " - constraint POSTPOS, setting the grandparent as the parent of claim\n";
+      $claim_parent = $node->getParent->getParent;
+    }
+    elsif ($required_child_form_lc =~ /^(\S+)-(\S+)$/) { # a hierarchy required (e.g. 'za-to' in 'má za to')
       my ($child_form_lc, $grandchild_form_lc) = ($1, $2);
       my $required_child_is_claim_parent = $child_form_lc =~ /!/;
       $child_form_lc =~ s/!//;      
       my @good_children = grep {$child_form_lc eq lc(attr($_, 'form'))} @children;
-      return undef if !@good_children;
+      if (!@good_children) {
+        print STDERR " - constraint not matched (no good children), returning undef\n";
+        return undef;
+      }
       my $good_child = $good_children[0]; # I doubt there might be more
       push(@phrase_nodes, $good_child);
       if ($required_child_is_claim_parent) { # it is also the expected parent of the claim
-        $claim_parent = $good_child;
+        $claim_parent = $good_child if !$claim_parent;
       }      
       my $required_grandchild_is_claim_parent = $grandchild_form_lc =~ /!/;
       $grandchild_form_lc =~ s/!//;      
       my @good_grandchildren = grep {$grandchild_form_lc eq lc(attr($_, 'form'))} $good_child->getAllChildren;
-      return undef if !@good_grandchildren;
+      if (!@good_grandchildren) {
+        print STDERR " - constraint not matched (no good grandchildren), returning undef\n";
+        return undef;
+      }
       my $good_grandchild = $good_grandchildren[0]; # I doubt there might be more
       push(@phrase_nodes, $good_grandchild);
       if ($required_grandchild_is_claim_parent) { # it is also the expected parent of the claim
-        $claim_parent = $good_grandchild;
+        $claim_parent = $good_grandchild if !$claim_parent;
       }      
     }
     else { # only words from among the children are required
       my $required_child_is_claim_parent = $required_child_form_lc =~ /!/;
       $required_child_form_lc =~ s/!//;
       my @good_children = grep {$required_child_form_lc eq lc(attr($_, 'form'))} @children;
-      return undef if !@good_children;
+      if (!@good_children) {
+        print STDERR " - constraint not matched (no good children), returning undef\n";
+        return undef;
+      }
       my $good_child = $good_children[0]; # I doubt there might be more
       push(@phrase_nodes, $good_child);
       if ($required_child_is_claim_parent) { # it is also the expected parent of the claim
-        $claim_parent = $good_child;
+        $claim_parent = $good_child if !$claim_parent;
       }
     }
   }
+  print STDERR " - OK, constraint matched.\n";
   return ($claim_parent, @phrase_nodes);
 }
 
@@ -626,8 +683,8 @@ Checks if the given node has something like a core finite-verb argument
 
 sub has_finite_verb_object {
   my $node = shift;
-  my $form_lc = lc(attr($node, 'form'));
-  my $lemma = attr($node, 'lemma');
+  my $form_lc = lc(attr($node, 'form') // '');
+  my $lemma = attr($node, 'lemma') // '';
   my $parent = $node->getParent;
 
   # First, let us solve 'podle'
@@ -646,14 +703,14 @@ sub has_finite_verb_object {
     return 0;
   }
   # Second, let us search for a claim among the children
-  my @finite_verb_object_children = grep {attr($_, 'deprel') =~ /^(obj|iobj|ccomp|xcomp|obl:arg|acl)$/}
+  my @finite_verb_object_children = grep {attr($_, 'deprel') =~ /^(obj|iobj|ccomp|xcomp|obl:arg|acl|root)$/}
                                     grep {is_finite($_)}
                                     $node->getAllChildren;
   if (@finite_verb_object_children) {
     return 1;
   }
   # Third, the claim might also be in a parataxis position ("Jak už vědci uvedli při prvním kole vykopávek, jde pro ně o záhadu.")
-  if (attr($node, 'deprel') eq 'parataxis') {
+  if (attr($node, 'deprel') and attr($node, 'deprel') eq 'parataxis') {
     if (is_finite($parent)) {
       return 1;
     }
