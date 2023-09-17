@@ -160,35 +160,39 @@ print STDERR "\n";
 # Let us first read the file with reliability of citation phrases
 ###################################################################################
 
-my %phrase_lemma2reliability; # reliability of the phrase lemmas (if found with the constraints) in percents (in how many percents it was used in training data as a citation phrase)
-my %phrase_lemma2constraint; # which constraint does the phrase require (if any)
+my %phrase_lemma_constraint2reliability; # reliability of the phrase lemmas together with a constraint in percents (in how many percents it was used in training data as a citation phrase); the phrase lemma is separated by '_' from the constraint
+my %phrase_lemma2constraints; # which constraints does the phrase require (if any); the individual constraints are separated by '_'; an empty constraint is represented by 'NoConstraint'
 
-print STDERR "Reading phrases and their reliability from $phrase_reliability_file\n";
+print STDERR "Reading phrase lemmas and their reliability from $phrase_reliability_file\n";
 
 open (PHRASES, '<:encoding(utf8)', $phrase_reliability_file)
   or die "Could not open file '$phrase_reliability_file' for reading: $!";
 
 my $phrases_count = 0;
 while (<PHRASES>) {
-  chomp();
+  chomp(); 
   my $line = $_;
   if ($line =~ /^(\d+)\t(\d+)\t(\S+)\t(\S*)$/) {
     my $all_occurrences = $1;
     my $used_as_citation_phrase = $2;
     my $lemma = $3;
-    my $constraint = $4 // 'no_constraint';
+    my $constraint = $4 || 'NoConstraint';
     my $reliability = $used_as_citation_phrase / $all_occurrences;
     my $reliability_percent = 100 * sprintf("%.2f", $reliability);
-    $phrase_lemma2reliability{$lemma} = $reliability_percent;
+    $phrase_lemma_constraint2reliability{$lemma . '_' . $constraint} = $reliability_percent;
     print STDERR "Phrase $lemma (with constraint $constraint) and reliability $reliability_percent\n";
     $phrases_count++;
-    $phrase_lemma2constraint{$lemma} = $constraint if $constraint ne 'no_constraint';
+    if ($phrase_lemma2constraints{$lemma}) { # if there already was a constraint for this lemma
+      print STDERR "Note: multiple constraints for lemma $lemma.\n";
+      $phrase_lemma2constraints{$lemma} .= "_";
+    }
+    $phrase_lemma2constraints{$lemma} .= $constraint;
   }
   else {
     print STDERR "Unknown format of a line in file $phrase_reliability_file:\n$line\n";
   }
 }
-print STDERR "$phrases_count phrases have been read from file $phrase_reliability_file:\n";
+print STDERR "$phrases_count phrase lemmas (plus a constraint) have been read from file $phrase_reliability_file:\n";
 
 
 ###################################################################################
@@ -436,49 +440,51 @@ foreach $root (@trees) {
   my @nodes = descendants($root);
   foreach my $node (@nodes) {
     my $lemma = attr($node, 'lemma');
-    my $constraint = $phrase_lemma2constraint{$lemma};
-    if (!defined($constraint)) {
+    my $constraints = $phrase_lemma2constraints{$lemma};
+    if (!$constraints) {
+      print STDERR "No constraints for lemma '$lemma', skipping.\n";
       next; # the lemma is not among citation phrases
     }
-    my $reliability = $phrase_lemma2reliability{$lemma} // 0;
-    my $constraint_info = $constraint ? " (with constraint: $constraint)" : '';
-    print STDERR "Found phrase lemma '$lemma'$constraint_info with reliability $reliability\n";
+    foreach my $constraint (split(/_/, $constraints)) { # split the constraints by separator '_' and work with one constraint at a time
+      my $reliability = $phrase_lemma_constraint2reliability{$lemma . '_' . $constraint} // 0;
+      print STDERR "Testing phrase lemma (constraint) '$lemma ($constraint)' with reliability $reliability\n";
 
-    my ($claim_parent, @phrase_nodes) = check_constraint($node, $lemma, $constraint); # check if the constraint is met (e.g., se/si is present) and return the expected parent of the claim and all nodes belonging to the phrase
-    if (!$claim_parent) {
-      print STDERR "Found phrase lemma '$lemma' but the constraint ($constraint) is not met.\n";
-      next;
-    }
-    if ($reliability >= $min_phrase_reliability) {
-      print STDERR " - reliability is greater than threshold $min_phrase_reliability\n";
-      # Checking if there is something like a claim, i.e. a finite-verb core object 
-      if (has_finite_verb_object($claim_parent)) {
-        evaluate_single_event('phrase', $lemma, $constraint || 'no_constraint', $root, @phrase_nodes);
-        if ($constraint eq 'PREP') { # special treatment of 'podle' and 'dle'
-          my $parent = $node->getParent;
-          my $source = attr($parent, 'form');
-          my @whole_source_nodes = get_whole_source_nodes($parent);
-          my $whole_source = get_text(@whole_source_nodes);
-          print STDERR " - SOURCE parent: $source\n - WHOLE SOURCE: $whole_source\n";
-          my $source_type = guess_source_type($root, $node, @whole_source_nodes);
-          print STDERR "   - SOURCE TYPE: $source_type\n";
-          evaluate_single_event($source_type, $lemma, 'N/A', $root, @whole_source_nodes);
-        }
-        else {
-          my @nsubj = grep {attr($_, 'deprel') eq 'nsubj'} $node->getAllChildren; # looking for a subject (i.e, the source)
-          if (@nsubj) {
-            my $subject = attr($nsubj[0], 'form');
-            my @whole_source_nodes = get_whole_source_nodes($nsubj[0]);
+      my ($claim_parent, @phrase_nodes) = check_constraint($node, $lemma, $constraint); # check if the constraint is met (e.g., se/si is present) and return the expected parent of the claim and all nodes belonging to the phrase; empty constraint is represented by 'NoConstraint'
+      if (!$claim_parent) {
+        print STDERR "- the constraint '$constraint' for lemma '$lemma' is not met.\n";
+        next;
+      }
+      if ($reliability >= $min_phrase_reliability) {
+        print STDERR " - reliability of lemma '$lemma' with constraint '$constraint' is greater than threshold $min_phrase_reliability\n";
+        # Checking if there is something like a claim, i.e. a finite-verb core object 
+        if (has_finite_verb_object($claim_parent)) {
+          evaluate_single_event('phrase', $lemma, $constraint, $root, @phrase_nodes);
+          if ($constraint eq 'PREP') { # special treatment of 'podle' and 'dle'
+            my $parent = $node->getParent;
+            my $source = attr($parent, 'form');
+            my @whole_source_nodes = get_whole_source_nodes($parent);
             my $whole_source = get_text(@whole_source_nodes);
-            print STDERR " - SOURCE nsubj: $subject\n - WHOLE SOURCE: $whole_source\n";
+            print STDERR " - SOURCE parent: $source\n - WHOLE SOURCE: $whole_source\n";
             my $source_type = guess_source_type($root, $node, @whole_source_nodes);
             print STDERR "   - SOURCE TYPE: $source_type\n";
             evaluate_single_event($source_type, $lemma, 'N/A', $root, @whole_source_nodes);
           }
+          else {
+            my @nsubj = grep {attr($_, 'deprel') eq 'nsubj'} $node->getAllChildren; # looking for a subject (i.e, the source)
+            if (@nsubj) {
+              my $subject = attr($nsubj[0], 'form');
+              my @whole_source_nodes = get_whole_source_nodes($nsubj[0]);
+              my $whole_source = get_text(@whole_source_nodes);
+              print STDERR " - SOURCE nsubj: $subject\n - WHOLE SOURCE: $whole_source\n";
+              my $source_type = guess_source_type($root, $node, @whole_source_nodes);
+              print STDERR "   - SOURCE TYPE: $source_type\n";
+              evaluate_single_event($source_type, $lemma, 'N/A', $root, @whole_source_nodes);
+            }
+          }
         }
-      }
-      else {
-        print STDERR "   - no finite-verb core object found!\n";
+        else {
+          print STDERR "   - no finite-verb core object found!\n";
+        }
       }
     }
   }
@@ -508,16 +514,15 @@ if ($store_conllu) { # log the input text with marked sources in the conllu form
 =item check_constraint
 
 Check if the constraint is met at the node.
-The constraint may be a single one or a sequence of different single constraints separated by '|'. Each such separate constraint is checked individually; the first one that matches is used.
 
-The single constraint can have one of the following formats:
+The constraint can have one of the following formats:
 - a single word form - it must be a child of the given node (e.g., 'si' in 'myslí si')
-- a set of word forms (or pairs of word forms, see just below) separated by '/' - all these word forms must be children of the given node (e.g., 'se/slyšet' in 'nechal se slyšet')
+- a set of word forms (or pairs of word forms, see just below) separated by '|' - all these word forms must be children of the given node (e.g., 'se|slyšet' in 'nechal se slyšet')
 - a pair of word forms separated by '-' - the first word form must be a child and the second one its child (e.g. 'za-to' in 'má za to')
 - PREP - the node must be a preposition ('podle', 'dle')
-- POSTPOS - the attribution phrase is in post position, i.g. "To tak není, pousmál se Honza". It means that "pousmál" with deprel "conj" is a son of "není"; can be combined with other required word forms (separated by '/'), e.g. 'se/POSTPOS' in "pousmál se"
+- POSTPOS - the attribution phrase is in post position, i.g. "To tak není, pousmál se Honza". It means that "pousmál" with deprel "conj" is a son of "není"; can be combined with other required word forms (separated by '|'), e.g. 'se|POSTPOS' in "pousmál se"
 
-Any (presumably only one) word form in the formats above may be followed by '!' - it is the expected parent of the claim in the tree (e.g. 'hovořit' in 'začal hovořit')
+Any (presumably only one) word form in the formats above may be followed by '!' - it is the expected parent of the claim in the tree (e.g. 'hovořit' in 'začal hovořit'); it should not happen for PREP or if POSTPOS is a part of the constraint 
 
 Also checks if the given phrase node is morphologically acceptable - i.e.:
  - not an infinitive (unless PREP)
@@ -528,29 +533,11 @@ Otherwise returns the expected parent of the claim and all nodes belonging to th
 
 =cut
 
+
 sub check_constraint {
   my ($node, $lemma, $constraint) = @_;
-  
-  my @single_constraints = split(/\|/, $constraint);
-  print STDERR "check_constraint: single constraints: " . join(', ', @single_constraints) . "\n";
-  
-  foreach my $single_constraint (@single_constraints) {
-    print STDERR "check_constraint: checking single constraint '$single_constraint'\n";
-    my ($claim_parent, @phrase_nodes) = check_single_constraint($node, $lemma, $single_constraint);
-    if ($claim_parent) {
-      return ($claim_parent, @phrase_nodes);
-    }
-  }
-  
-  print STDERR "check_constraint: no single constraint matched, giving up.\n";
-  return undef; # none of the single constraints matched
-}
 
-
-sub check_single_constraint {
-  my ($node, $lemma, $constraint) = @_;
-
-  print STDERR "check_single_constraint: checking single constraint '$constraint'\n";
+  print STDERR "check_constraint: checking constraint '$constraint'\n";
 
   my $claim_parent;
   my @phrase_nodes = ($node);
@@ -573,14 +560,14 @@ sub check_single_constraint {
   print STDERR " - morphology OK\n";
   #return undef if $feats =~ /\bPolarity=Neg\b/; # We do not want negation
 
-  if (!$constraint) { # no constraint, i.e. trivially matched
+  if ($constraint eq 'NoConstraint') { # no constraint, i.e. trivially matched
     print STDERR " - no constraint, i.e. trivially matched\n";
-    return ($node, @phrase_nodes) if !$constraint;
+    return ($node, @phrase_nodes);
   }
 
   # now check the constraints:
   my @children = $node->getAllChildren;
-  my @required_children_forms_lc = split('\/', $constraint); # get the individul required children (possibly with '!')
+  my @required_children_forms_lc = split('\|', $constraint); # get the individul required children (possibly with '!')
   foreach my $required_child_form_lc (@required_children_forms_lc) {
     print STDERR " - checking if '$required_child_form_lc' is present/fulfilled\n";
     if ($required_child_form_lc eq 'POSTPOS') { # the attribution is in post position, i.e. the claim is the parent (i.e. a child of the grandparent)
@@ -634,6 +621,9 @@ sub check_single_constraint {
     }
   }
   print STDERR " - OK, constraint matched.\n";
+  if (!$claim_parent) { # no special claim parent was set
+    $claim_parent = $node;
+  }
   return ($claim_parent, @phrase_nodes);
 }
 
