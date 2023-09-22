@@ -1,201 +1,162 @@
-1	1	apelovat	
+3	1	apelovat	
 1	1	argumentovat	tím!
-1	1	avizovat	
+3	3	avizovat	
 1	1	bránit	se
 1	1	burcovat	
-1	1	citovat	
-1	1	dát	najevo
-1	1	dodat	
-1	1	dodávat	
-1	1	dohadovat	se
-1	1	dojít	závěru-k
-1	1	dokládat	
-1	1	domnívat	se
-1	1	doplnit	
-1	1	doplňovat	
-1	1	doporučit	
-1	1	doporučovat	
-1	1	glosovat	
+6	6	citovat	
+7	3	dát	najevo
+85	82	dodat	
+51	50	dodávat	
+4	4	dokládat	
+12	8	domnívat	se
+15	14	doplnit	
+16	16	doplňovat	
+2	2	doporučit	
+4	4	doporučovat	
 1	1	hlásat	
-1	1	hlásit	
-1	1	hodnotit	
-1	1	hovořit	
-1	1	informovat	
+3	2	hlásit	
+2	1	hodnotit	
+4	3	hovořit	
+107	101	informovat	
 1	1	jmenovat	
-1	1	komentovat	
-1	1	konstatovat	
-1	1	kritizovat	
-1	1	líčit	
-1	1	mínit	
-1	1	mít	to-za
-1	1	myslit	si
-1	1	naléhat	
+8	7	komentovat	
+16	14	konstatovat	
+6	3	kritizovat	
+5	5	líčit	
+11	10	mínit	
+2	2	mít	to-za
+50	17	myslit	si
+2	1	naléhat	
 1	1	namítnout	
-1	1	napsat	
-1	1	narážet	
-1	1	navrhnout	
-1	1	navrhovat	
-1	1	naznačovat	
-1	1	nechat	se|slyšet!
-1	1	obávat	se
-1	1	objasnit	
-1	1	obvinit	
-1	1	obviňovat	
-1	1	ocenit	
-1	1	očekávat	
-1	1	odhadnout	
-1	1	odhadovat	
+65	60	napsat	
+2	2	narážet	
+9	4	navrhnout	
+4	1	navrhovat	
+12	7	naznačovat	
+10	5	obávat	se
+2	1	objasnit	
+6	2	obvinit	
+7	1	obviňovat	
+3	1	ocenit	
+13	7	očekávat	
+3	3	odhadnout	
+9	7	odhadovat	
 1	1	odhalovat	
 1	1	odkázat	
 1	1	odkazovat	
-1	1	odmítat	
-1	1	odmítnout	
-1	1	odpovědět	
-1	1	odpovídat	
-1	1	odsoudit	
-1	1	ohlásit	
+14	9	odmítat	
+10	3	odmítnout	
+7	6	odpovědět	
+6	4	odpovídat	
+6	6	ohlásit	
 1	1	okomentovat	
-1	1	omlouvat	se
-1	1	omlouvat	se|POSTPOS
+2	1	omlouvat	se|POSTPOS
 1	1	opáčit	
 1	1	oponovat	
-1	1	označit	
-1	1	oznámit	
-1	1	plánovat	
-1	1	počítat	
-1	1	podělit	se
-1	1	podezírat	
-1	1	podle	PREP
-1	1	podotknout	
-1	1	podotýkat	
-1	1	podporovat	
-1	1	pohrozit	
-1	1	pochválit	
+15	13	označit	
+73	73	oznámit	
+4	1	plánovat	
+2	2	podezírat	
+842	656	podle	PREP
+7	7	podotknout	
+6	6	podotýkat	
+2	1	podporovat	
+2	2	pohrozit	
 1	1	pochvalovat	si
-1	1	pokoušet	se
-1	1	pokračovat	
-1	1	pokusit	
-1	1	popírat	
-1	1	popisovat	
-1	1	popřít	
-1	1	popsat	
+7	6	pokračovat	
+3	3	popírat	
+38	37	popisovat	
+6	6	popřít	
+27	27	popsat	
 1	1	postesknout	si
-1	1	posvětit	
-1	1	potvrdit	
-1	1	potvrzovat	
-1	1	poukazovat	
-1	1	považovat	
+33	27	potvrdit	
+8	7	potvrzovat	
+2	2	poukazovat	
+12	6	považovat	
 1	1	povídat	
-1	1	povolovat	
-1	1	poznamenat	
-1	1	poznamenávat	
-1	1	požádat	
-1	1	požadovat	
-1	1	prohlásit	
-1	1	prohlašovat	
-1	1	prokázat	
-1	1	prozradit	
-1	1	prý	
-1	1	přát	si
-1	1	přeceňovat	
-1	1	předpokládat	
-1	1	představit	
-1	1	předvídat	
-1	1	přemítý	
-1	1	přemýšlet	
-1	1	přestavit	
-1	1	přiblížit	
-1	1	přibližovat	
-1	1	přidávat	názor!
-1	1	přijít	
-1	1	přinášet	
-1	1	přinést	
-1	1	připomenout	
-1	1	připomínat	
-1	1	připouštět	
-1	1	připustit	
-1	1	přirovnat	
-1	1	přitakávat	
-1	1	přiznat	
-1	1	přiznávat	
-1	1	psát	
-1	1	psát	se
-1	1	radit	
-1	1	radovat	se
-1	1	reagovat	
+12	11	poznamenat	
+3	3	poznamenávat	
+47	46	prohlásit	
+2	2	prohlašovat	
+7	4	prokázat	
+4	4	prozradit	
+6	3	přát	si
+19	12	předpokládat	
+2	2	předvídat	
+2	2	přemýšlet	POSTPOS
+2	2	přiblížit	
+8	8	přibližovat	
+1	1	přijít	tvrzením!-s
+2	2	přinést	zprávu!
+17	13	připomenout	
+17	16	připomínat	
+4	3	připouštět	
+10	8	připustit	
+11	9	přiznat	
+10	10	přiznávat	
+39	36	psát	
+4	3	radit	
+12	11	reagovat	
 1	1	reprodukovat	
-1	1	rozhodnout	
-1	1	říci	
-1	1	říkat	
-1	1	sdělit	
+273	248	říci	
+165	137	říkat	
+38	35	sdělit	
 1	1	sdělovat	
-1	1	shodovat	se
-1	1	shrnout	
-1	1	shrnovat	
-1	1	schválit	
-1	1	slíbit	
-1	1	slyšet	jsem
-1	1	smát	se
-1	1	soudit	
-1	1	souhlasit	
-1	1	spatřovat	
-1	1	specifikovat	
-1	1	spekulovat	
-1	1	svěřovat	se
-1	1	tuš	
-1	1	tvrdit	
-1	1	ujistit	
-1	1	ukázat	
-1	1	ukazovat	
-1	1	upozornit	
-1	1	upozorňovat	
-1	1	upřesnit	
-1	1	upřesňovat	
-1	1	usmívat	se
-1	1	uvádět	
-1	1	uvažovat	
-1	1	uvést	
-1	1	uzavírat	
-1	1	varovat	
-1	1	vědět	se
-1	1	věřit	
-1	1	vidět	
+5	2	shodovat	se
+3	2	shrnout	
+3	3	shrnovat	
+4	2	schválit	
+4	3	slíbit	
+1	0	slyšet	jsem
+7	6	smát	se|POSTPOS
+4	4	soudit	
+9	2	souhlasit	
+3	2	spekulovat	
+63	58	tvrdit	
+4	2	ujistit	
+13	5	ukázat	
+17	8	ukazovat	
+14	13	upozornit	
+32	30	upozorňovat	
+2	2	upřesnit	
+3	3	upřesňovat	
+41	40	uvádět	
+6	2	uvažovat	
+301	289	uvést	
+3	3	uzavírat	
+14	14	varovat	
+1	0	vědět	se
+30	12	věřit	
 1	1	vtipkovat	
 1	1	vyčinit	
 1	1	vydat	
-1	1	vyjádřit	
-1	1	vyjmenovávat	
+4	2	vyjádřit	
+2	2	vyjmenovávat	
 1	1	vylíčit	
-1	1	vyloučit	
-1	1	vymyslet	
-1	1	vyplývat	
-1	1	vypočítávat	
-1	1	vyprávět	
-1	1	vyslovit	
-1	1	vysvětlit	
-1	1	vysvětlovat	
-1	1	vyzvat	
-1	1	vyzývat	
-1	1	vzkázat	
-1	1	vzpomenout	
-1	1	vzpomínat	
+3	3	vyloučit	
+4	4	vyplývat	
+2	2	vypočítávat	
+8	8	vyprávět	
+2	2	vyslovit	
+16	15	vysvětlit	
+55	51	vysvětlovat	
+10	10	vzkázat	
+8	7	vzpomínat	
 1	1	začít	hovořit!
-1	1	zareagovat	
-1	1	zavzpomínat	
-1	1	zaznamenat	
+2	1	zaznamenat	
 1	1	zaznít	
-1	1	zdůraznit	
-1	1	zdůrazňovat	
-1	1	zdůvodnit	
-1	1	zdůvodňovat	
-1	1	zeptat	se
-1	1	zhodnotit	
-1	1	zjistit	
-1	1	zkoumat	
-1	1	zmínit	
-1	1	zmiňovat	
+14	12	zdůraznit	
+9	9	zdůrazňovat	
+4	4	zdůvodnit	
+2	1	zdůvodňovat	
+3	1	zeptat	se
+3	3	zhodnotit	
+38	22	zjistit	
+2	1	zkoumat	
+4	4	zmínit	
+2	2	zmiňovat	
 1	1	znít	
-1	1	zopakovat	
+4	4	zopakovat	
 1	1	zveřejnit	
-1	1	žádat	
+10	5	žádat	
 1	1	žasnout	

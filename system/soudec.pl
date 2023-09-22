@@ -688,8 +688,10 @@ sub has_finite_verb_object {
     my $parent_ord = attr($parent, 'ord');
     my @parent_right_brothers = grep {attr($_, 'ord') > $parent_ord} $grandparent->getAllChildren;
     if (@parent_right_brothers) {
+      print STDERR " - has_finite_verb_object: case 'podle' OK (a claim found)\n";
       return 1;
     }
+    print STDERR " - has_finite_verb_object: case 'podle' - no claim found\n";
     return 0;
   }
   # Second, let us search for a claim among the children
@@ -697,19 +699,22 @@ sub has_finite_verb_object {
                                     grep {is_finite($_)}
                                     $node->getAllChildren;
   if (@finite_verb_object_children) {
+    print STDERR " - has_finite_verb_object: OK (a claim found among children: " . attr($finite_verb_object_children[0], 'form') . ")\n";
     return 1;
   }
   # Third, the claim might also be in a parataxis position ("Jak už vědci uvedli při prvním kole vykopávek, jde pro ně o záhadu.")
   if (attr($node, 'deprel') and attr($node, 'deprel') eq 'parataxis') {
     if (is_finite($parent)) {
+      print STDERR " - has_finite_verb_object: OK (a claim found in a parataxis position): " . attr($parent, 'form') . ")\n";
       return 1;
     }
   }
-  # Fourth, "informovat o (cokoli)", e.g. "O rozsudku informoval ..."
-  if ($lemma eq 'informovat') {
+  # Fourth, "informovat o (cokoli)" or "přinesl zprávu o (cokoli), e.g. "O rozsudku informoval ..." or "Zprávu o zmizení XY přinesl ..."
+  if ($lemma eq 'informovat' or $lemma eq 'zpráva') {
     my @children_with_o = grep {has_child_with_lemma($_, 'o')}
                           $node->getAllChildren;
     if (@children_with_o) {
+      print STDERR " - has_finite_verb_object: case 'o' OK (a claim found)\n";
       return 1;
     }    
   }
@@ -717,11 +722,13 @@ sub has_finite_verb_object {
   my @children_with_excl = grep {has_child_with_lemma($_, '!')}
                            $node->getAllChildren;
   if (@children_with_excl) {
+    print STDERR " - has_finite_verb_object: case '!' OK (a claim found)\n";
     return 1;
   }    
   
   # Je potřeba vyřešit "Vyplývá to z údajů na internetových stránkách České národní banky.", kde claim je subject ("to") a source je obl:arg (z údajů), soubor doc-8359658.xml.txt.conll
   
+  print STDERR " - has_finite_verb_object: no claim found\n";
   return 0;
 }
 
