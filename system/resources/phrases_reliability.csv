@@ -7,12 +7,15 @@
 7	3	dát	najevo
 85	82	dodat	
 51	50	dodávat	
+2	1	dohadovat	se
+2	1	dojít	závěru-k
 4	4	dokládat	
 12	8	domnívat	se
 15	14	doplnit	
 16	16	doplňovat	
 2	2	doporučit	
 4	4	doporučovat	
+2	1	glosovat	
 1	1	hlásat	
 3	2	hlásit	
 2	1	hodnotit	
@@ -33,6 +36,7 @@
 9	4	navrhnout	
 4	1	navrhovat	
 12	7	naznačovat	
+2	1	nechat	se|slyšet!
 10	5	obávat	se
 2	1	objasnit	
 6	2	obvinit	
@@ -48,20 +52,24 @@
 10	3	odmítnout	
 7	6	odpovědět	
 6	4	odpovídat	
+2	1	odsoudit	POSTPOS
 6	6	ohlásit	
 1	1	okomentovat	
+2	1	omlouvat	se
 2	1	omlouvat	se|POSTPOS
 1	1	opáčit	
 1	1	oponovat	
 15	13	označit	
 73	73	oznámit	
 4	1	plánovat	
+2	1	podělit	se|POSTPOS
 2	2	podezírat	
 842	656	podle	PREP
 7	7	podotknout	
 6	6	podotýkat	
 2	1	podporovat	
 2	2	pohrozit	
+2	1	pochválit	POSTPOS
 1	1	pochvalovat	si
 7	6	pokračovat	
 3	3	popírat	
@@ -69,9 +77,11 @@
 6	6	popřít	
 27	27	popsat	
 1	1	postesknout	si
+2	1	postesknout	si|POSTPOS
 33	27	potvrdit	
 8	7	potvrzovat	
 2	2	poukazovat	
+2	1	pousmát	se|POSTPOS
 12	6	považovat	
 1	1	povídat	
 12	11	poznamenat	
@@ -80,22 +90,29 @@
 2	2	prohlašovat	
 7	4	prokázat	
 4	4	prozradit	
+2	1	prý	
 6	3	přát	si
 19	12	předpokládat	
 2	2	předvídat	
 2	2	přemýšlet	POSTPOS
 2	2	přiblížit	
 8	8	přibližovat	
+2	1	přidávat	názor!
 1	1	přijít	tvrzením!-s
+2	1	přijít	zprávou!-se
+2	1	přinášet	zprávu!
 2	2	přinést	zprávu!
 17	13	připomenout	
 17	16	připomínat	
 4	3	připouštět	
 10	8	připustit	
+2	1	přitakávat	
 11	9	přiznat	
 10	10	přiznávat	
 39	36	psát	
+2	1	psát	se
 4	3	radit	
+2	1	radovat	se
 12	11	reagovat	
 1	1	reprodukovat	
 273	248	říci	
@@ -108,10 +125,14 @@
 4	2	schválit	
 4	3	slíbit	
 1	0	slyšet	jsem
+2	1	slyšet	jsem|POSTPOS
 7	6	smát	se|POSTPOS
 4	4	soudit	
 9	2	souhlasit	
+2	1	spatřovat	
+2	1	specifikovat	
 3	2	spekulovat	
+2	1	svěřovat	se
 63	58	tvrdit	
 4	2	ujistit	
 13	5	ukázat	
@@ -120,6 +141,7 @@
 32	30	upozorňovat	
 2	2	upřesnit	
 3	3	upřesňovat	
+2	1	usmívat	se|POSTPOS
 41	40	uvádět	
 6	2	uvažovat	
 301	289	uvést	
@@ -134,6 +156,7 @@
 2	2	vyjmenovávat	
 1	1	vylíčit	
 3	3	vyloučit	
+2	1	vymyslet	
 4	4	vyplývat	
 2	2	vypočítávat	
 8	8	vyprávět	
@@ -143,6 +166,8 @@
 10	10	vzkázat	
 8	7	vzpomínat	
 1	1	začít	hovořit!
+2	1	zareagovat	
+2	1	zavzpomínat	
 2	1	zaznamenat	
 1	1	zaznít	
 14	12	zdůraznit	
