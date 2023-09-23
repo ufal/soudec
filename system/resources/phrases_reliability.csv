@@ -7,15 +7,14 @@
 7	3	dát	najevo
 85	82	dodat	
 51	50	dodávat	
-2	1	dohadovat	se
-2	1	dojít	závěru-k
+2	1	dojít	závěru!-k
 4	4	dokládat	
 12	8	domnívat	se
 15	14	doplnit	
 16	16	doplňovat	
 2	2	doporučit	
 4	4	doporučovat	
-2	1	glosovat	
+2	1	glosovat	POSTPOS
 1	1	hlásat	
 3	2	hlásit	
 2	1	hodnotit	
@@ -36,7 +35,8 @@
 9	4	navrhnout	
 4	1	navrhovat	
 12	7	naznačovat	
-2	1	nechat	se|slyšet!
+2	1	nechat	slyšet!-se
+2	1	nechat	slyšet-se|POSTPOS
 10	5	obávat	se
 2	1	objasnit	
 6	2	obvinit	
@@ -62,7 +62,7 @@
 15	13	označit	
 73	73	oznámit	
 4	1	plánovat	
-2	1	podělit	se|POSTPOS
+2	1	podělit	se|názor-o|POSTPOS
 2	2	podezírat	
 842	656	podle	PREP
 7	7	podotknout	
@@ -97,7 +97,7 @@
 2	2	přemýšlet	POSTPOS
 2	2	přiblížit	
 8	8	přibližovat	
-2	1	přidávat	názor!
+2	1	přidávat	
 1	1	přijít	tvrzením!-s
 2	1	přijít	zprávou!-se
 2	1	přinášet	zprávu!
@@ -109,10 +109,10 @@
 2	1	přitakávat	
 11	9	přiznat	
 10	10	přiznávat	
-39	36	psát	
 2	1	psát	se
+39	36	psát	
 4	3	radit	
-2	1	radovat	se
+2	1	radovat	se|POSTPOS
 12	11	reagovat	
 1	1	reprodukovat	
 273	248	říci	

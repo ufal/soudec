@@ -695,7 +695,7 @@ sub has_finite_verb_object {
     return 0;
   }
   # Second, let us search for a claim among the children
-  my @finite_verb_object_children = grep {attr($_, 'deprel') =~ /^(obj|iobj|ccomp|xcomp|obl:arg|acl|root)$/}
+  my @finite_verb_object_children = grep {attr($_, 'deprel') =~ /^(obj|iobj|ccomp|xcomp|obl:arg|acl|root|csubj:pass)$/}
                                     grep {is_finite($_)}
                                     $node->getAllChildren;
   if (@finite_verb_object_children) {
