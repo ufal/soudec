@@ -520,9 +520,10 @@ The constraint can have one of the following formats:
 - a set of word forms (or pairs of word forms, see just below) separated by '|' - all these word forms must be children of the given node (e.g., 'se|slyšet' in 'nechal se slyšet')
 - a pair of word forms separated by '-' - the first word form must be a child and the second one its child (e.g. 'za-to' in 'má za to')
 - PREP - the node must be a preposition ('podle', 'dle')
-- POSTPOS - the attribution phrase is in post position, i.g. "To tak není, pousmál se Honza". It means that "pousmál" with deprel "conj" is a son of "není"; can be combined with other required word forms (separated by '|'), e.g. 'se|POSTPOS' in "pousmál se"
+- POSTPOS - the attribution phrase is in post position, e.g. "To tak není, pousmál se Honza". It means that "pousmál" with deprel "conj" is a son of "není"; can be combined with other required word forms (separated by '|'), e.g. 'se|POSTPOS' in "pousmál se"
+- ANTEPOS - the attribution phrase is in ante position, e.g. "Co jsem slyšel, tak lístků je dost". It means that "slyšel" with deprel "csubj" (or "csubj:pass") is a son of "prodalo"; can be combined with other required word forms (separated by '|'), e.g. 'co|jsem|ANTEPOS' in "co jsem slyšel"
 
-Any (presumably only one) word form in the formats above may be followed by '!' - it is the expected parent of the claim in the tree (e.g. 'hovořit' in 'začal hovořit'); it should not happen for PREP or if POSTPOS is a part of the constraint 
+Any (presumably only one) word form in the formats above may be followed by '!' - it is the expected parent of the claim in the tree (e.g. 'hovořit' in 'začal hovořit'); it should not happen for PREP or if POSTPOS/ANTEPOS is a part of the constraint 
 
 Also checks if the given phrase node is morphologically acceptable - i.e.:
  - not an infinitive (unless PREP)
@@ -575,7 +576,29 @@ sub check_constraint {
         print STDERR " - constraint POSTPOS but deprel is not 'conj'; returning undef\n";
         return undef;
       }
+      # check the order
+      my $phrase_ord = attr($node, 'ord');
+      my $parent_ord = attr($node->getParent, 'ord');
+      if ($phrase_ord < $parent_ord) {
+        print STDERR " - constraint POSTPOS but parent is to the right; returning undef\n";
+        return undef;
+      }
       print STDERR " - constraint POSTPOS, setting the grandparent as the parent of claim\n";
+      $claim_parent = $node->getParent->getParent;
+    }
+    elsif ($required_child_form_lc eq 'ANTEPOS') { # the attribution is in ante position, i.e. the claim is the parent (i.e. a child of the grandparent)
+      if ($deprel ne 'csubj' and $deprel ne 'csubj:pass') {
+        print STDERR " - constraint ANTEPOS but deprel is not 'csubj' or 'csubj:pass'; returning undef\n";
+        return undef;
+      }
+      # check the order
+      my $phrase_ord = attr($node, 'ord');
+      my $parent_ord = attr($node->getParent, 'ord');
+      if ($phrase_ord > $parent_ord) {
+        print STDERR " - constraint ANTEPOS but parent is to the left; returning undef\n";
+        return undef;
+      }
+      print STDERR " - constraint ANTEPOS, setting the grandparent as the parent of claim\n";
       $claim_parent = $node->getParent->getParent;
     }
     elsif ($required_child_form_lc =~ /^(\S+)-(\S+)$/) { # a hierarchy required (e.g. 'za-to' in 'má za to')
