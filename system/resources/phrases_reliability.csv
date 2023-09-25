@@ -14,7 +14,7 @@
 16	16	doplňovat	
 2	2	doporučit	
 4	4	doporučovat	
-2	1	glosovat	POSTPOS
+1	1	glosovat	POSTPOS
 1	1	hlásat	
 3	2	hlásit	
 2	1	hodnotit	
@@ -42,9 +42,9 @@
 6	2	obvinit	
 7	1	obviňovat	
 3	1	ocenit	
-13	7	očekávat	
+17	7	očekávat	
 3	3	odhadnout	
-9	7	odhadovat	
+12	7	odhadovat	
 1	1	odhalovat	
 1	1	odkázat	
 1	1	odkazovat	
@@ -78,7 +78,7 @@
 27	27	popsat	
 1	1	postesknout	si
 2	1	postesknout	si|POSTPOS
-33	27	potvrdit	
+34	27	potvrdit	
 8	7	potvrzovat	
 2	2	poukazovat	
 2	1	pousmát	se|POSTPOS
@@ -89,15 +89,15 @@
 3	3	poznamenávat	
 47	46	prohlásit	
 2	2	prohlašovat	
-7	4	prokázat	
+8	4	prokázat	
 4	4	prozradit	
 6	3	přát	si
-19	12	předpokládat	
+21	12	předpokládat	
 2	2	předvídat	
 2	2	přemýšlet	POSTPOS
 2	2	přiblížit	
 8	8	přibližovat	
-2	1	přidávat	
+7	6	přidávat	
 1	1	přijít	tvrzením!-s
 2	1	přijít	zprávou!-se
 2	1	přinášet	zprávu!
@@ -109,14 +109,14 @@
 2	1	přitakávat	
 11	9	přiznat	
 10	10	přiznávat	
-2	1	psát	se
-39	36	psát	
+5	4	psát	se
+44	40	psát	
 4	3	radit	
-2	1	radovat	se|POSTPOS
+3	3	radovat	se|POSTPOS
 12	11	reagovat	
 1	1	reprodukovat	
 273	248	říci	
-165	137	říkat	
+168	138	říkat	
 38	35	sdělit	
 1	1	sdělovat	
 5	2	shodovat	se
@@ -128,18 +128,18 @@
 7	6	smát	se|POSTPOS
 4	4	soudit	
 9	2	souhlasit	
-3	2	spekulovat	
-2	1	svěřovat	se|POSTPOS
+6	2	spekulovat	
+1	1	svěřovat	se|POSTPOS
 63	58	tvrdit	
 4	2	ujistit	
-13	5	ukázat	
-17	8	ukazovat	
+17	5	ukázat	
+18	8	ukazovat	
 14	13	upozornit	
 32	30	upozorňovat	
 2	2	upřesnit	
 3	3	upřesňovat	
-2	1	usmívat	se|POSTPOS
-41	40	uvádět	
+3	3	usmívat	se|POSTPOS
+43	41	uvádět	
 6	2	uvažovat	
 301	289	uvést	
 3	3	uzavírat	
@@ -162,7 +162,7 @@
 8	7	vzpomínat	
 1	1	začít	hovořit!
 2	1	zareagovat	POSTPOS
-2	1	zavzpomínat	POSTPOS
+1	1	zavzpomínat	POSTPOS
 2	1	zaznamenat	
 1	1	zaznít	
 14	12	zdůraznit	
@@ -171,7 +171,7 @@
 2	1	zdůvodňovat	
 3	1	zeptat	se
 3	3	zhodnotit	
-38	22	zjistit	
+40	22	zjistit	
 2	1	zkoumat	
 4	4	zmínit	
 2	2	zmiňovat	
