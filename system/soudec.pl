@@ -882,7 +882,8 @@ sub guess_source_type {
     $type = 'anonymous';
   }
 
-  return "$joined:$type";
+  #return "$joined:$type";
+  return "$type";
 }
 
 
