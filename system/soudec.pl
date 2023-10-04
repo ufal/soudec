@@ -25,6 +25,12 @@ my %keywords_anonymous = ('zdroj' => 1,
                           'mnohý' => 1
                          );
 
+my %keywords_anonymous_partial = ('část' => 1,
+                                  'některý' => 1,
+                                  'většina' => 1,
+                                  'řada' => 1,
+                         );
+
 # default minimal required phrase reliability
 my $MIN_RELIABILITY_DEFAULT = 10;
 # default output format
@@ -866,7 +872,10 @@ sub guess_source_type {
   
   my $type = 'anonymous-partial'; # default
   
-  if ($joined =~ /~io/) { # io - government/political inst.
+  if ($joined =~ /~sp/) { # sp - source anonymous-partial (fake NE class)
+    $type = 'anonymous-partial';
+  }
+  elsif ($joined =~ /~io/) { # io - government/political inst.
     $type = 'official-political';
   }
   elsif ($joined =~ /~i/) { # i - Institutions
@@ -889,7 +898,7 @@ sub guess_source_type {
 
 =item get_extra_NE
 
-Returns a fake NE value for some obvious words, such as 'mluvčí'.
+Returns a fake NE value for some obvious words, such as 'mluvčí', 'premiér' etc.
 Also gives fake NE value for significantly anonymous words (zdroj, pozorovatel, informace).
 
 =cut
@@ -897,12 +906,35 @@ Also gives fake NE value for significantly anonymous words (zdroj, pozorovatel, 
 sub get_extra_NE {
   my $node = shift;
   my $lemma = attr($node, 'lemma');
+  my @children = $node->getAllChildren;
+  my @children_lemmas = map {attr($_, 'lemma')} @children;
   if ($lemma eq 'mluvčí') {
     return 'im'; # "institution - mluvčí"
   }
   if ($keywords_anonymous{$lemma}) {
     return 'sa' # "source - anonymous"
   }
+  if ($keywords_anonymous_partial{$lemma}) {
+    return 'sp' # "source - anonymous-partial"
+  }
+  if ($lemma eq 'premiér') {
+    return 'io'; # "institution - goverment, political"
+  }
+  if ($lemma eq 'poslanec') {
+    return 'io'; # "institution - goverment, political"
+  }
+  if ($lemma eq 'senátor') {
+    return 'io'; # "institution - goverment, political"
+  }
+  if ($lemma eq 'magistrát') {
+    return 'io'; # "institution - goverment, political"
+  }
+  if ($lemma eq 'předseda') {
+    if (grep {'ministerský'} @children_lemmas or grep {'vláda'} @children_lemmas) {
+      return 'io'; # "institution - goverment, political"
+    }
+  }
+  
 }
 
 
