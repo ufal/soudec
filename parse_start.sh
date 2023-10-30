@@ -9,7 +9,7 @@ for A in ../data/test/*.txt; do
   if [ -e $B ]; then
     echo "(.ann file provided)"
     echo "=========================================================="
-    ./system/soudec.pl --input-file $A --phrase-file system/resources/phrases_reliability.csv --ann-file $B --store-nametag --output-format conllu 2>>err
+    ./system/soudec.pl --input-file $A --phrase-file system/resources/phrases_reliability.csv --ann-file $B --store-conllu --output-format conllu 2>>err
   else
     echo "(no .ann file)"
     echo "=========================================================="

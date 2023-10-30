@@ -31,6 +31,9 @@ my %keywords_anonymous_partial = ('část' => 1,
                                   'řada' => 1,
                          );
 
+# a hasn to keep classes of already seen surnames
+my %surname2class;
+                         
 # default minimal required phrase reliability
 my $MIN_RELIABILITY_DEFAULT = 10;
 # default output format
@@ -507,7 +510,8 @@ print $output;
 
 if ($store_conllu) { # log the input text with marked sources in the conllu format in a file
   $output = get_output('conllu') if $output_format ne 'conllu';
-  open(OUT, '>:encoding(utf8)', "$script_dir/log/$input_file.conllu") or die "Cannot open file '$script_dir/log/$input_file.conllu' for writing: $!";
+  my $file_name = basename($input_file); # the file name without the path
+  open(OUT, '>:encoding(utf8)', "$script_dir/log/$file_name.conllu") or die "Cannot open file '$script_dir/log/$file_name.conllu' for writing: $!";
   print OUT $output;
   close(OUT);
 }
@@ -787,6 +791,8 @@ Guesses and returns the type of the source, i.e. one of these values:
         official-political
         official-non-political
 
+Uses global hash %surname2class to keep track of surnames that have already been classified (possibly as a part of a longer source, e.g. "mluvčí cestovní kanceláře Jiří Nekvapil"), so that they are not misclassified later when mentioned just by themselves (e.g., just "Nekvapil")
+
 NameTag offers these values:
 
 NE containers
@@ -864,10 +870,27 @@ ty - years
 
 sub guess_source_type {
   my ($root, $phrase_node, @whole_source_nodes) = @_;
-  my @source_named_entity_classes = map {s/[^a-z]*([a-z][a-z_])_.*/$1/; $_}
-                                    grep {defined and length}
-                                    map {get_misc_value($_, 'NE') or get_extra_NE($_)}
-                                    @whole_source_nodes;
+
+  my $surname = undef; # We will set this if there is a surname found among the source nodes
+  my @source_named_entity_classes = ();
+  foreach my $source_node (@whole_source_nodes) {
+    my $named_entity_class = get_misc_value($source_node, 'NE') or get_extra_NE($source_node);
+    next if !$named_entity_class;
+    $named_entity_class =~ s/[^a-z]*([a-z][a-z_])_.*/$1/;
+    if ($named_entity_class eq 'ps') { # a surname - check if we already know the class
+      my $lemma = attr($source_node, 'lemma') // '';
+      my $class = $surname2class{$lemma};
+      if ($class) {
+        print STDERR "Class for surname $lemma already determined before: $class\n";
+        return $class;
+      }
+      else { # first mention of the surname - let us keep it and later store it in %surname2class
+        $surname = $lemma;
+      }
+    }
+    push(@source_named_entity_classes, $named_entity_class);
+  }
+  
   my $joined = '~' . join('~', @source_named_entity_classes);
   
   my $type = 'anonymous-partial'; # default
@@ -891,6 +914,9 @@ sub guess_source_type {
     $type = 'anonymous';
   }
 
+  if ($surname) {
+    $surname2class{$surname} = $type;
+  }
   #return "$joined:$type";
   return "$type";
 }
