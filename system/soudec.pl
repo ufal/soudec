@@ -1714,6 +1714,10 @@ Returns the parsed output in UD CONLL format
 sub call_udpipe {
     my $text = shift;
 
+=item
+
+    # Původní volání metodou GET - neprošly delší texty
+
     # Nastavení URL pro volání REST::API s parametry
     my $tokenizer = 'tokenizer=ranges';
     if ($input_format eq 'presegmented') {
@@ -1728,6 +1732,57 @@ sub call_udpipe {
     # Vytvoření požadavku
     my $req = HTTP::Request->new('GET', $url);
     $req->header('Content-Type' => 'application/json');
+
+=cut
+
+=item
+
+    # Nefunkční pokus o volání metodou POST
+
+    # Nastavení URL pro volání REST::API
+    my $url = 'http://lindat.mff.cuni.cz/services/udpipe/api/process';
+
+    # Připravení dat pro POST požadavek
+    my %post_data = (
+        tokenizer => 'ranges',
+        tagger => 1,
+        parser => 1,
+        data => uri_escape_utf8($text)
+    );
+
+    if ($input_format eq 'presegmented') {
+        $post_data{tokenizer} .= ';presegmented';
+    }
+
+    # Vytvoření instance LWP::UserAgent
+    my $ua = LWP::UserAgent->new;
+
+    # Vytvoření POST požadavku s daty jako JSON
+    my $req = HTTP::Request->new('POST', $url);
+    $req->header('Content-Type' => 'application/json');
+    $req->content(encode_json(\%post_data));
+
+=cut
+
+
+    # Funkční volání metodou POST, i když podivně kombinuje URL-encoded s POST
+
+    # Nastavení URL pro volání REST::API s parametry
+    my $tokenizer = 'tokenizer=ranges';
+    if ($input_format eq 'presegmented') {
+      $tokenizer .= ';presegmented';
+    }
+    my $url = 'http://lindat.mff.cuni.cz/services/udpipe/api/process?' . $tokenizer . '&tagger&parser';
+
+    my $ua = LWP::UserAgent->new;
+
+    # Define the data to be sent in the POST request
+    my $data = "data=" . uri_escape_utf8($text);
+
+    my $req = HTTP::Request->new('POST', $url);
+    $req->header('Content-Type' => 'application/x-www-form-urlencoded');
+    $req->content($data);
+
 
     # Odeslání požadavku a získání odpovědi
     my $res = $ua->request($req);
