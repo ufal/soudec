@@ -874,12 +874,16 @@ sub guess_source_type {
   my $surname = undef; # We will set this if there is a surname found among the source nodes
   my @source_named_entity_classes = ();
   foreach my $source_node (@whole_source_nodes) {
-    my $named_entity_class = get_misc_value($source_node, 'NE') or get_extra_NE($source_node);
+    my $named_entity_class = get_misc_value($source_node, 'NE');
+    if (!$named_entity_class) {
+      $named_entity_class = get_extra_NE($source_node);
+    }
     next if !$named_entity_class;
     $named_entity_class =~ s/[^a-z]*([a-z][a-z_])_.*/$1/;
+    # print STDERR "guess_source_type: " . attr($source_node, 'lemma') . ": '$named_entity_class'\n";
     if ($named_entity_class eq 'ps') { # a surname - check if we already know the class
       my $lemma = attr($source_node, 'lemma') // '';
-      my $class = $surname2class{$lemma};
+      my $class = $surname2class{lc($lemma)};
       if ($class) {
         print STDERR "Class for surname $lemma already determined before: $class\n";
         return $class;
@@ -894,6 +898,8 @@ sub guess_source_type {
   my $joined = '~' . join('~', @source_named_entity_classes);
   
   my $type = 'anonymous-partial'; # default
+
+  # print STDERR "guess_source_type: $joined\n";
   
   if ($joined =~ /~sp/) { # sp - source anonymous-partial (fake NE class)
     $type = 'anonymous-partial';
@@ -915,10 +921,11 @@ sub guess_source_type {
   }
 
   if ($surname) {
-    $surname2class{$surname} = $type;
+    $surname2class{lc($surname)} = $type;
   }
-  #return "$joined:$type";
-  return "$type";
+  # print STDERR "guess_source_type: $type\n";
+  return "$joined:$type";
+  #return "$type";
 }
 
 
@@ -935,6 +942,7 @@ sub get_extra_NE {
   my @children = $node->getAllChildren;
   my @children_lemmas = map {attr($_, 'lemma')} @children;
   if ($lemma eq 'mluvčí') {
+    # print STDERR "get_extra_NE: found 'mluvčí'\n";
     return 'im'; # "institution - mluvčí"
   }
   if ($keywords_anonymous{$lemma}) {
@@ -1616,7 +1624,7 @@ sub get_whole_source_nodes {
 
 =item get_source_nodes
 
-It recursively adds sons whith deprel nmod, amod, flat, case (with exception of 'podle') and acl:relcl (acl:relcl with the whole subtree right away)
+It recursively adds sons whith deprel nmod, amod, flat (and flat:foreign), case (with exception of 'podle') and acl:relcl (acl:relcl with the whole subtree right away)
 
 =cut
 
@@ -1627,8 +1635,8 @@ sub get_source_nodes {
     return descendants($node);
   }
   
-  my @source_sons = grep {attr($_, 'lemma') ne 'podle'}
-                    grep {attr($_, 'deprel') =~ /^(nmod|amod|flat|case|acl:relcl)$/}
+  my @source_sons = grep {attr($_, 'lemma') !~ /^(po)?dle$/}
+                    grep {attr($_, 'deprel') =~ /^(nmod|amod|flat|flat:foreign|case|acl:relcl)$/}
                     $node->getAllChildren;
   my @whole_source_nodes = @source_sons;
   foreach my $son (@source_sons) {
