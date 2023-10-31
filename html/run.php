@@ -61,6 +61,8 @@
   <div class="panel-body">
 
     <?php require('licence.html') ?>
+    <p>Please note that due to time limitations on our proxy server, the maximum length for input text is approximately 5 thousand words.</p>
+
 
     <div id="error" class="alert alert-danger" style="display: none"></div>
 
