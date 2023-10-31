@@ -924,8 +924,8 @@ sub guess_source_type {
     $surname2class{lc($surname)} = $type;
   }
   # print STDERR "guess_source_type: $type\n";
-  return "$joined:$type";
-  #return "$type";
+  #return "$joined:$type";
+  return "$type";
 }
 
 
