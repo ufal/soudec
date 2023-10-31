@@ -1851,6 +1851,10 @@ If an error occurs, the function just returns the input conll text unchanged.
 sub call_nametag_part {
     my $conll = shift;
 
+=item
+    
+    # Stará verze metodou GET
+    
     # Nastavení URL pro volání REST::API s parametry
     my $url = 'http://lindat.mff.cuni.cz/services/nametag/api/recognize?input=conllu&output=conllu-ne&data=' . uri_escape_utf8($conll);
 
@@ -1860,6 +1864,23 @@ sub call_nametag_part {
     # Vytvoření požadavku
     my $req = HTTP::Request->new('GET', $url);
     $req->header('Content-Type' => 'application/json');
+
+=cut
+
+    # Funkční volání metodou POST, i když podivně kombinuje URL-encoded s POST
+
+    # Nastavení URL pro volání REST::API s parametry
+    my $url = 'http://lindat.mff.cuni.cz/services/nametag/api/recognize?input=conllu&output=conllu-ne';
+
+    my $ua = LWP::UserAgent->new;
+
+    # Define the data to be sent in the POST request
+    my $data = "data=" . uri_escape_utf8($conll);
+
+    my $req = HTTP::Request->new('POST', $url);
+    $req->header('Content-Type' => 'application/x-www-form-urlencoded');
+    $req->content($data);
+
 
     # Odeslání požadavku a získání odpovědi
     my $res = $ua->request($req);

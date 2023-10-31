@@ -13,7 +13,7 @@ for A in ../data/test/*.txt; do
   else
     echo "(no .ann file)"
     echo "=========================================================="
-    ./system/soudec.pl -i $A -p system/resources/phrases_reliability.csv -sn -of txt 2>>err
+    ./system/soudec.pl -i $A -p system/resources/phrases_reliability.csv -sc -of txt 2>>err
   fi
 
 done
