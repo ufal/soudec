@@ -53,10 +53,12 @@ following structure:</p>
 <pre class="prettyprint lang-json">
 {
  "result": "processed_output"
+ "stats": "statistics"
 }
 </pre>
 
-The <code>processed_output</code> is the output of SouDeC in the requested output format.
+The <code>processed_output</code> is the output of SouDeC in the requested output format
+<br/>and <code>statistics</code> is an HTML overview of the detected sources and their classes.
 
 
 <h2 style="margin-top: 20px">Browser Example</h2>
