@@ -51,6 +51,7 @@ my $input_format;
 my $phrase_reliability_file;
 my $min_phrase_reliability;
 my $output_format;
+my $add_NE;
 my $store_conllu;
 my $version;
 my $help;
@@ -64,6 +65,7 @@ GetOptions(
     'p|phrase-file=s'  => \$phrase_reliability_file, # the name of the file with a list of citation phrases and their reliability
     'r|reliability=i'  => \$min_phrase_reliability, # minimal required phrase reliability
     'of|output-format=s' => \$output_format, # output format, possible values: txt, html, conllu
+    'ne|named-entities' => \$add_NE, # add named entities as marked by NameTag to the classes in the output
     'sc|store-conllu'    => \$store_conllu, # should the result of soudec detection be logged as a conllu file?
     'v|version'    => \$version, # print the version of the program and exit
     'h|help'    => \$help, # print a short help and exit
@@ -90,6 +92,7 @@ options:  -i|--input-file [input text file name]
           -p|--phrase-file [phrases reliability file name]
           -r|--reliability [minimal required phrase reliability]
          -of|--output-format [output format: txt (default), html, conllu]
+         -ne|--named-entities (add NameTag marks to classes in the output)
          -sc|--store-conllu (log the output of UDPipe parser, NameTag and SouDeC to a CONLL-U file)
           -v|--version (prints the version of the program and ends)
           -h|--help (prints a short help and ends)
@@ -156,6 +159,10 @@ elsif ($output_format !~ /^(txt|html|conllu)$/) {
 }
 else {
   print STDERR " - output format: $output_format\n";
+}
+
+if ($add_NE) {
+  print STDERR " - add named entities as marked by NameTag to classes in output\n";
 }
 
 if ($store_conllu) {
@@ -924,7 +931,9 @@ sub guess_source_type {
     $surname2class{lc($surname)} = $type;
   }
   # print STDERR "guess_source_type: $type\n";
-  #return "$joined:$type";
+  if ($add_NE) {
+    return "$joined:$type";
+  }
   return "$type";
 }
 
@@ -1825,7 +1834,7 @@ sub call_nametag {
     my $result = '';
     
     # Let us call NameTag api for each X sentences separately, as too large input produces an error.
-    my $max_sentences = 1; # 5 was too large at first attempt, so let us hope 1 is safe enough.
+    my $max_sentences = 100; # 5 was too large at first attempt, so let us hope 1 is safe enough.
     
     my $conll_part = '';
     my $sent_count = 0;
