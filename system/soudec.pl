@@ -10,11 +10,14 @@ use Tree::Simple;
 use List::Util qw(min max);
 use Getopt::Long; # reading arguments
 use POSIX qw(strftime); # naming a file with date and time
-use File::Basename;
+use File::Basename; # to get a filename from the whole path
+use Time::HiRes qw(gettimeofday tv_interval); # to measure how long the program ran
 
 # STDIN and STDOUT in UTF-8
 binmode STDIN, ':encoding(UTF-8)';
 binmode STDOUT, ':encoding(UTF-8)';
+
+my $start_time = [gettimeofday];
 
 my $VER = '1.0'; # version of the program
 
@@ -33,6 +36,7 @@ my %keywords_anonymous_partial = ('část' => 1,
 
 # a hasn to keep classes of already seen surnames
 my %surname2class;
+my %surname2full; # the original (full) mention of the surname
                          
 # default minimal required phrase reliability
 my $MIN_RELIABILITY_DEFAULT = 10;
@@ -53,22 +57,24 @@ my $min_phrase_reliability;
 my $output_format;
 my $add_NE;
 my $store_conllu;
+my $store_statistics;
 my $version;
 my $help;
 
 # getting the arguements
 GetOptions(
-    'i|input-file=s'  => \$input_file, # the name of the input file
-    'a|ann-file=s'  => \$ann_file, # the name of the file with manual annotation
-    'si|stdin'      => \$stdin, # should the input be read from STDIN?
-    'if|input-format=s' => \$input_format, # input format, possible values: txt, presegmented
-    'p|phrase-file=s'  => \$phrase_reliability_file, # the name of the file with a list of citation phrases and their reliability
-    'r|reliability=i'  => \$min_phrase_reliability, # minimal required phrase reliability
+    'i|input-file=s'     => \$input_file, # the name of the input file
+    'a|ann-file=s'       => \$ann_file, # the name of the file with manual annotation
+    'si|stdin'           => \$stdin, # should the input be read from STDIN?
+    'if|input-format=s'  => \$input_format, # input format, possible values: txt, presegmented
+    'p|phrase-file=s'    => \$phrase_reliability_file, # the name of the file with a list of citation phrases and their reliability
+    'r|reliability=i'    => \$min_phrase_reliability, # minimal required phrase reliability
     'of|output-format=s' => \$output_format, # output format, possible values: txt, html, conllu
-    'ne|named-entities' => \$add_NE, # add named entities as marked by NameTag to the classes in the output
+    'ne|named-entities'  => \$add_NE, # add named entities as marked by NameTag to the classes in the output
     'sc|store-conllu'    => \$store_conllu, # should the result of soudec detection be logged as a conllu file?
-    'v|version'    => \$version, # print the version of the program and exit
-    'h|help'    => \$help, # print a short help and exit
+    'sh|statistics-html' => \$store_statistics, # should the statistics be logged as a html file?
+    'v|version'          => \$version, # print the version of the program and exit
+    'h|help'             => \$help, # print a short help and exit
 );
 
 
@@ -94,6 +100,7 @@ options:  -i|--input-file [input text file name]
          -of|--output-format [output format: txt (default), html, conllu]
          -ne|--named-entities (add NameTag marks to classes in the output)
          -sc|--store-conllu (log the output of UDPipe parser, NameTag and SouDeC to a CONLL-U file)
+         -sh|--statistics-html (log SouDeC statistics to a html file)
           -v|--version (prints the version of the program and ends)
           -h|--help (prints a short help and ends)
 END_TEXT
@@ -166,9 +173,12 @@ if ($add_NE) {
 }
 
 if ($store_conllu) {
-  print STDERR " - log output in a conllu file; includes output of udpipe and nametag)\n";
+  print STDERR " - log output in a conllu file; includes output of udpipe and nametag\n";
 }
 
+if ($store_statistics) {
+  print STDERR " - log SouDeC statistics in a html file\n";
+}
 
 print STDERR "\n";
 
@@ -448,12 +458,23 @@ if ($root) {
 
 print_log_header();
 
+# variables and hashes for statistics
+my $sentences_count = scalar(@trees);
+my $tokens_count = 0;
+my $processing_time;
+my %source2count = ();
+my %source2class = ();
+my %class2count = ();
+
+
 foreach $root (@trees) {
   print STDERR "\n====================================================================\n";
   print STDERR "Sentence id=" . attr($root, 'id') . ": " . attr($root, 'text') . "\n";
   print_children($root, "\t");
   
   my @nodes = descendants($root);
+  $tokens_count += scalar(@nodes) - 1; # without the root
+  
   foreach my $node (@nodes) {
     my $lemma = attr($node, 'lemma');
     my $constraints = $phrase_lemma2constraints{$lemma};
@@ -520,6 +541,17 @@ if ($store_conllu) { # log the input text with marked sources in the conllu form
   my $file_name = basename($input_file); # the file name without the path
   open(OUT, '>:encoding(utf8)', "$script_dir/log/$file_name.conllu") or die "Cannot open file '$script_dir/log/$file_name.conllu' for writing: $!";
   print OUT $output;
+  close(OUT);
+}
+
+my $end_time = [gettimeofday];
+$processing_time = tv_interval($start_time, $end_time);
+
+if ($store_statistics) { # log statistics about the detection to a html file
+  my $stats = get_stats();
+  my $file_name = basename($input_file); # the file name without the path
+  open(OUT, '>:encoding(utf8)', "$script_dir/log/$file_name.stats.html") or die "Cannot open file '$script_dir/log/$file_name.stats.html' for writing: $!";
+  print OUT $stats;
   close(OUT);
 }
 
@@ -798,7 +830,7 @@ Guesses and returns the type of the source, i.e. one of these values:
         official-political
         official-non-political
 
-Uses global hash %surname2class to keep track of surnames that have already been classified (possibly as a part of a longer source, e.g. "mluvčí cestovní kanceláře Jiří Nekvapil"), so that they are not misclassified later when mentioned just by themselves (e.g., just "Nekvapil")
+Uses global hashes %surname2class and %surname2full to keep track of surnames that have already been classified (possibly as a part of a longer (full) source, e.g. "mluvčí cestovní kanceláře Jiří Nekvapil"), so that they are not misclassified later when mentioned just by themselves (e.g., just "Nekvapil")
 
 NameTag offers these values:
 
@@ -891,13 +923,17 @@ sub guess_source_type {
     if ($named_entity_class eq 'ps') { # a surname - check if we already know the class
       my $lemma = attr($source_node, 'lemma') // '';
       my $class = $surname2class{lc($lemma)};
+
       if ($class) {
         print STDERR "Class for surname $lemma already determined before: $class\n";
+        $class2count{$class}++;
+        $source2count{$surname2full{lc($lemma)}}++;
         return $class;
       }
       else { # first mention of the surname - let us keep it and later store it in %surname2class
         $surname = $lemma;
       }
+      
     }
     push(@source_named_entity_classes, $named_entity_class);
   }
@@ -927,9 +963,22 @@ sub guess_source_type {
     $type = 'anonymous';
   }
 
-  if ($surname) {
+  my $full = get_source_base_form(@whole_source_nodes);
+
+  if ($surname) { # first mention of the surname (possibly in a longer (full) source)
     $surname2class{lc($surname)} = $type;
+    $surname2full{lc($surname)} = $full;
+    $source2class{$full} = $type;
+    $source2count{$full}++; # =1 would do the same
+    $class2count{$type}++;
   }
+  else {
+    $source2class{$full} = $type;
+    $source2count{$full}++;
+    $class2count{$type}++;    
+  }
+
+
   # print STDERR "guess_source_type: $type\n";
   if ($add_NE) {
     return "$joined:$type";
@@ -1224,6 +1273,50 @@ sub get_output {
   return $output;
   
 } # get_output
+
+
+=item get_stats
+
+Produces an html document with statistics about the detection, using info from these variables and hashes:
+my $sentences_count;
+my $tokens_count;
+my $processing_time;
+my %source2count;
+my %source2class;
+my %class2count;
+
+=cut
+
+sub get_stats {
+  my $stats = "<html>\n";
+  $stats .= "<body>\n";
+
+  $stats .= "<h2>SouDeC statistics</h2>\n";
+  
+  $stats .= "<p>Number of sentences: $sentences_count\n";
+  $stats .= "<br/>Number of tokens: $tokens_count\n";
+  my $rounded_time = sprintf("%.1f", $processing_time);
+  $stats .= "<br/>Processing time: $rounded_time sec.\n";
+  $stats .= "</p>\n";
+
+  $stats .= "<table>\n";
+  $stats .= "<tr><th>Class</th><th>Count</th></tr>\n";
+  foreach my $class (sort {$class2count{$b} <=> $class2count{$a}} keys(%class2count)) {
+    $stats .= "<tr><td>$class</td><td>$class2count{$class}</td></tr>\n";
+  }
+  $stats .= "</table>\n";
+
+  $stats .= "<table>\n";
+  $stats .= "<tr><th>Source</th><th>Class</th><th>Count</th></tr>\n";
+  foreach my $source (sort {$source2count{$b} <=> $source2count{$a}} keys(%source2class)) {
+    $stats .= "<tr><td>$source</td><td>$source2class{$source}</td><td>$source2count{$source}</td></tr>\n";
+  }
+  $stats .= "</table>\n";
+
+  $stats .= "</body>\n";
+  $stats .= "</html>\n";
+  return $stats;
+}
 
 
 =item print_log_header
@@ -1652,6 +1745,20 @@ sub get_source_nodes {
     push(@whole_source_nodes, get_source_nodes($son));
   }
   return @whole_source_nodes;
+}
+
+
+=item get_source_base_form
+
+Given a list of the whole source nodes, it produces the base form of the source.
+TODO! So far it only gives concatenated forms of the source nodes!
+
+=cut
+
+sub get_source_base_form {
+  my @nodes = @_;
+  my $source = join(' ', map {attr($_, 'form')} sort {attr($a, 'ord') <=> attr($b, 'ord')} @nodes);
+  return $source;
 }
 
 
