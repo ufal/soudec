@@ -28,6 +28,8 @@
     }
 
     output_file_content = null;
+    jQuery('#output_formatted').empty();
+    jQuery('#output_stats').empty();
     jQuery('#submit').html('<span class="fa fa-cog"></span> Waiting for Results <span class="fa fa-cog"></span>');
     jQuery('#submit').prop('disabled', true);
     jQuery.ajax('//quest.ms.mff.cuni.cz/soudec/api/detect',
@@ -40,7 +42,12 @@
               // Přidání <br> ke každému novému řádku v proměnné output_file_content
               var formatted_content = output_format == "html" ? output_file_content : output_file_content.replace(/\n/g, "\n<br>");
               jQuery('#output_formatted').html(formatted_content);
-          }
+	  }
+	  if ("stats" in json) {
+              output_file_stats = json.stats;
+              jQuery('#output_stats').html(output_file_stats);
+	  }
+
       } catch(e) {
         jQuery('#submit').html('<span class="fa fa-arrow-down"></span> Process Input <span class="fa fa-arrow-down"></span>');
         jQuery('#submit').prop('disabled', false);
@@ -71,7 +78,7 @@
         <label class="col-sm-2 control-label">Input:</label>
         <div class="col-sm-10">
           <label title="Tokenize input using a tokenizer" class="radio-inline" id="option_input_plaintext"><input name="option_input" type="radio" value="txt" checked/>Plain text</label>
-          <label title="Tokenize a pre-segmented input using a tokenizer" class="radio-inline" id="option_input_presegmented"><input name="option_input" type="radio" value="presegmented"/>Pre-segmented</label>
+          <label title="Tokenize a pre-segmented input using a tokenizer" class="radio-inline" id="option_input_presegmented"><input name="option_input" type="radio" value="presegmented"/>Pre-segmented (<a href="http://ufal.mff.cuni.cz/soudec/users-manual#run_soudec_input" target="_blank">sentence per line</a>)</label>
         </div>
       </div>
       <div class="form-group row">
@@ -97,11 +104,14 @@
     <button id="submit" class="btn btn-primary form-control" type="submit" style="margin-top: 15px; margin-bottom: 15px" onclick="doSubmit()"><span class="fa fa-arrow-down"></span> Process Input <span class="fa fa-arrow-down"></span></button>
 
     <ul class="nav nav-tabs nav-justified nav-tabs-green">
-     <li class="active"><a href="#output_formatted" data-toggle="tab"><span class="fa fa-table"></span> Output</a></li>
+     <li class="active"><a href="#output_formatted" data-toggle="tab"><span class="fa fa-font"></span> Output</a></li>
+     <li><a href="#output_stats" data-toggle="tab"><span class="fa fa-table"></span> Statistics</a></li>
     </ul>
 
     <div class="tab-content" id="output_tabs" style="border-right: 1px solid #ddd; border-left: 1px solid #ddd; border-bottom: 1px solid #ddd; border-bottom-right-radius: 5px; border-bottom-left-radius: 5px; padding: 15px">
      <div class="tab-pane active" id="output_formatted">
+     </div>
+     <div class="tab-pane" id="output_stats">
      </div>
     </div>
 
