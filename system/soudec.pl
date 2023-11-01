@@ -55,6 +55,7 @@ my $input_format;
 my $phrase_reliability_file;
 my $min_phrase_reliability;
 my $output_format;
+my $output_statistics;
 my $add_NE;
 my $store_conllu;
 my $store_statistics;
@@ -63,18 +64,19 @@ my $help;
 
 # getting the arguements
 GetOptions(
-    'i|input-file=s'     => \$input_file, # the name of the input file
-    'a|ann-file=s'       => \$ann_file, # the name of the file with manual annotation
-    'si|stdin'           => \$stdin, # should the input be read from STDIN?
-    'if|input-format=s'  => \$input_format, # input format, possible values: txt, presegmented
-    'p|phrase-file=s'    => \$phrase_reliability_file, # the name of the file with a list of citation phrases and their reliability
-    'r|reliability=i'    => \$min_phrase_reliability, # minimal required phrase reliability
-    'of|output-format=s' => \$output_format, # output format, possible values: txt, html, conllu
-    'ne|named-entities'  => \$add_NE, # add named entities as marked by NameTag to the classes in the output
-    'sc|store-conllu'    => \$store_conllu, # should the result of soudec detection be logged as a conllu file?
-    'sh|statistics-html' => \$store_statistics, # should the statistics be logged as a html file?
-    'v|version'          => \$version, # print the version of the program and exit
-    'h|help'             => \$help, # print a short help and exit
+    'i|input-file=s'       => \$input_file, # the name of the input file
+    'a|ann-file=s'         => \$ann_file, # the name of the file with manual annotation
+    'si|stdin'             => \$stdin, # should the input be read from STDIN?
+    'if|input-format=s'    => \$input_format, # input format, possible values: txt, presegmented
+    'p|phrase-file=s'      => \$phrase_reliability_file, # the name of the file with a list of citation phrases and their reliability
+    'r|reliability=i'      => \$min_phrase_reliability, # minimal required phrase reliability
+    'of|output-format=s'   => \$output_format, # output format, possible values: txt, html, conllu
+    'os|output-statistics' => \$output_statistics, # adds statistics to the output; if present, output is JSON with two items: data (in output-format) and stats (in HTML)
+    'ne|named-entities'    => \$add_NE, # add named entities as marked by NameTag to the classes in the output
+    'sc|store-conllu'      => \$store_conllu, # should the result of soudec detection be logged as a conllu file?
+    'ss|store-statistics'  => \$store_statistics, # should the statistics be logged as an HTML file?
+    'v|version'            => \$version, # print the version of the program and exit
+    'h|help'               => \$help, # print a short help and exit
 );
 
 
@@ -98,9 +100,10 @@ options:  -i|--input-file [input text file name]
           -p|--phrase-file [phrases reliability file name]
           -r|--reliability [minimal required phrase reliability]
          -of|--output-format [output format: txt (default), html, conllu]
+         -os|--output-statistics (add SouDeC statistics to output; if present, output is JSON with two items: data (in output-format) and stats (in HTML))
          -ne|--named-entities (add NameTag marks to classes in the output)
          -sc|--store-conllu (log the output of UDPipe parser, NameTag and SouDeC to a CONLL-U file)
-         -sh|--statistics-html (log SouDeC statistics to a html file)
+         -ss|--store-statistics (log SouDeC statistics to an HTML file)
           -v|--version (prints the version of the program and ends)
           -h|--help (prints a short help and ends)
 END_TEXT
@@ -168,6 +171,10 @@ else {
   print STDERR " - output format: $output_format\n";
 }
 
+if ($output_statistics) {
+  print STDERR " - add SouDeC statistics to the output; output will be JSON with two items: data (in $output_format) and stats (in HTML)\n";
+}
+
 if ($add_NE) {
   print STDERR " - add named entities as marked by NameTag to classes in output\n";
 }
@@ -177,7 +184,7 @@ if ($store_conllu) {
 }
 
 if ($store_statistics) {
-  print STDERR " - log SouDeC statistics in a html file\n";
+  print STDERR " - log SouDeC statistics in an HTML file\n";
 }
 
 print STDERR "\n";
@@ -532,9 +539,35 @@ foreach $root (@trees) {
 
 print_log_tail();
 
+# Measure time spent so far
+my $end_time = [gettimeofday];
+$processing_time = tv_interval($start_time, $end_time);
+
+
+# calculate and format statistics if needed
+my $stats;
+if ($store_statistics or $output_statistics) { # we need to calculate statistics
+  $stats = get_stats();
+}
+
+
 # print the input text with marked sources in the selected output format to STDOUT
-my $output = get_output($output_format); 
-print $output;
+my $output = get_output($output_format);
+
+if (!$output_statistics) { # statistics should not be a part of output
+  print $output;
+}
+else { # statistics should be a part of output, i.e. output will be JSON with two items: data (in output-format) and stats (in html)
+  my $json_data = {
+       data  => $output,
+       stats => $stats,
+     };
+  # Encode the Perl data structure into a JSON string
+  my $json_string = encode_json($json_data);
+  # Print the JSON string to STDOUT
+  print $json_string;  
+}
+
 
 if ($store_conllu) { # log the input text with marked sources in the conllu format in a file
   $output = get_output('conllu') if $output_format ne 'conllu';
@@ -544,8 +577,6 @@ if ($store_conllu) { # log the input text with marked sources in the conllu form
   close(OUT);
 }
 
-my $end_time = [gettimeofday];
-$processing_time = tv_interval($start_time, $end_time);
 
 if ($store_statistics) { # log statistics about the detection to a html file
   my $stats = get_stats();
@@ -1291,7 +1322,7 @@ sub get_stats {
   my $stats = "<html>\n";
   $stats .= "<body>\n";
 
-  $stats .= "<h2>SouDeC statistics</h2>\n";
+  $stats .= "<h2>SouDeC version $VER</h2>\n";
   
   $stats .= "<p>Number of sentences: $sentences_count\n";
   $stats .= "<br/>Number of tokens: $tokens_count\n";

@@ -65,24 +65,33 @@ any '/api/detect' => sub {
         my $input_format = $c->param('input'); # input format
         my $output_format = $c->param('output'); # output format
 
-	# Spuštění skriptu soudec.pl s předáním parametrů a standardního vstupu
+	     # Spuštění skriptu soudec.pl s předáním parametrů a standardního vstupu
         my @cmd = ('/usr/bin/perl', "$script_dir/soudec.pl",
 		   '--stdin',
 		   '--store-conllu',
 		   '--phrase-file', "$script_dir/resources/phrases_reliability.csv",
 		   '--input-format', $input_format, 
-		   '--output-format', $output_format);
+		   '--output-format', $output_format,
+		   '--output-statistics');
         my $stdin_data = $text;
-        my $result;
-        run \@cmd, \$stdin_data, \$result;
+        my $result_json;
+        run \@cmd, \$stdin_data, \$result_json;
+        
+        # Decode the output as a JSON object
+        my $json_data = decode_json($result_json);
 
-	my $result_utf8 = decode_utf8($result);
+        # Access the 'data' and 'stats' items in the JSON object
+        my $result  = $json_data->{'data'};
+        my $stats = $json_data->{'stats'};
+	      my $result_utf8 = decode_utf8($result);
+	      my $stats_utf8 = decode_utf8($stats);
+	      
         # Vytvoření odpovědi
-	$c->res->headers->content_type('application/json; charset=UTF-8');
-	my $data = {message => "This is the detect function of the SouDec service called via $method; input format=$input_format, output format=$output_format.",
-                                    result => "$result_utf8" };
+	      $c->res->headers->content_type('application/json; charset=UTF-8');
+	      my $data = {message => "This is the detect function of the SouDec service called via $method; input format=$input_format, output format=$output_format.",
+                                    result => "$result_utf8", stats => "$stats_utf8" };
         # print STDERR Dumper($data);
-	return $c->render(json => $data);
+	      return $c->render(json => $data);
     # }
     # else { # GET
 
