@@ -19,7 +19,7 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER = '1.0'; # version of the program
+my $VER = '1.0 (20230211)'; # version of the program
 
 # a list of keywords to classify a source as anonymous
 my %keywords_anonymous = ('zdroj' => 1,
@@ -1320,9 +1320,29 @@ my %class2count;
 
 sub get_stats {
   my $stats = "<html>\n";
+  $stats .= "<head>\n" .
+            "  <style>\n" .
+            "    table {\n" .
+            "      border-collapse: collapse;\n" .
+            "    }\n" .
+            "    table, th, td {\n" .
+            "      border: 1px solid black;\n" .
+            "    }\n" .
+            "    th, td {\n" .
+            "      text-align: left;\n" .
+            "      padding-left: 2mm;\n" .
+            "      padding-right: 2mm;\n" .
+            "    }\n" .
+            "    td:last-child {\n" .
+            "      text-align: right;\n" .
+            "      padding-right: 25px;\n" .
+            "    }\n" .
+            "  </style>\n" .
+            "</head>\n";
+            
   $stats .= "<body>\n";
 
-  $stats .= "<h2>SouDeC version $VER</h2>\n";
+  $stats .= "<h3>SouDeC version $VER</h3>\n";
   
   $stats .= "<p>Number of sentences: $sentences_count\n";
   $stats .= "<br/>Number of tokens: $tokens_count\n";
@@ -1330,19 +1350,23 @@ sub get_stats {
   $stats .= "<br/>Processing time: $rounded_time sec.\n";
   $stats .= "</p>\n";
 
+  $stats .= "<p>\n";
   $stats .= "<table>\n";
   $stats .= "<tr><th>Class</th><th>Count</th></tr>\n";
   foreach my $class (sort {$class2count{$b} <=> $class2count{$a}} keys(%class2count)) {
     $stats .= "<tr><td>$class</td><td>$class2count{$class}</td></tr>\n";
   }
   $stats .= "</table>\n";
+  $stats .= "</p>\n";
 
+  $stats .= "<p>\n";
   $stats .= "<table>\n";
   $stats .= "<tr><th>Source</th><th>Class</th><th>Count</th></tr>\n";
   foreach my $source (sort {$source2count{$b} <=> $source2count{$a}} keys(%source2class)) {
     $stats .= "<tr><td>$source</td><td>$source2class{$source}</td><td>$source2count{$source}</td></tr>\n";
   }
   $stats .= "</table>\n";
+  $stats .= "</p>\n";
 
   $stats .= "</body>\n";
   $stats .= "</html>\n";
