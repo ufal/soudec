@@ -19,7 +19,7 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER = '1.0 (20230211)'; # version of the program
+my $VER = '1.0 (20231102)'; # version of the program
 
 # a list of keywords to classify a source as anonymous
 my %keywords_anonymous = ('zdroj' => 1,
