@@ -1433,7 +1433,7 @@ END_HEAD
   );
   my @values = map {$hdata{$_}} @categories;
   my $max_value = max(@values);
-  my @percentages = map {100 * $_ / $max_value} @values;
+  my @percentages = map {100 * $_ / ($max_value+0.001)} @values; # to avoid division by 0
   $stats .= "  <div class=\"bar\">\n";
   $stats .= "      <div class=\"bar-segment bar-a\" style=\"height: $percentages[0]%;\"></div>\n";
   $stats .= "      <div class=\"bar-segment bar-ap\" style=\"height: $percentages[1]%;\"></div>\n";
