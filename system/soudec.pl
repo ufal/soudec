@@ -802,9 +802,16 @@ sub has_finite_verb_object {
                                     grep {is_finite($_)}
                                     $node->getAllChildren;
   if (@finite_verb_object_children) {
-    print STDERR " - has_finite_verb_object: OK (a claim found among children: " . attr($finite_verb_object_children[0], 'form') . ")\n";
+    print STDERR " - has_finite_verb_object: OK (a finite claim found among children: " . attr($finite_verb_object_children[0], 'form') . ")\n";
     return 1;
   }
+  my @clausal_object_children = grep {attr($_, 'deprel') =~ /^(ccomp)$/}
+                                    $node->getAllChildren;
+  if (@clausal_object_children) {
+    print STDERR " - has_finite_verb_object: OK (a clausal claim found among children: " . attr($clausal_object_children[0], 'form') . ")\n";
+    return 1;
+  }
+
   # Third, the claim might also be in a parataxis position ("Jak už vědci uvedli při prvním kole vykopávek, jde pro ně o záhadu.")
   if (attr($node, 'deprel') and attr($node, 'deprel') eq 'parataxis') {
     if (is_finite($parent)) {
