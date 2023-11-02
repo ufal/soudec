@@ -1030,7 +1030,7 @@ sub get_extra_NE {
   my $lemma = attr($node, 'lemma');
   my @children = $node->getAllChildren;
   my @children_lemmas = map {attr($_, 'lemma')} @children;
-  if ($lemma eq 'mluvčí') {
+  if ($lemma =~ /^(mluvčí|velitel|ředitel)$/) {
     # print STDERR "get_extra_NE: found 'mluvčí'\n";
     return 'im'; # "institution - mluvčí"
   }
@@ -1055,6 +1055,9 @@ sub get_extra_NE {
   if ($lemma eq 'předseda') {
     if (grep {'ministerský'} @children_lemmas or grep {'vláda'} @children_lemmas) {
       return 'io'; # "institution - goverment, political"
+    }
+    else {
+      return 'im'; # "institution - mluvčí"
     }
   }
   
