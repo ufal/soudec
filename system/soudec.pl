@@ -1030,7 +1030,7 @@ sub get_extra_NE {
   my $lemma = attr($node, 'lemma');
   my @children = $node->getAllChildren;
   my @children_lemmas = map {attr($_, 'lemma')} @children;
-  if ($lemma =~ /^(mluvčí|velitel|ředitel)$/) {
+  if ($lemma =~ /^(mluvčí|velitel|ředitel|vedoucí|šéf)$/) {
     # print STDERR "get_extra_NE: found 'mluvčí'\n";
     return 'im'; # "institution - mluvčí"
   }
