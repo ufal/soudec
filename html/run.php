@@ -92,8 +92,14 @@
     </div>
 
     <ul class="nav nav-tabs nav-justified nav-tabs-green">
-     <li class="active"><a href="#input_text" data-toggle="tab"><span class="fa fa-font"></span> Input Text</a></li>
+     <li class="active"><a href="#input_text" data-toggle="tab"><span class="fa fa-font"></span> Input Text</a>
+        <div class="pull-right" id="delete_text">
+          <span id="delete_input_text"></span>
+          <button type="button" class="btn btn-primary btn-xs" style="padding: 0 2em" onclick="document.getElementById('input').value='';">Delete input text</button>
+        </div>
+     </li>
     </ul>
+
     
     <div class="tab-content" id="input_tabs" style="border-right: 1px solid #ddd; border-left: 1px solid #ddd; border-bottom: 1px solid #ddd; border-bottom-right-radius: 5px; border-bottom-left-radius: 5px; padding: 15px">
      <div class="tab-pane active" id="input_text">
