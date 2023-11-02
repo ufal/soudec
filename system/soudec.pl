@@ -1203,11 +1203,7 @@ sub get_output {
           $SD_type = 'S';        
           my $source_type = $h_source_range2type{$source_range};
           if ($source_type) {
-            $SD_subtype = 'a' if $source_type =~ /anonymous/;
-            $SD_subtype = 'ap' if $source_type =~ /anonymous-partial/;
-            $SD_subtype = 'u' if $source_type =~ /unofficial/;
-            $SD_subtype = 'op' if $source_type =~ /official-political/;
-            $SD_subtype = 'onp' if $source_type =~ /official-non-political/;
+            $SD_subtype = get_short_class($source_type);
           }
         }
         if ($source_range =~ /:$end\b/) { # last token in one of contiguous parts of the source
@@ -1306,6 +1302,15 @@ sub get_output {
 } # get_output
 
 
+sub get_short_class {
+  my $class = shift;
+  return 'ap' if $class =~ /anonymous-partial/;
+  return 'a' if $class =~ /anonymous/;
+  return 'u' if $class =~ /unofficial/;
+  return 'op' if $class =~ /official-political/;
+  return 'onp' if $class =~ /official-non-political/;
+}
+
 =item get_stats
 
 Produces an html document with statistics about the detection, using info from these variables and hashes:
@@ -1320,26 +1325,77 @@ my %class2count;
 
 sub get_stats {
   my $stats = "<html>\n";
-  $stats .= "<head>\n" .
-            "  <style>\n" .
-            "    table {\n" .
-            "      border-collapse: collapse;\n" .
-            "    }\n" .
-            "    table, th, td {\n" .
-            "      border: 1px solid black;\n" .
-            "    }\n" .
-            "    th, td {\n" .
-            "      text-align: left;\n" .
-            "      padding-left: 2mm;\n" .
-            "      padding-right: 2mm;\n" .
-            "    }\n" .
-            "    td:last-child {\n" .
-            "      text-align: right;\n" .
-            "      padding-right: 25px;\n" .
-            "    }\n" .
-            "  </style>\n" .
-            "</head>\n";
-            
+  my $stats .= <<END_HEAD;
+<head>
+  <style>
+        /* Definujte styly pro sloupce a nadpisy */
+        .bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end; /* Zarovnání sloupců na spodní stranu */
+            width: 250px; /* Šířka grafu */
+            height: 130px; /* Výška grafu */
+            margin-top: 10px
+        }
+
+        .bar-segment {
+            width: 40px; /* Šířka sloupce */
+            background-color: blue; /* Základní barva sloupce */
+        }
+
+        /* Definujte barvy pro jednotlivé sloupce */
+        .bar-a {
+            background-color: red;
+        }
+
+        .bar-ap {
+            background-color: orange;
+        }
+
+        .bar-u {
+            background-color: lightblue;
+        }
+
+        .bar-onp {
+            background-color: cyan;
+        }
+
+        .bar-op {
+            background-color: blue;
+        }
+
+        /* Definujte styly pro nadpisy */
+        .bar-label {
+          width: 46px;
+          margin: 0px;
+          padding: 0px;
+          display: inline-block; /* Nutné, aby bylo možné nastavit šířku */
+          overflow: hidden; /* Skryje přebytečný text, pokud je obsah delší než šířka */
+          text-align: center;
+          margin-top: 10px;
+        }
+    h3 {
+      margin-top: 5px;
+    }
+    table {
+      border-collapse: collapse;
+    }
+    table, th, td {
+      border: 1px solid black;
+    }
+    th, td {
+      text-align: left;
+      padding-left: 2mm;
+      padding-right: 2mm;
+    }
+    td:last-child {
+      text-align: right;
+      padding-right: 20px;
+    }
+  </style>
+</head>
+END_HEAD
+
   $stats .= "<body>\n";
 
   $stats .= "<h3>SouDeC version $VER</h3>\n";
@@ -1351,14 +1407,51 @@ sub get_stats {
   $stats .= "</p>\n";
 
   $stats .= "<p>\n";
+  $stats .= "<table border=0><tr><td>\n";
+
+  # table with distribution of classes
   $stats .= "<table>\n";
   $stats .= "<tr><th>Class</th><th>Count</th></tr>\n";
   foreach my $class (sort {$class2count{$b} <=> $class2count{$a}} keys(%class2count)) {
     $stats .= "<tr><td>$class</td><td>$class2count{$class}</td></tr>\n";
   }
   $stats .= "</table>\n";
+  
+  $stats .= "</td><td style=\"padding-left: 20px;\">\n";
+
+  # chart creation
+  my @categories = qw(a ap u onp op);
+  my %hdata = (
+      'a'  => $class2count{'anonymous'} // 0,
+      'ap' => $class2count{'anonymous-partial'} // 0,
+      'u'  => $class2count{'unofficial'} // 0,
+      'onp'  => $class2count{'official-non-political'} // 0,
+      'op' => $class2count{'official-political'} // 0
+  );
+  my @values = map {$hdata{$_}} @categories;
+  my $max_value = max(@values);
+  my @percentages = map {100 * $_ / $max_value} @values;
+  $stats .= "  <div class=\"bar\">\n";
+  $stats .= "      <div class=\"bar-segment bar-a\" style=\"height: $percentages[0]%;\"></div>\n";
+  $stats .= "      <div class=\"bar-segment bar-ap\" style=\"height: $percentages[1]%;\"></div>\n";
+  $stats .= "      <div class=\"bar-segment bar-u\" style=\"height: $percentages[2]%;\"></div>\n";
+  $stats .= "      <div class=\"bar-segment bar-onp\" style=\"height: $percentages[3]%;\"></div>\n";
+  $stats .= "      <div class=\"bar-segment bar-op\" style=\"height: $percentages[4]%;\"></div>\n";
+  $stats .= "  </div>\n";
+  # nadpisy sloupců
+  $stats .= "  <div>\n";
+  $stats .= "  <span class=\"bar-label\">a</span>\n";
+  $stats .= "  <span class=\"bar-label\">ap</span>\n";
+  $stats .= "  <span class=\"bar-label\">u</span>\n";
+  $stats .= "  <span class=\"bar-label\">onp</span>\n";
+  $stats .= "  <span class=\"bar-label\">op</span>\n";
+  $stats .= "  </div>\n";
+
+  $stats .= "</td></tr></table>\n";
+  
   $stats .= "</p>\n";
 
+  # table with distribution of sources
   $stats .= "<p>\n";
   $stats .= "<table>\n";
   $stats .= "<tr><th>Source</th><th>Class</th><th>Count</th></tr>\n";
@@ -1370,6 +1463,7 @@ sub get_stats {
 
   $stats .= "</body>\n";
   $stats .= "</html>\n";
+
   return $stats;
 }
 
