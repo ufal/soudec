@@ -1030,8 +1030,8 @@ sub get_extra_NE {
   my $lemma = attr($node, 'lemma');
   my @children = $node->getAllChildren;
   my @children_lemmas = map {attr($_, 'lemma')} @children;
-  if ($lemma =~ /^(mluvčí|velitel|ředitel|vedoucí|šéf)$/) {
-    # print STDERR "get_extra_NE: found 'mluvčí'\n";
+  if ($lemma =~ /^(mluvčí|velitel|ředitel|vedoucí|šéf|soudce|soudkyně|soud|obžaloba|obhajoba|obhájce|prokurátor|obžalovaný|obžalovaná)$/) {
+    # print STDERR "get_extra_NE: found 'mluvčí etc.'\n";
     return 'im'; # "institution - mluvčí"
   }
   if ($keywords_anonymous{$lemma}) {
