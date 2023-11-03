@@ -5,7 +5,8 @@
 <script type="text/javascript"><!--
   var input_file_content = null;
   var output_file_content = null;
-  var output_file_table = null;
+  var output_file_stats = null;
+  var output_format = null;
 
   function doSubmit() {
     //var model = jQuery('#model :selected').text();
@@ -15,7 +16,7 @@
     // console.log("doSubmit: Input text: ", input_text);
     var input_format = jQuery('input[name=option_input]:checked').val();
     // console.log("doSubmit: Input format: ", input_format);
-    var output_format = jQuery('input[name=option_output]:checked').val();
+    output_format = jQuery('input[name=option_output]:checked').val();
     // console.log("doSubmit: Output format: ", output_format);
     var options = {text: input_text, input: input_format, output: output_format};
     // console.log("doSubmit: options: ", options);
@@ -58,6 +59,30 @@
       jQuery('#submit').html('<span class="fa fa-arrow-down"></span> Process Input <span class="fa fa-arrow-down"></span>');
       jQuery('#submit').prop('disabled', false);
     }});
+  }
+
+  function saveAs(blob, file_name) {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = file_name;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  }
+
+  function saveOutput() {
+    if (!output_file_content || !output_format) return;
+    var content_blob = new Blob([output_file_content], {type: output_format == "html" ? "text/html" : "text/plain"});
+    saveAs(content_blob, "citations." + output_format);
+  }
+
+  function saveStats() {
+    if (!output_file_stats) return;
+    var stats_blob = new Blob([output_file_stats], {type: "text/html"});
+    saveAs(stats_blob, "statistics.html");
   }
 
 
@@ -107,8 +132,12 @@
     <button id="submit" class="btn btn-primary form-control" type="submit" style="margin-top: 15px; margin-bottom: 15px" onclick="doSubmit()"><span class="fa fa-arrow-down"></span> Process Input <span class="fa fa-arrow-down"></span></button>
 
     <ul class="nav nav-tabs nav-justified nav-tabs-green">
-     <li class="active"><a href="#output_formatted" data-toggle="tab"><span class="fa fa-font"></span> Output</a></li>
-     <li><a href="#output_stats" data-toggle="tab"><span class="fa fa-table"></span> Statistics</a></li>
+     <li class="active" style="position:relative"><a href="#output_formatted" data-toggle="tab"><span class="fa fa-font"></span> Output</a>
+          <button type="button" class="btn btn-primary btn-xs" style="position:absolute; top: 11px; right: 10px; padding: 0 2em" onclick="saveOutput();"><span class="fa fa-download"></span> Save</button>
+     </li>
+     <li style="position:relative"><a href="#output_stats" data-toggle="tab"><span class="fa fa-table"></span> Statistics</a>
+          <button type="button" class="btn btn-primary btn-xs" style="position:absolute; top: 11px; right: 10px; padding: 0 2em" onclick="saveStats();"><span class="fa fa-download"></span> Save</button>
+     </li>
     </ul>
 
     <div class="tab-content" id="output_tabs" style="border-right: 1px solid #ddd; border-left: 1px solid #ddd; border-bottom: 1px solid #ddd; border-bottom-right-radius: 5px; border-bottom-left-radius: 5px; padding: 15px">
