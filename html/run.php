@@ -92,11 +92,8 @@
     </div>
 
     <ul class="nav nav-tabs nav-justified nav-tabs-green">
-     <li class="active"><a href="#input_text" data-toggle="tab"><span class="fa fa-font"></span> Input Text</a>
-        <div class="pull-right" id="delete_text">
-          <span id="delete_input_text"></span>
-          <button type="button" class="btn btn-primary btn-xs" style="padding: 0 2em" onclick="document.getElementById('input').value='';">Delete input text</button>
-        </div>
+     <li class="active" style="position:relative"><a href="#input_text" data-toggle="tab"><span class="fa fa-font"></span> Input Text</a>
+          <button type="button" class="btn btn-primary btn-xs" style="position:absolute; top: 11px; right: 10px; padding: 0 2em" onclick="var t=document.getElementById('input'); t.value=''; t.focus();">Delete input text</button>
      </li>
     </ul>
 
