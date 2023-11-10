@@ -48,6 +48,12 @@ my %surname2full; # the original (full) mention of the surname
 my %noun_lemmas2class;
 my %noun_lemmas2full; # the original (full) mention of the source
 
+# hashes for keeping classes and full expressions for a given gender and number of sources containing Animacy=Anim
+# to be used if a personal pronoun is found as a source
+my %last_gender_number2class;
+my %last_gender_number2full; # the original (full) mention of the source
+
+
 #######################################
 
 # default minimal required phrase reliability
@@ -986,6 +992,15 @@ sub guess_source_type {
         $class2count{$class}++;
         my $antecedent = $surname2full{lc($lemma)};
         $source2count{$antecedent}++;
+
+        # storing the antecedent for pronouns
+        my ($gender, $number) = get_gender_number_of_animate_source($source_node);
+        if ($gender and $number) {
+          print STDERR "Storing the class '$class' and the full source '$antecedent' for resolving pronouns (gender $gender, number $number)\n";
+          $last_gender_number2class{$gender . '_' . $number} = $class;
+          $last_gender_number2full{$gender . '_' . $number} = $antecedent;
+        }
+        
         if ($add_antecedent) {
           $class .= '_' . $antecedent;
         }
@@ -1007,10 +1022,43 @@ sub guess_source_type {
   my $source_noun_lemmas = join(' ', @a_source_noun_lemmas);
 
   if ($joined eq '~') { # no NameTag class assigned to the source
+    print STDERR "A source without a NameTag mark\n";
     # let us have a look if we can find a better specified (longer) antecedent for the source
-    ## TODO: 1) if it is a pronoun (e.g., "Podle něj")
+    # (1) if it is a pronoun (e.g., "Podle něj")
+    # hashes for keeping classes and full expressions for a given gender and number of sources containing Animacy=Anim
+    # to be used if a personal pronoun is found as a source
+    # my %last_gender_number2class;
+    # my %last_gender_number2full; # the original (full) mention of the source
+    if (scalar(@whole_source_nodes) eq 1) { # a single-word source
+      print STDERR "A single-word source\n";
+      my $source_node = $whole_source_nodes[0];
+      my $upostag = attr($source_node, 'upostag');
+      my $prontype = get_feat_value($source_node, 'PronType') // '';
+      if ($upostag eq 'PRON' and $prontype eq 'Prs') { # a personal pronoun
+        print STDERR "A personal pronoun\n";
+        # les us try to find an antecedent with the same Gender and Number among last antecedents with Animacy=Anim
+        my $gender = get_feat_value($source_node, 'Gender') // '';
+        my $number = get_feat_value($source_node, 'Number') // '';
+        print STDERR "Gender $gender and Number $number\n";
+        if ($gender and $number) {
+          foreach my $one_gender (split(',', $gender)) { # Gender of pronouns may be, e.g., 'Masc,Neut'
+            if ($last_gender_number2class{$one_gender . '_' . $number}) {
+              my $class = $last_gender_number2class{$one_gender . '_' . $number};
+              my $antecedent = $last_gender_number2full{$one_gender . '_' . $number};
+              print STDERR "Class for a $one_gender $number pronoun already determined before for '$antecedent': $class\n";
+              $class2count{$class}++;
+              $source2count{$antecedent}++;
+              if ($add_antecedent) {
+                $class .= '_' . $antecedent;
+              }
+              return $class;        
+            }
+          }
+        }
+      }
+    }
     
-    # 2) if it contains a noun that was already used in some longer source which had a NameTag class assigned (e.g., "britský list" -> "britský bulvární list The Daily Mirror"
+    # (2) if it contains a noun that was already used in some longer source which had a NameTag class assigned (e.g., "britský list" -> "britský bulvární list The Daily Mirror"
     # hashes to keep already seen nouns (not surnames)
     # e.g.: for "britský list" -> "britský bulvární list The Daily Mirror", the hashes would contain:
     #       'list Daily Mirror' => 'unofficial'
@@ -1065,6 +1113,15 @@ sub guess_source_type {
     $source2class{$full} = $type;
     $source2count{$full}++; # =1 would do the same
     $class2count{$type}++;
+    
+    # storing the antecedent for pronouns
+    my ($gender, $number) = get_gender_number_of_animate_source(@whole_source_nodes);
+    if ($gender and $number) {
+      print STDERR "Storing the class '$type' and the full source '$full' for resolving pronouns (gender $gender, number $number)\n";
+      $last_gender_number2class{$gender . '_' . $number} = $type;
+      $last_gender_number2full{$gender . '_' . $number} = $full;
+    }
+    
   }
   elsif ($joined ne '~' and $source_noun_lemmas and not $noun_lemmas2class{$source_noun_lemmas}) { # if the source contains nouns (but not surnames) and has been recognized also by NameTag and we have not yet set this
     $noun_lemmas2class{$source_noun_lemmas} = $type;
@@ -1145,6 +1202,20 @@ sub get_extra_NE {
     }
   }
   
+}
+
+
+sub get_gender_number_of_animate_source {
+  my @source_nodes = @_;
+  foreach my $node (@source_nodes) {
+    my $animacy = get_feat_value($node, 'Animacy') // '';
+    my $gender = get_feat_value($node, 'Gender') // '';
+    my $number = get_feat_value($node, 'Number') // '';
+    if ($animacy eq 'Anim' and $gender and $number) {
+      return ($gender, $number);
+    }
+  }
+  return undef;
 }
 
 =item get_noun_lemmas
