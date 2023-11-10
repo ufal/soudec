@@ -54,6 +54,21 @@ my %last_gender_number2class;
 my %last_gender_number2full; # the original (full) mention of the source
 
 
+#############################
+# Colours for html
+
+my $color_a = 'red';
+my $color_ap = 'magenta';
+my $color_u = 'orange';
+my $color_onp = 'darkcyan';
+my $color_op = 'blue';
+
+my $color_phrase = 'brown'; # used to be darkred
+my $color_source = 'darkgreen';
+my $color_source_antecedent = 'darkblue';
+my $color_source_brackets = 'darkblue';
+
+
 #######################################
 
 # default minimal required phrase reliability
@@ -1002,7 +1017,12 @@ sub guess_source_type {
         }
         
         if ($add_antecedent) {
-          $class .= '_' . $antecedent;
+          if ($output_format eq 'html') {
+            $class .= '_<span class="source-antecedent">' . $antecedent . '</span>';
+          }
+          else {
+            $class .= '_' . $antecedent;
+          }
         }
         return $class;
       }
@@ -1296,6 +1316,44 @@ sub get_output {
   
   if ($format eq 'html') {
     $output .= "<html>\n";
+    $output .= <<END_OUTPUT_HEAD;
+<head>
+  <style>
+        /* source classes colours */
+        .source-a {
+            color: $color_a;
+        }
+        .source-ap {
+            color: $color_ap;
+        }
+        .source-u {
+            color: $color_u;
+        }
+        .source-onp {
+            color: $color_onp;
+        }
+        .source-op {
+            color: $color_op;
+        }
+        .source-text {
+            color: $color_source;
+            text-decoration: underline;
+            font-weight: bold
+        }
+        .source-antecedent {
+            color: $color_source_antecedent;
+        }
+        .source-brackets {
+            color: $color_source_brackets;
+            vertical-align: sub;
+        }
+        .phrase-text {
+            color: $color_phrase;
+            font-weight: bold
+        }
+  </style>
+</head>
+END_OUTPUT_HEAD
     $output .= "<body>\n";
   }
   
@@ -1348,7 +1406,7 @@ sub get_output {
         if ($input_format eq 'presegmented') { # each sentence should go to its own line
           $output .= "\n";
           if ($format eq 'html') {
-            $output .= '<br>';
+            $output .= '<br/>';
           }
         }
         else {
@@ -1379,7 +1437,7 @@ sub get_output {
           $SD_count = $SD_source_count;
         }
         if ($source_range =~ /\b$start:/) { # first token in one of contiguous parts of the source
-          $span_start = $format eq 'html' ? '<span style="font-weight: bold; text-decoration: underline; color: darkgreen">' : '>>';
+          $span_start = $format eq 'html' ? '<span class="source-text">' : '>>';
           $inside_SD = 1;
           $SD_type = 'S';        
           my $source_type = $h_source_range2type{$source_range};
@@ -1394,7 +1452,12 @@ sub get_output {
         if ($source_range =~ /:$end$/) { # last token of the source
           my $source_type = $h_source_range2type{$source_range};
           if ($source_type) {
-            $type_span = $format eq 'html' ? "<span style=\"vertical-align: sub; color: darkblue\">[$source_type]</span>" : "[$source_type]";
+            my $type_span_class = 'source-a' if ($source_type =~ /anonymous/);
+            $type_span_class = 'source-ap' if ($source_type =~ /anonymous-partial/);
+            $type_span_class = 'source-u' if ($source_type =~ /unofficial/);
+            $type_span_class = 'source-onp' if ($source_type =~ /official-non-political/);
+            $type_span_class = 'source-op' if ($source_type =~ /official-political/);
+            $type_span = $format eq 'html' ? "<span class=\"source-brackets\">[<span class=\"$type_span_class\">$source_type</span>]</span>" : "[$source_type]";
           }
         }
       }
@@ -1406,7 +1469,7 @@ sub get_output {
           $SD_count = $SD_phrase_count;
         }
         if ($phrase_range =~ /\b$start:/) { # first token in one of contiguous parts of the phrase
-          $span_start = $format eq 'html' ? '<span style="font-weight: bold; color: darkred">' : '@';
+          $span_start = $format eq 'html' ? '<span class="phrase-text">' : '@';
           $inside_SD = 1;
           $SD_type = 'P';        
         }
@@ -1509,7 +1572,6 @@ sub get_stats {
   $stats .= <<END_HEAD;
 <head>
   <style>
-        /* Definujte styly pro sloupce a nadpisy */
         .bar {
             display: flex;
             justify-content: space-between;
@@ -1524,28 +1586,27 @@ sub get_stats {
             background-color: blue; /* Základní barva sloupce */
         }
 
-        /* Definujte barvy pro jednotlivé sloupce */
+        /* Bar colours */
         .bar-a {
-            background-color: red;
+            background-color: $color_a;
         }
 
         .bar-ap {
-            background-color: orange;
+            background-color: $color_ap;
         }
 
         .bar-u {
-            background-color: lightblue;
+            background-color: $color_u;
         }
 
         .bar-onp {
-            background-color: cyan;
+            background-color: $color_onp;
         }
 
         .bar-op {
-            background-color: blue;
+            background-color: $color_op;
         }
 
-        /* Definujte styly pro nadpisy */
         .bar-label {
           width: 46px;
           margin: 0px;
