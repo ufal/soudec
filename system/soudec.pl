@@ -34,10 +34,22 @@ my %keywords_anonymous_partial = ('část' => 1,
                                   'řada' => 1,
                          );
 
-# a hasn to keep classes of already seen surnames
+#######################################
+# HASHES FOR SOMETHING LIKE COREFERENCE
+
+# hashes to keep classes and full expressions of already seen surnames
 my %surname2class;
 my %surname2full; # the original (full) mention of the surname
-                         
+
+# hashes to keep already seen nouns (not surnames)
+# e.g.: for "britský list" -> "britský bulvární list The Daily Mirror", the hashes would contain:
+#       'list Daily Mirror' => 'unofficial'
+#       'list Daily Mirror' => 'britský bulvární list The Daily Mirror'
+my %noun_lemmas2class;
+my %noun_lemmas2full; # the original (full) mention of the source
+
+#######################################
+
 # default minimal required phrase reliability
 my $MIN_RELIABILITY_DEFAULT = 10;
 # default output format
@@ -988,6 +1000,39 @@ sub guess_source_type {
   }
   
   my $joined = '~' . join('~', @source_named_entity_classes);
+
+  # maybe we will keep info about this source (if it contains nouns and has been recognized also by NameTag)  
+  my @a_source_noun_nodes = grep {attr($_, 'upostag') eq 'NOUN'} @whole_source_nodes;
+  my @a_source_noun_lemmas = map {attr($_, 'lemma')} @a_source_noun_nodes;
+  my $source_noun_lemmas = join(' ', @a_source_noun_lemmas);
+
+  if ($joined eq '~') { # no NameTag class assigned to the source
+    # let us have a look if we can find a better specified (longer) antecedent for the source
+    ## TODO: 1) if it is a pronoun (e.g., "Podle něj")
+    
+    # 2) if it contains a noun that was already used in some longer source which had a NameTag class assigned (e.g., "britský list" -> "britský bulvární list The Daily Mirror"
+    # hashes to keep already seen nouns (not surnames)
+    # e.g.: for "britský list" -> "britský bulvární list The Daily Mirror", the hashes would contain:
+    #       'list Daily Mirror' => 'unofficial'
+    #       'list Daily Mirror' => 'britský bulvární list The Daily Mirror'
+    # my %noun_lemmas2class;
+    # my %noun_lemmas2full; # the original (full) mention of the source
+
+    if (@a_source_noun_lemmas) { # at least one noun in the source
+      my $previous_noun_lemmas = get_noun_lemmas(@a_source_noun_lemmas);
+      if ($previous_noun_lemmas) { # found!
+        my $class = $noun_lemmas2class{$previous_noun_lemmas};
+        my $antecedent = $noun_lemmas2full{$previous_noun_lemmas};
+        print STDERR "Class for a source with the same nouns ($source_noun_lemmas) already determined before for '$antecedent': $class\n";
+        $class2count{$class}++;
+        $source2count{$antecedent}++;
+        if ($add_antecedent) {
+          $class .= '_' . $antecedent;
+        }
+        return $class;        
+      }
+    }
+  }
   
   my $type = 'anonymous-partial'; # default
 
@@ -1020,6 +1065,13 @@ sub guess_source_type {
     $source2class{$full} = $type;
     $source2count{$full}++; # =1 would do the same
     $class2count{$type}++;
+  }
+  elsif ($joined ne '~' and $source_noun_lemmas and not $noun_lemmas2class{$source_noun_lemmas}) { # if the source contains nouns (but not surnames) and has been recognized also by NameTag and we have not yet set this
+    $noun_lemmas2class{$source_noun_lemmas} = $type;
+    $noun_lemmas2full{$source_noun_lemmas} = $full;
+    $source2class{$full} = $type; # it may have been set before but never mind
+    $source2count{$full}++;
+    $class2count{$type}++;    
   }
   else {
     $source2class{$full} = $type;
@@ -1095,6 +1147,29 @@ sub get_extra_NE {
   
 }
 
+=item get_noun_lemmas
+
+Give an array of noun lemmas, it finds the first key in the hash %noun_lemmas2class that contains at least the same noun lemmas
+
+# hashes to keep already seen nouns (not surnames)
+# e.g.: for "britský list" -> "britský bulvární list The Daily Mirror", the hashes would contain:
+#       'list Daily Mirror' => 'unofficial'
+#       'list Daily Mirror' => 'britský bulvární list The Daily Mirror'
+# my %noun_lemmas2class;
+# my %noun_lemmas2full; # the original (full) mention of the source
+    
+=cut
+
+sub get_noun_lemmas {
+  my @noun_lemmas = @_;
+  my $noun_lemmas_count = scalar(@noun_lemmas);
+  foreach my $h_key (keys(%noun_lemmas2class)) { # for each key in the hash
+    my @present_lemmas = grep {$h_key =~ /\b$_\b/} @noun_lemmas;
+    if (scalar(@present_lemmas) eq $noun_lemmas_count) { # all lemmas present
+      return $h_key;
+    }
+  }
+}
 
 
 =item get_misc_value
@@ -1360,7 +1435,7 @@ my %class2count;
 
 sub get_stats {
   my $stats = "<html>\n";
-  my $stats .= <<END_HEAD;
+  $stats .= <<END_HEAD;
 <head>
   <style>
         /* Definujte styly pro sloupce a nadpisy */
