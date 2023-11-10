@@ -19,7 +19,7 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER = '1.0 (20231102)'; # version of the program
+my $VER = '1.0 (20231110)'; # version of the program
 
 # a list of keywords to classify a source as anonymous
 my %keywords_anonymous = ('zdroj' => 1,
@@ -57,6 +57,7 @@ my $min_phrase_reliability;
 my $output_format;
 my $output_statistics;
 my $add_NE;
+my $add_antecedent;
 my $store_conllu;
 my $store_statistics;
 my $version;
@@ -73,6 +74,7 @@ GetOptions(
     'of|output-format=s'   => \$output_format, # output format, possible values: txt, html, conllu
     'os|output-statistics' => \$output_statistics, # adds statistics to the output; if present, output is JSON with two items: data (in output-format) and stats (in HTML)
     'ne|named-entities'    => \$add_NE, # add named entities as marked by NameTag to the classes in the output
+    'aa|add-antecedent'    => \$add_antecedent, # add the antecedent if coreference is used to determine the class
     'sc|store-conllu'      => \$store_conllu, # should the result of soudec detection be logged as a conllu file?
     'ss|store-statistics'  => \$store_statistics, # should the statistics be logged as an HTML file?
     'v|version'            => \$version, # print the version of the program and exit
@@ -102,6 +104,7 @@ options:  -i|--input-file [input text file name]
          -of|--output-format [output format: txt (default), html, conllu]
          -os|--output-statistics (add SouDeC statistics to output; if present, output is JSON with two items: data (in output-format) and stats (in HTML))
          -ne|--named-entities (add NameTag marks to classes in the output)
+         -aa|--add-antecedent (add the antecedent if coreference is used to determine the class)
          -sc|--store-conllu (log the output of UDPipe parser, NameTag and SouDeC to a CONLL-U file)
          -ss|--store-statistics (log SouDeC statistics to an HTML file)
           -v|--version (prints the version of the program and ends)
@@ -176,11 +179,15 @@ if ($output_statistics) {
 }
 
 if ($add_NE) {
-  print STDERR " - add named entities as marked by NameTag to classes in output\n";
+  print STDERR " - add named entities as marked by NameTag to classes in the output\n";
+}
+
+if ($add_antecedent) {
+  print STDERR " - add the antecedent to the classes in the output if coreference is used to determine the class\n";
 }
 
 if ($store_conllu) {
-  print STDERR " - log output in a conllu file; includes output of udpipe and nametag\n";
+  print STDERR " - log the output in a conllu file; includes the output of udpipe and nametag\n";
 }
 
 if ($store_statistics) {
@@ -965,7 +972,11 @@ sub guess_source_type {
       if ($class) {
         print STDERR "Class for surname $lemma already determined before: $class\n";
         $class2count{$class}++;
-        $source2count{$surname2full{lc($lemma)}}++;
+        my $antecedent = $surname2full{lc($lemma)};
+        $source2count{$antecedent}++;
+        if ($add_antecedent) {
+          $class .= '_' . $antecedent;
+        }
         return $class;
       }
       else { # first mention of the surname - let us keep it and later store it in %surname2class
@@ -1016,10 +1027,9 @@ sub guess_source_type {
     $class2count{$type}++;    
   }
 
-
   # print STDERR "guess_source_type: $type\n";
   if ($add_NE) {
-    return "$joined:$type";
+    $type = "$joined:$type";
   }
   return "$type";
 }
@@ -1037,7 +1047,8 @@ sub get_extra_NE {
   my $lemma = attr($node, 'lemma');
   my @children = $node->getAllChildren;
   my @children_lemmas = map {attr($_, 'lemma')} @children;
-  if ($lemma =~ /^(mluvčí|velitel|ředitel|vedoucí|šéf|soudce|soudkyně|soud|obžaloba|obhajoba|obhájce|prokurátor|obžalovaný|obžalovaná)$/) {
+  my @children_forms = map {attr($_, 'form')} @children;
+  if ($lemma =~ /^(mluvčí|velitel(ka)?|ředitel(ka)?|vedoucí|šéf(ka)?|soudce|soudkyně|soud|obžaloba|obhajoba|obhájce|obhájkyně|prokurátor(ka)?|obžalovaný|obžalovaná)$/) {
     # print STDERR "get_extra_NE: found 'mluvčí etc.'\n";
     return 'im'; # "institution - mluvčí"
   }
@@ -1047,24 +1058,38 @@ sub get_extra_NE {
   if ($keywords_anonymous_partial{$lemma}) {
     return 'sp' # "source - anonymous-partial"
   }
-  if ($lemma eq 'premiér') {
+  if ($lemma =~ /^premiér(ka)?$/) {
     return 'io'; # "institution - goverment, political"
   }
-  if ($lemma eq 'poslanec') {
+  if ($lemma =~ /^poslan(ec|kyně)$/) {
     return 'io'; # "institution - goverment, political"
   }
-  if ($lemma eq 'senátor') {
+  if ($lemma =~ /^senátor(ka)?$/) {
+    return 'io'; # "institution - goverment, political"
+  }
+  if ($lemma =~ /^ministr(yně)?$/) {
     return 'io'; # "institution - goverment, political"
   }
   if ($lemma eq 'magistrát') {
     return 'io'; # "institution - goverment, political"
   }
-  if ($lemma eq 'předseda') {
-    if (grep {'ministerský'} @children_lemmas or grep {'vláda'} @children_lemmas) {
+  if ($lemma eq 'radní') {
+    return 'io'; # "institution - goverment, political"
+  }
+  if ($lemma =~ /^(místo)?starost[k]a/) {
+    return 'io'; # "institution - goverment, political"
+  }
+  if ($lemma =~ /^předsed(a|kyně)$/) {
+    if (grep {/ministersk[ýá]/} @children_lemmas or grep {'vláda'} @children_lemmas) {
       return 'io'; # "institution - goverment, political"
     }
     else {
       return 'im'; # "institution - mluvčí"
+    }
+  }
+  if ($lemma =~ /^dům$/) {
+    if (grep {/^Bíl[ýé]/} @children_forms) {
+      return 'io'; # "institution - goverment, political"
     }
   }
   
@@ -1543,6 +1568,7 @@ sub print_eval {
     my $exactness = $type =~ /PARTIAL/ ? 'PARTIAL' : 'EXACT';
     my $pure_auto_event = $auto_event;
     $pure_auto_event =~ s/^.*://; # get rid of info about NEs
+    $pure_auto_event =~ s/_.*$//; # get rid of the antecedent    
     my $hit = 'HIT'; # let us be optimistic ;-)
     if ($pure_auto_event ne $ann_event) { # disagreement on the source type
       $event_color = '#ef6109';
