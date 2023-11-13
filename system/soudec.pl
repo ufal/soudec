@@ -1020,9 +1020,11 @@ sub guess_source_type {
 
       if ($class) {
         print STDERR "Class for surname $lemma already determined before: $class\n";
-        $class2count{$class}++;
         my $antecedent = $surname2full{lc($lemma)};
-        $source2count{$antecedent}++;
+        if ($should_be_counted) {
+          $class2count{$class}++;
+          $source2count{$antecedent}++;
+        }
 
         # storing the antecedent for pronouns
         my ($gender, $number) = get_gender_number_of_animate_source($source_node);
