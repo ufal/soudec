@@ -1741,7 +1741,7 @@ END_HEAD
   $stats .= "<p>\n";
   $stats .= "<table>\n";
   $stats .= "<tr><th>Source</th><th>Class</th><th>Count</th></tr>\n";
-  foreach my $source (sort {$source2count{$b} <=> $source2count{$a}} keys(%source2class)) {
+  foreach my $source (sort {$source2count{$b} <=> $source2count{$a}} grep {$source2count{$_}} keys(%source2class)) {
     $stats .= "<tr><td>$source</td><td>$source2class{$source}</td><td>$source2count{$source}</td></tr>\n";
   }
   $stats .= "</table>\n";
