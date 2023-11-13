@@ -19,7 +19,7 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER = '1.0 (20231110)'; # version of the program
+my $VER = '1.0 (20231113)'; # version of the program
 
 # a list of keywords to classify a source as anonymous
 my %keywords_anonymous = ('zdroj' => 1,
@@ -525,9 +525,25 @@ foreach $root (@trees) {
   foreach my $node (@nodes) {
     my $lemma = attr($node, 'lemma');
     my $constraints = $phrase_lemma2constraints{$lemma};
-    if (!$constraints) {
+
+    if (!$constraints) { # the lemma is not among citation phrases
       print STDERR "No constraints for lemma '$lemma', skipping.\n";
-      next; # the lemma is not among citation phrases
+      # Let us check if it is a root node of a source (potentially without citation, e.g. "Požádali jsme o názor ředitele firmy.")
+      print STDERR "Checking if it is a root node of a source (potentially without citation).\n";
+      if (attr($node, 'upostag') eq 'NOUN' and attr($node, 'deprel') =~ /^(nsubj|obj|obl)/) { # it might be a root of a source
+        print STDERR " - it is a noun (nsubj, obj, obl).\n";
+        my @potential_all_source_nodes = get_whole_source_nodes($node);
+        my @NE_nodes = grep {get_misc_value($_, 'NE')} @potential_all_source_nodes;
+        my @extraNE_nodes = grep {get_extra_NE_for_node($node)} @potential_all_source_nodes;
+        if (scalar(@NE_nodes) or scalar(@extraNE_nodes)) { # any Named Entity or extra Named Entity assigned to any of the nodes?
+          print STDERR "Found a potential independent source:\n";
+          my $whole_potential_source = get_text(@potential_all_source_nodes);
+          print STDERR " - WHOLE POTENTIAL SOURCE: $whole_potential_source\n";
+          my $source_type = guess_source_type($root, @potential_all_source_nodes);
+          print STDERR " - POTENTIAL SOURCE TYPE: $source_type\n";
+        }
+      }
+      next; 
     }
     foreach my $constraint (split(/_/, $constraints)) { # split the constraints by separator '_' and work with one constraint at a time
       my $reliability = $phrase_lemma_constraint2reliability{$lemma . '_' . $constraint} // 0;
@@ -549,7 +565,7 @@ foreach $root (@trees) {
             my @whole_source_nodes = get_whole_source_nodes($parent);
             my $whole_source = get_text(@whole_source_nodes);
             print STDERR " - SOURCE parent: $source\n - WHOLE SOURCE: $whole_source\n";
-            my $source_type = guess_source_type($root, $node, @whole_source_nodes);
+            my $source_type = guess_source_type($root, @whole_source_nodes);
             print STDERR "   - SOURCE TYPE: $source_type\n";
             evaluate_single_event($source_type, $lemma, 'N/A', $root, @whole_source_nodes);
           }
@@ -560,7 +576,7 @@ foreach $root (@trees) {
               my @whole_source_nodes = get_whole_source_nodes($nsubj[0]);
               my $whole_source = get_text(@whole_source_nodes);
               print STDERR " - SOURCE nsubj: $subject\n - WHOLE SOURCE: $whole_source\n";
-              my $source_type = guess_source_type($root, $node, @whole_source_nodes);
+              my $source_type = guess_source_type($root, @whole_source_nodes);
               print STDERR "   - SOURCE TYPE: $source_type\n";
               evaluate_single_event($source_type, $lemma, 'N/A', $root, @whole_source_nodes);
             }
@@ -986,14 +1002,14 @@ ty - years
 =cut
 
 sub guess_source_type {
-  my ($root, $phrase_node, @whole_source_nodes) = @_;
+  my ($root, @whole_source_nodes) = @_;
 
   my $surname = undef; # We will set this if there is a surname found among the source nodes
   my @source_named_entity_classes = ();
   foreach my $source_node (@whole_source_nodes) {
     my $named_entity_class = get_misc_value($source_node, 'NE');
     if (!$named_entity_class) {
-      $named_entity_class = get_extra_NE($source_node);
+      $named_entity_class = get_extra_NE_for_node($source_node);
     }
     next if !$named_entity_class;
     $named_entity_class =~ s/[^a-z]*([a-z][a-z_])_.*/$1/;
@@ -1166,7 +1182,7 @@ sub guess_source_type {
 
 =item get_extra_NE
 
-Returns a fake NE value for some obvious words, such as 'mluvčí', 'premiér' etc.
+Checks children of a given node and returns a fake NE value for some obvious words, such as 'mluvčí', 'premiér' etc.
 Also gives fake NE value for significantly anonymous words (zdroj, pozorovatel, informace).
 
 =cut
@@ -1175,8 +1191,18 @@ sub get_extra_NE {
   my $node = shift;
   my $lemma = attr($node, 'lemma');
   my @children = $node->getAllChildren;
-  my @children_lemmas = map {attr($_, 'lemma')} @children;
-  my @children_forms = map {attr($_, 'form')} @children;
+  foreach my $child (@children) {
+    my $extra_NE = get_extra_NE_for_node($child);
+    if ($extra_NE) {
+      return $extra_NE;
+    }
+  }  
+}
+
+sub get_extra_NE_for_node {
+  my $node = shift;
+  my $lemma = attr($node, 'lemma');
+  my $form = attr($node, 'form');
   if ($lemma =~ /^(mluvčí|velitel(ka)?|ředitel(ka)?|vedoucí|šéf(ka)?|soudce|soudkyně|soud|obžaloba|obhajoba|obhájce|obhájkyně|prokurátor(ka)?|obžalovaný|obžalovaná)$/) {
     # print STDERR "get_extra_NE: found 'mluvčí etc.'\n";
     return 'im'; # "institution - mluvčí"
@@ -1208,22 +1234,28 @@ sub get_extra_NE {
   if ($lemma =~ /^(místo)?starost[k]a/) {
     return 'io'; # "institution - goverment, political"
   }
-  if ($lemma =~ /^předsed(a|kyně)$/) {
-    if (grep {/ministersk[ýá]/} @children_lemmas or grep {'vláda'} @children_lemmas) {
+  my @children = $node->getAllChildren;
+  my @children_lemmas = map {attr($_, 'lemma')} @children;
+  if ($lemma =~ /^(místo)?předsed(a|kyně)$/) {
+    if (grep {/ministersk[ýá]/} @children_lemmas or grep {/^(vláda|parlament|sněmovna|senát)$/} @children_lemmas) {
       return 'io'; # "institution - goverment, political"
     }
     else {
       return 'im'; # "institution - mluvčí"
     }
   }
+  if ($lemma =~ /^prezident(ka)?$/) {
+    if (grep {/republika/} @children_lemmas) {
+      return 'io'; # "institution - goverment, political"
+    }
+  }
+  my @children_forms = map {attr($_, 'form')} @children;
   if ($lemma =~ /^dům$/) {
     if (grep {/^Bíl[ýé]/} @children_forms) {
       return 'io'; # "institution - goverment, political"
     }
   }
-  
 }
-
 
 sub get_gender_number_of_animate_source {
   my @source_nodes = @_;
@@ -2199,6 +2231,12 @@ sub attr {
   my $refha_props = $node->getNodeValue();
   return $$refha_props{$attr};
 }
+
+=item descendants
+
+Returns an array of nodes in the subtree of the given node (excluding the node), in the breadth-first-order ('do šířky')
+
+=cut
 
 sub descendants {
   my $node = shift;
