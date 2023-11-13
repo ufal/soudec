@@ -539,7 +539,7 @@ foreach $root (@trees) {
           print STDERR "Found a potential independent source:\n";
           my $whole_potential_source = get_text(@potential_all_source_nodes);
           print STDERR " - WHOLE POTENTIAL SOURCE: $whole_potential_source\n";
-          my $source_type = guess_source_type($root, @potential_all_source_nodes);
+          my $source_type = guess_source_type($root, 0, @potential_all_source_nodes);
           print STDERR " - POTENTIAL SOURCE TYPE: $source_type\n";
         }
       }
@@ -565,7 +565,7 @@ foreach $root (@trees) {
             my @whole_source_nodes = get_whole_source_nodes($parent);
             my $whole_source = get_text(@whole_source_nodes);
             print STDERR " - SOURCE parent: $source\n - WHOLE SOURCE: $whole_source\n";
-            my $source_type = guess_source_type($root, @whole_source_nodes);
+            my $source_type = guess_source_type($root, 1, @whole_source_nodes);
             print STDERR "   - SOURCE TYPE: $source_type\n";
             evaluate_single_event($source_type, $lemma, 'N/A', $root, @whole_source_nodes);
           }
@@ -576,7 +576,7 @@ foreach $root (@trees) {
               my @whole_source_nodes = get_whole_source_nodes($nsubj[0]);
               my $whole_source = get_text(@whole_source_nodes);
               print STDERR " - SOURCE nsubj: $subject\n - WHOLE SOURCE: $whole_source\n";
-              my $source_type = guess_source_type($root, @whole_source_nodes);
+              my $source_type = guess_source_type($root, 1, @whole_source_nodes);
               print STDERR "   - SOURCE TYPE: $source_type\n";
               evaluate_single_event($source_type, $lemma, 'N/A', $root, @whole_source_nodes);
             }
@@ -1002,7 +1002,7 @@ ty - years
 =cut
 
 sub guess_source_type {
-  my ($root, @whole_source_nodes) = @_;
+  my ($root, $should_be_counted, @whole_source_nodes) = @_;
 
   my $surname = undef; # We will set this if there is a surname found among the source nodes
   my @source_named_entity_classes = ();
@@ -1082,8 +1082,10 @@ sub guess_source_type {
               my $class = $last_gender_number2class{$one_gender . '_' . $number};
               my $antecedent = $last_gender_number2full{$one_gender . '_' . $number};
               print STDERR "Class for a $one_gender $number pronoun already determined before for '$antecedent': $class\n";
-              $class2count{$class}++;
-              $source2count{$antecedent}++;
+              if ($should_be_counted) {
+                $class2count{$class}++;
+                $source2count{$antecedent}++;
+              }
               if ($add_antecedent) {
                 $class .= '_' . $antecedent;
               }
@@ -1108,8 +1110,10 @@ sub guess_source_type {
         my $class = $noun_lemmas2class{$previous_noun_lemmas};
         my $antecedent = $noun_lemmas2full{$previous_noun_lemmas};
         print STDERR "Class for a source with the same nouns ($source_noun_lemmas) already determined before for '$antecedent': $class\n";
-        $class2count{$class}++;
-        $source2count{$antecedent}++;
+        if ($should_be_counted) {
+          $class2count{$class}++;
+          $source2count{$antecedent}++;
+        }
         if ($add_antecedent) {
           $class .= '_' . $antecedent;
         }
@@ -1147,8 +1151,10 @@ sub guess_source_type {
     $surname2class{lc($surname)} = $type;
     $surname2full{lc($surname)} = $full;
     $source2class{$full} = $type;
-    $source2count{$full}++; # =1 would do the same
-    $class2count{$type}++;
+    if ($should_be_counted) {
+      $source2count{$full}++; # =1 would do the same
+      $class2count{$type}++;
+    }
     
     # storing the antecedent for pronouns
     my ($gender, $number) = get_gender_number_of_animate_source(@whole_source_nodes);
@@ -1163,13 +1169,17 @@ sub guess_source_type {
     $noun_lemmas2class{$source_noun_lemmas} = $type;
     $noun_lemmas2full{$source_noun_lemmas} = $full;
     $source2class{$full} = $type; # it may have been set before but never mind
-    $source2count{$full}++;
-    $class2count{$type}++;    
+    if ($should_be_counted) {
+      $source2count{$full}++;
+      $class2count{$type}++;
+    }
   }
   else {
     $source2class{$full} = $type;
-    $source2count{$full}++;
-    $class2count{$type}++;    
+    if ($should_be_counted) {
+      $source2count{$full}++;
+      $class2count{$type}++;
+    }
   }
 
   # print STDERR "guess_source_type: $type\n";
