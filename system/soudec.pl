@@ -19,7 +19,7 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER = '1.0 (20231113)'; # version of the program
+my $VER = '1.0 (20231114)'; # version of the program
 
 # a list of keywords to classify a source as anonymous
 my %keywords_anonymous = ('zdroj' => 1,
@@ -1005,6 +1005,10 @@ sub guess_source_type {
   my ($root, $should_be_counted, @whole_source_nodes) = @_;
 
   my $surname = undef; # We will set this if there is a surname found among the source nodes
+  
+  print STDERR "guess_source_type: Entered the function; should_be_counted=$should_be_counted, source nodes: '" . join(' ', map {attr($_, 'form')} @whole_source_nodes) . "'\n";
+  
+  # Collect NameTag marks for all source nodes
   my @source_named_entity_classes = ();
   foreach my $source_node (@whole_source_nodes) {
     my $named_entity_class = get_misc_value($source_node, 'NE');
@@ -1012,7 +1016,7 @@ sub guess_source_type {
       $named_entity_class = get_extra_NE_for_node($source_node);
     }
     next if !$named_entity_class;
-    $named_entity_class =~ s/[^a-z]*([a-z][a-z_])_.*/$1/;
+    $named_entity_class =~ s/[^a-z]*([a-z][a-z_])_.*/$1/; # e.g., ps_1 -> ps
     # print STDERR "guess_source_type: " . attr($source_node, 'lemma') . ": '$named_entity_class'\n";
     if ($named_entity_class eq 'ps') { # a surname - check if we already know the class
       my $lemma = attr($source_node, 'lemma') // '';
@@ -1070,10 +1074,11 @@ sub guess_source_type {
     if (scalar(@whole_source_nodes) eq 1) { # a single-word source
       print STDERR "A single-word source\n";
       my $source_node = $whole_source_nodes[0];
+      my $lemma = attr($source_node, 'lemma');
       my $upostag = attr($source_node, 'upostag');
       my $prontype = get_feat_value($source_node, 'PronType') // '';
-      if ($upostag eq 'PRON' and $prontype eq 'Prs') { # a personal pronoun
-        print STDERR "A personal pronoun\n";
+      if (($upostag eq 'PRON' and $prontype eq 'Prs') or $lemma eq 'ten') { # a personal pronoun or lemma 'ten'
+        print STDERR "A personal pronoun or lemma 'ten'\n";
         # les us try to find an antecedent with the same Gender and Number among last antecedents with Animacy=Anim
         my $gender = get_feat_value($source_node, 'Gender') // '';
         my $number = get_feat_value($source_node, 'Number') // '';
@@ -1150,6 +1155,7 @@ sub guess_source_type {
   my $full = get_source_base_form(@whole_source_nodes);
 
   if ($surname) { # first mention of the surname (possibly in a longer (full) source)
+    print STDERR "guess_source_type: There was a yet unseen surname ($surname) among the source nodes, let us remember it and its class ($type)\n";
     $surname2class{lc($surname)} = $type;
     $surname2full{lc($surname)} = $full;
     $source2class{$full} = $type;
@@ -1161,13 +1167,16 @@ sub guess_source_type {
     # storing the antecedent for pronouns
     my ($gender, $number) = get_gender_number_of_animate_source(@whole_source_nodes);
     if ($gender and $number) {
-      print STDERR "Storing the class '$type' and the full source '$full' for resolving pronouns (gender $gender, number $number)\n";
+      print STDERR "guess_source_type: Storing the class '$type' and the full source '$full' for resolving pronouns (gender $gender, number $number)\n";
       $last_gender_number2class{$gender . '_' . $number} = $type;
       $last_gender_number2full{$gender . '_' . $number} = $full;
     }
     
   }
+  
+  # there was a NameTag mark for some of the source nodes
   elsif ($joined ne '~' and $source_noun_lemmas and not $noun_lemmas2class{$source_noun_lemmas}) { # if the source contains nouns (but not surnames) and has been recognized also by NameTag and we have not yet set this
+    print STDERR "guess_source_type: There was a NameTag mark for some of the source nodes and the source contains a noun\n";
     $noun_lemmas2class{$source_noun_lemmas} = $type;
     $noun_lemmas2full{$source_noun_lemmas} = $full;
     $source2class{$full} = $type; # it may have been set before but never mind
@@ -1175,6 +1184,14 @@ sub guess_source_type {
       $source2count{$full}++;
       $class2count{$type}++;
     }
+    # storing the antecedent for pronouns
+    my ($gender, $number) = get_gender_number_of_animate_source(@whole_source_nodes);
+    if ($gender and $number) {
+      print STDERR "guess_source_type: Storing the class '$type' and the full source '$full' for resolving pronouns (gender $gender, number $number)\n";
+      $last_gender_number2class{$gender . '_' . $number} = $type;
+      $last_gender_number2full{$gender . '_' . $number} = $full;
+    }
+
   }
   else {
     $source2class{$full} = $type;
@@ -1269,8 +1286,30 @@ sub get_extra_NE_for_node {
   }
 }
 
+
+=item get_gender_number_of_animate_source
+
+Given all source nodes, it finds its root and checks if it has a number, a gender and (Animacy="Anim" or gender="Fem"). If so, returns the gender and number.´
+
+=cut
+
 sub get_gender_number_of_animate_source {
   my @source_nodes = @_;
+  my @source_nodes_sorted_dfo = sort_nodes_dfo(@source_nodes);
+
+  my $source_root = $source_nodes_sorted_dfo[0];
+  my $animacy = get_feat_value($source_root, 'Animacy') // '';
+  my $gender = get_feat_value($source_root, 'Gender') // '';
+  my $number = get_feat_value($source_root, 'Number') // '';
+  if ($animacy eq 'Anim' and $gender and $number) {
+    return ($gender, $number);
+  }
+  elsif ($gender and $number and $gender eq "Fem") {
+    return ($gender, $number);
+  }
+  
+=item
+  
   foreach my $node (@source_nodes) {
     my $animacy = get_feat_value($node, 'Animacy') // '';
     my $gender = get_feat_value($node, 'Gender') // '';
@@ -1278,9 +1317,31 @@ sub get_gender_number_of_animate_source {
     if ($animacy eq 'Anim' and $gender and $number) {
       return ($gender, $number);
     }
+    elsif ($gender and $number and $gender eq "Fem") {
+      return ($gender, $number);
+    }
   }
+  
+=cut
+
   return undef;
 }
+
+
+sub sort_nodes_dfo {
+  my @nodes = @_;
+  my @sorted = sort {compare_dfo($a, $b)} @nodes;
+  return @sorted;
+}
+
+sub compare_dfo {
+  my ($n1, $n2) = @_;
+  if ($n1->getDepth != $n2->getDepth) {
+    return ($n1->getDepth <=> $n2->getDepth);
+  }
+  return (attr($n1, 'ord') <=> attr($n2, 'ord')); 
+}
+
 
 =item get_noun_lemmas
 
@@ -2230,7 +2291,7 @@ sub print_children {
     }
 }
 
-######### Simple::Tree METHODS #########
+######### Tree::Simple METHODS #########
 
 sub set_attr {
   my ($node, $attr, $value) = @_;
