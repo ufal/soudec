@@ -21,7 +21,7 @@ my $start_time = [gettimeofday];
 
 my $VER = '1.0 (20231114)'; # version of the program
 
-# a list of keywords to classify a source as anonymous
+# lists of keywords to classify a source
 my %keywords_anonymous = ('zdroj' => 1,
                           'pozorovatel' => 1,
                           'informace' => 1,
@@ -32,6 +32,10 @@ my %keywords_anonymous_partial = ('část' => 1,
                                   'některý' => 1,
                                   'většina' => 1,
                                   'řada' => 1,
+                         );
+
+my %keywords_unofficial = ('slovník' => 1,
+                           'encyklopedie' => 1,
                          );
 
 #######################################
@@ -1007,17 +1011,20 @@ sub guess_source_type {
   my $surname = undef; # We will set this if there is a surname found among the source nodes
   
   print STDERR "guess_source_type: Entered the function; should_be_counted=$should_be_counted, source nodes: '" . join(' ', map {attr($_, 'form')} @whole_source_nodes) . "'\n";
+
+  my @whole_source_nodes_dfo = sort_nodes_dfo(@whole_source_nodes);
+  my $source_root = $whole_source_nodes_dfo[0];
+  my $source_root_NE_class; # will be set in the following cycle
   
   # Collect NameTag marks for all source nodes
   my @source_named_entity_classes = ();
-  foreach my $source_node (@whole_source_nodes) {
-    my $named_entity_class = get_misc_value($source_node, 'NE');
-    if (!$named_entity_class) {
-      $named_entity_class = get_extra_NE_for_node($source_node);
-    }
+  foreach my $source_node (@whole_source_nodes_dfo) {
+    my $named_entity_class = get_NameTag_or_extra_NE_class($source_node);
     next if !$named_entity_class;
-    $named_entity_class =~ s/[^a-z]*([a-z][a-z_])_.*/$1/; # e.g., ps_1 -> ps
     # print STDERR "guess_source_type: " . attr($source_node, 'lemma') . ": '$named_entity_class'\n";
+    if ($source_node eq $source_root) {
+      $source_root_NE_class = $named_entity_class;
+    }
     if ($named_entity_class eq 'ps') { # a surname - check if we already know the class
       my $lemma = attr($source_node, 'lemma') // '';
       my $class = $surname2class{lc($lemma)};
@@ -1059,7 +1066,7 @@ sub guess_source_type {
   my $joined = '~' . join('~', @source_named_entity_classes);
 
   # maybe we will keep info about this source (if it contains nouns and has been recognized also by NameTag)  
-  my @a_source_noun_nodes = grep {attr($_, 'upostag') eq 'NOUN'} @whole_source_nodes;
+  my @a_source_noun_nodes = grep {attr($_, 'upostag') eq 'NOUN'} @whole_source_nodes_dfo;
   my @a_source_noun_lemmas = map {attr($_, 'lemma')} @a_source_noun_nodes;
   my $source_noun_lemmas = join(' ', @a_source_noun_lemmas);
 
@@ -1071,9 +1078,9 @@ sub guess_source_type {
     # to be used if a personal pronoun is found as a source
     # my %last_gender_number2class;
     # my %last_gender_number2full; # the original (full) mention of the source
-    if (scalar(@whole_source_nodes) eq 1) { # a single-word source
+    if (scalar(@whole_source_nodes_dfo) eq 1) { # a single-word source
       print STDERR "A single-word source\n";
-      my $source_node = $whole_source_nodes[0];
+      my $source_node = $whole_source_nodes_dfo[0];
       my $lemma = attr($source_node, 'lemma');
       my $upostag = attr($source_node, 'upostag');
       my $prontype = get_feat_value($source_node, 'PronType') // '';
@@ -1131,9 +1138,11 @@ sub guess_source_type {
   
   my $type = 'anonymous-partial'; # default
 
-  # print STDERR "guess_source_type: $joined\n";
-  
-  if ($joined =~ /~sp/) { # sp - source anonymous-partial (fake NE class)
+  # print STDERR "guess_source_type: whole source joined classes='$joined', source root class='$source_root_NE_class'\n";
+  if ($source_root_NE_class eq 'gc') { # gc - state
+    $type = 'official-political';
+  }
+  elsif ($joined =~ /~sp/) { # sp - source anonymous-partial (fake NE class)
     $type = 'anonymous-partial';
   }
   elsif ($joined =~ /~io/) { # io - government/political inst.
@@ -1150,6 +1159,9 @@ sub guess_source_type {
   }
   elsif ($joined =~ /~sa/) { # sa - source anonymous (fake NE class)
     $type = 'anonymous';
+  }
+  elsif ($joined =~ /~su/) { # su - source unofficial (fake NE class)
+    $type = 'unofficial';
   }
 
   my $full = get_source_base_form(@whole_source_nodes);
@@ -1209,6 +1221,25 @@ sub guess_source_type {
 }
 
 
+sub get_NameTag_class {
+  my $node = shift;
+  my $named_entity_class = get_misc_value($node, 'NE');
+  if ($named_entity_class) {
+    $named_entity_class =~ s/[^a-z]*([a-z][a-z_])_.*/$1/; # e.g., ps_1 -> ps
+  }
+  return $named_entity_class // '';
+}
+
+sub get_NameTag_or_extra_NE_class {
+  my $node = shift;
+  my $named_entity_class = get_NameTag_class($node);
+  if (!$named_entity_class) {
+    $named_entity_class = get_extra_NE_for_node($node);
+  }
+  return $named_entity_class // '';
+}
+
+
 =item get_extra_NE
 
 Checks children of a given node and returns a fake NE value for some obvious words, such as 'mluvčí', 'premiér' etc.
@@ -1241,6 +1272,9 @@ sub get_extra_NE_for_node {
   }
   if ($keywords_anonymous_partial{$lemma}) {
     return 'sp' # "source - anonymous-partial"
+  }
+  if ($keywords_unofficial{$lemma}) {
+    return 'su' # "source - unofficial"
   }
   if ($lemma =~ /^premiér(ka)?$/) {
     return 'io'; # "institution - goverment, political"
@@ -1275,6 +1309,10 @@ sub get_extra_NE_for_node {
   }
   if ($lemma =~ /^prezident(ka)?$/) {
     if (grep {/republika/} @children_lemmas) {
+      return 'io'; # "institution - goverment, political"
+    }
+    
+    if (grep {get_NameTag_class($_) eq 'gc'} @children) { # e.g., Čína
       return 'io'; # "institution - goverment, political"
     }
   }
@@ -2210,6 +2248,7 @@ sub get_text {
 =item get_whole_source
 
 For the given source node, it collects all nodes representing the whole source.
+The nodes are returned in left-right order.
 
 =cut
 
@@ -2217,7 +2256,17 @@ sub get_whole_source_nodes {
   my $node = shift;
   my @source_nodes = get_source_nodes($node);
   push(@source_nodes, $node);
-  return @source_nodes;
+
+  # remove punctuation from the beginning and the end
+  my @source_nodes_ordered = sort {attr($a, 'ord') <=> attr($b, 'ord')} @source_nodes;
+  while (scalar(@source_nodes_ordered) > 1 and attr($source_nodes_ordered[0], 'deprel') eq 'punct') {
+    shift @source_nodes_ordered;
+  }
+  while (scalar(@source_nodes_ordered) > 1 and attr($source_nodes_ordered[-1], 'deprel') eq 'punct') {
+    pop @source_nodes_ordered;
+  }
+
+  return @source_nodes_ordered;
 }
 
 
@@ -2235,12 +2284,13 @@ sub get_source_nodes {
   }
   
   my @source_sons = grep {attr($_, 'lemma') !~ /^(po)?dle$/}
-                    grep {attr($_, 'deprel') =~ /^(nmod|amod|flat|flat:foreign|case|acl:relcl)$/}
+                    grep {attr($_, 'deprel') =~ /^(nmod|amod|flat|flat:foreign|case|acl:relcl|appos|punct)$/}
                     $node->getAllChildren;
   my @whole_source_nodes = @source_sons;
   foreach my $son (@source_sons) {
     push(@whole_source_nodes, get_source_nodes($son));
   }
+  
   return @whole_source_nodes;
 }
 
