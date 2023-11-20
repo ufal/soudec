@@ -95,7 +95,7 @@ my $output_format;
 my $output_statistics;
 my $add_NE;
 my $add_antecedent;
-my $store_conllu;
+my $store_format;
 my $store_statistics;
 my $version;
 my $help;
@@ -112,7 +112,7 @@ GetOptions(
     'os|output-statistics' => \$output_statistics, # adds statistics to the output; if present, output is JSON with two items: data (in output-format) and stats (in HTML)
     'ne|named-entities'    => \$add_NE, # add named entities as marked by NameTag to the classes in the output
     'aa|add-antecedent'    => \$add_antecedent, # add the antecedent if coreference is used to determine the class
-    'sc|store-conllu'      => \$store_conllu, # should the result of soudec detection be logged as a conllu file?
+    'sf|store-format=s'    => \$store_format, # log the result in the given format: txt, html, conllu
     'ss|store-statistics'  => \$store_statistics, # should the statistics be logged as an HTML file?
     'v|version'            => \$version, # print the version of the program and exit
     'h|help'               => \$help, # print a short help and exit
@@ -142,7 +142,7 @@ options:  -i|--input-file [input text file name]
          -os|--output-statistics (add SouDeC statistics to output; if present, output is JSON with two items: data (in output-format) and stats (in HTML))
          -ne|--named-entities (add NameTag marks to classes in the output)
          -aa|--add-antecedent (add the antecedent if coreference is used to determine the class)
-         -sc|--store-conllu (log the output of UDPipe parser, NameTag and SouDeC to a CONLL-U file)
+         -sf|--store-format [format: log the output in the given format: txt, html, conllu]
          -ss|--store-statistics (log SouDeC statistics to an HTML file)
           -v|--version (prints the version of the program and ends)
           -h|--help (prints a short help and ends)
@@ -223,8 +223,15 @@ if ($add_antecedent) {
   print STDERR " - add the antecedent to the classes in the output if coreference is used to determine the class\n";
 }
 
-if ($store_conllu) {
-  print STDERR " - log the output in a conllu file; includes the output of udpipe and nametag\n";
+$store_format = lc($store_format) if $store_format;
+if ($store_format) {
+  if ($store_format =~ /^(txt|html|conllu)$/) {
+    print STDERR " - log the output to a file in $store_format\n";
+  }
+  else {
+    print STDERR " - unknown format for logging the output ($store_format); the output will not be logged\n";
+    $store_format = undef;
+  }
 }
 
 if ($store_statistics) {
@@ -628,15 +635,13 @@ else { # statistics should be a part of output, i.e. output will be JSON with tw
   print $json_string;  
 }
 
-
-if ($store_conllu) { # log the input text with marked sources in the conllu format in a file
-  $output = get_output('conllu') if $output_format ne 'conllu';
-  my $file_name = basename($input_file); # the file name without the path
-  open(OUT, '>:encoding(utf8)', "$script_dir/log/$file_name.conllu") or die "Cannot open file '$script_dir/log/$file_name.conllu' for writing: $!";
+if ($store_format) { # # log the input text with marked sources in the given format in a file
+  $output = get_output($store_format) if $store_format ne $output_format;
+  my $output_file = basename($input_file); # the file name without the path
+  open(OUT, '>:encoding(utf8)', "$script_dir/log/$output_file.$store_format") or die "Cannot open file '$script_dir/log/$output_file.$store_format' for writing: $!";
   print OUT $output;
   close(OUT);
 }
-
 
 if ($store_statistics) { # log statistics about the detection to a html file
   my $stats = get_stats();
