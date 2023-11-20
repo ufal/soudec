@@ -38,6 +38,208 @@ my %keywords_unofficial = ('slovník' => 1,
                            'encyklopedie' => 1,
                          );
 
+# List of one-word states
+my %states = ('Čína' => 1,
+              'Indie' => 1,
+              'USA' => 1,
+              'Indonésie' => 1,
+              'Pákistán' => 1,
+              'Nigérie' => 1,
+              'Brazílie' => 1,
+              'Bangladéš' => 1,
+              'Rusko' => 1,
+              'Mexiko' => 1,
+              'Japonsko' => 1,
+              'Etiopie' => 1,
+              'Filipíny' => 1,
+              'Egypt' => 1,
+              'Vietnam' => 1,
+              'Írán' => 1,
+              'Turecko' => 1,
+              'Německo' => 1,
+              'Thajsko' => 1,
+              'Francie' => 1,
+              'Itálie' => 1,
+              'Tanzanie' => 1,
+              'Keňa' => 1,
+              'Myanmar' => 1,
+              'Kolumbie' => 1,
+              'Španělsko' => 1,
+              'Argentina' => 1,
+              'Alžírsko' => 1,
+              'Ukrajina' => 1,
+              'Súdán' => 1,
+              'Irák' => 1,
+              'Uganda' => 1,
+              'Kanada' => 1,
+              'Polsko' => 1,
+              'Maroko' => 1,
+              'Arábie' => 1,
+              'Uzbekistán' => 1,
+              'Malajsie' => 1,
+              'Peru' => 1,
+              'Venezuela' => 1,
+              'Afghánistán' => 1,
+              'Mosambik' => 1,
+              'Jemen' => 1,
+              'Ghana' => 1,
+              'Angola' => 1,
+              'Nepál' => 1,
+              'Madagaskar' => 1,
+              'Pobřeží' => 1,
+              'Austrálie' => 1,
+              'Kamerun' => 1,
+              'Niger' => 1,
+              'Tchaj-wan' => 1,
+              'Burkina' => 1,
+              'Lanka' => 1,
+              'Mali' => 1,
+              'Rumunsko' => 1,
+              'Chile' => 1,
+              'Kazachstán' => 1,
+              'Malawi' => 1,
+              'Sýrie' => 1,
+              'Guatemala' => 1,
+              'Ekvádor' => 1,
+              'Nizozemsko' => 1,
+              'Zambie' => 1,
+              'Senegal' => 1,
+              'Čad' => 1,
+              'Somálsko' => 1,
+              'Kambodža' => 1,
+              'Zimbabwe' => 1,
+              'Rwanda' => 1,
+              'Guinea' => 1,
+              'Benin' => 1,
+              'Tunisko' => 1,
+              'Belgie' => 1,
+              'Kuba' => 1,
+              'Bolívie' => 1,
+              'Haiti' => 1,
+              'Burundi' => 1,
+              'Česko' => 1,
+              'Švédsko' => 1,
+              'Řecko' => 1,
+              'Portugalsko' => 1,
+              'Ázerbájdžán' => 1,
+              'Jordánsko' => 1,
+              'Maďarsko' => 1,
+              'Bělorusko' => 1,
+              'Honduras' => 1,
+              'Tádžikistán' => 1,
+              'Papua' => 1,
+              'Rakousko' => 1,
+              'Švýcarsko' => 1,
+              'Izrael' => 1,
+              'Sierra' => 1,
+              'Togo' => 1,
+              'Hongkong' => 1,
+              'Bulharsko' => 1,
+              'Srbsko' => 1,
+              'Laos' => 1,
+              'Paraguay' => 1,
+              'Libanon' => 1,
+              'Libye' => 1,
+              'Kyrgyzstán' => 1,
+              'Salvador' => 1,
+              'Nikaragua' => 1,
+              'Turkmenistán' => 1,
+              'Dánsko' => 1,
+              'Singapur' => 1,
+              'Finsko' => 1,
+              'Slovensko' => 1,
+              'Norsko' => 1,
+              'Kostarika' => 1,
+              'Irsko' => 1,
+              'Omán' => 1,
+              'Libérie' => 1,
+              'Palestina' => 1,
+              'Kuvajt' => 1,
+              'Panama' => 1,
+              'Chorvatsko' => 1,
+              'Mauritánie' => 1,
+              'Gruzie' => 1,
+              'Uruguay' => 1,
+              'Eritrea' => 1,
+              'Bosna' => 1,
+              'Mongolsko' => 1,
+              'Portoriko' => 1,
+              'Arménie' => 1,
+              'Albánie' => 1,
+              'Litva' => 1,
+              'Jamajka' => 1,
+              'Katar' => 1,
+              'Moldavsko' => 1,
+              'Namibie' => 1,
+              'Gambie' => 1,
+              'Gabon' => 1,
+              'Lesotho' => 1,
+              'Slovinsko' => 1,
+              'Botswana' => 1,
+              'Lotyšsko' => 1,
+              'Kosovo' => 1,
+              'Bahrajn' => 1,
+              'Trinidad' => 1,
+              'Estonsko' => 1,
+              'Mauricius' => 1,
+              'Svazijsko' => 1,
+              'Džibutsko' => 1,
+              'Kypr' => 1,
+              'Fidži' => 1,
+              'Réunion' => 1,
+              'Guyana' => 1,
+              'Bhútán' => 1,
+              'Macao' => 1,
+              'Lucembursko' => 1,
+              'Surinam' => 1,
+              'Kapverdy' => 1,
+              'Malta' => 1,
+              'Brunej' => 1,
+              'Guadeloupe' => 1,
+              'Bahamy' => 1,
+              'Belize' => 1,
+              'Martinik' => 1,
+              'Maledivy' => 1,
+              'Island' => 1,
+              'Barbados' => 1,
+              'Vanuatu' => 1,
+              'Mayotte' => 1,
+              'Abcházie' => 1,
+              'Samoa' => 1,
+              'Guam' => 1,
+              'Curaçao' => 1,
+              'Kiribati' => 1,
+              'Aruba' => 1,
+              'Grenada' => 1,
+              'Jersey' => 1,
+              'Mikronésie' => 1,
+              'Tonga' => 1,
+              'Seychely' => 1,
+              'Antigua' => 1,
+              'Andorra' => 1,
+              'Dominika' => 1,
+              'Bermudy' => 1,
+              'Guernsey' => 1,
+              'Grónsko' => 1,
+              'Turks' => 1,
+              'Lichtenštejnsko' => 1,
+              'Monako' => 1,
+              'Gibraltar' => 1,
+              'Alandy' => 1,
+              'Palau' => 1,
+              'Anguilla' => 1,
+              'Wallis' => 1,
+              'Nauru' => 1,
+              'Tuvalu' => 1,
+              'Montserrat' => 1,
+              'Falklandy' => 1,
+              'Špicberky' => 1,
+              'Norfolk' => 1,
+              'Niue' => 1,
+              'Tokelau' => 1,
+              'Vatikán' => 1,
+);
+
 #######################################
 # HASHES FOR SOMETHING LIKE COREFERENCE
 
@@ -1019,19 +1221,20 @@ sub guess_source_type {
 
   my @whole_source_nodes_dfo = sort_nodes_dfo(@whole_source_nodes);
   my $source_root = $whole_source_nodes_dfo[0];
-  my $source_root_NE_class; # will be set in the following cycle
+  my $source_root_NE_marks = ''; # will be set in the following cycle
   my $source_root_lemma = attr($source_root, 'lemma') // '';
   
   # Collect NameTag marks for all source nodes
-  my @source_named_entity_classes = ();
+  my @source_named_entity_marks = ();
   foreach my $source_node (@whole_source_nodes_dfo) {
-    my $named_entity_class = get_NameTag_or_extra_NE_class($source_node);
-    next if !$named_entity_class;
-    # print STDERR "guess_source_type: " . attr($source_node, 'lemma') . ": '$named_entity_class'\n";
+    my $named_entity_marks = get_NameTag_and_extra_NE_marks($source_node);
+    print STDERR "guess_source_type: node=" . attr($source_node, 'lemma') . ", named_entity_marks=$named_entity_marks\n";
+    next if !$named_entity_marks;
+    # print STDERR "guess_source_type: " . attr($source_node, 'lemma') . ": '$named_entity_marks'\n";
     if ($source_node eq $source_root) {
-      $source_root_NE_class = $named_entity_class;
+      $source_root_NE_marks = $named_entity_marks;
     }
-    if ($named_entity_class eq 'ps') { # a surname - check if we already know the class
+    if ($named_entity_marks =~ /\bps\b/) { # a surname - check if we already know the class
       my $lemma = attr($source_node, 'lemma') // '';
       my $class = $surname2class{lc($lemma)};
 
@@ -1066,10 +1269,10 @@ sub guess_source_type {
       }
       
     }
-    push(@source_named_entity_classes, $named_entity_class);
+    push(@source_named_entity_marks, $named_entity_marks);
   }
   
-  my $joined = '~' . join('~', @source_named_entity_classes);
+  my $joined = '~' . join('~', @source_named_entity_marks);
 
   # maybe we will keep info about this source (if it contains nouns and has been recognized also by NameTag)  
   my @a_source_noun_nodes = grep {attr($_, 'upostag') eq 'NOUN'} @whole_source_nodes_dfo;
@@ -1142,54 +1345,54 @@ sub guess_source_type {
     }
   }
   
-  my $type = 'anonymous-partial'; # default
+  my $class = 'anonymous-partial'; # default
 
-  # print STDERR "guess_source_type: whole source joined classes='$joined', source root class='$source_root_NE_class'\n";
-  if ($source_root_NE_class eq 'gc') { # gc - state
-    $type = 'official-political';
+  # print STDERR "guess_source_type: whole source joined marks='$joined', source root marks='$source_root_NE_marks'\n";
+  if ($source_root_NE_marks =~ /\bgc\b/) { # gc - state
+    $class = 'official-political';
   }
   elsif ($source_root_lemma eq 'firma') {
-    $type = 'official-non-political';
+    $class = 'official-non-political';
   }
   elsif ($joined =~ /~sp/) { # sp - source anonymous-partial (fake NE class)
-    $type = 'anonymous-partial';
+    $class = 'anonymous-partial';
   }
   elsif ($joined =~ /~io/) { # io - government/political inst.
-    $type = 'official-political';
+    $class = 'official-political';
   }
   elsif ($joined =~ /~i/) { # i - Institutions
-    $type = 'official-non-political';
+    $class = 'official-non-political';
   }
   elsif ($joined =~ /~p/) { # p - Personal names
-    $type = 'unofficial';
+    $class = 'unofficial';
   }
   elsif ($joined =~ /~m[ns]/) { # mn - periodical, ms - radio and TV stations
-    $type = 'unofficial';
+    $class = 'unofficial';
   }
   elsif ($joined =~ /~sa/) { # sa - source anonymous (fake NE class)
-    $type = 'anonymous';
+    $class = 'anonymous';
   }
   elsif ($joined =~ /~su/) { # su - source unofficial (fake NE class)
-    $type = 'unofficial';
+    $class = 'unofficial';
   }
 
   my $full = get_source_base_form(@whole_source_nodes);
 
   if ($surname) { # first mention of the surname (possibly in a longer (full) source)
-    print STDERR "guess_source_type: There was a yet unseen surname ($surname) among the source nodes, let us remember it and its class ($type)\n";
-    $surname2class{lc($surname)} = $type;
+    print STDERR "guess_source_type: There was a yet unseen surname ($surname) among the source nodes, let us remember it and its class ($class)\n";
+    $surname2class{lc($surname)} = $class;
     $surname2full{lc($surname)} = $full;
-    $source2class{$full} = $type;
+    $source2class{$full} = $class;
     if ($should_be_counted) {
       $source2count{$full}++; # =1 would do the same
-      $class2count{$type}++;
+      $class2count{$class}++;
     }
     
     # storing the antecedent for pronouns
     my ($gender, $number) = get_gender_number_of_animate_source(@whole_source_nodes);
     if ($gender and $number) {
-      print STDERR "guess_source_type: Storing the class '$type' and the full source '$full' for resolving pronouns (gender $gender, number $number)\n";
-      $last_gender_number2class{$gender . '_' . $number} = $type;
+      print STDERR "guess_source_type: Storing the class '$class' and the full source '$full' for resolving pronouns (gender $gender, number $number)\n";
+      $last_gender_number2class{$gender . '_' . $number} = $class;
       $last_gender_number2full{$gender . '_' . $number} = $full;
     }
     
@@ -1198,54 +1401,68 @@ sub guess_source_type {
   # there was a NameTag mark for some of the source nodes
   elsif ($joined ne '~' and $source_noun_lemmas and not $noun_lemmas2class{$source_noun_lemmas}) { # if the source contains nouns (but not surnames) and has been recognized also by NameTag and we have not yet set this
     print STDERR "guess_source_type: There was a NameTag mark for some of the source nodes and the source contains a noun\n";
-    $noun_lemmas2class{$source_noun_lemmas} = $type;
+    $noun_lemmas2class{$source_noun_lemmas} = $class;
     $noun_lemmas2full{$source_noun_lemmas} = $full;
-    $source2class{$full} = $type; # it may have been set before but never mind
+    $source2class{$full} = $class; # it may have been set before but never mind
     if ($should_be_counted) {
       $source2count{$full}++;
-      $class2count{$type}++;
+      $class2count{$class}++;
     }
     # storing the antecedent for pronouns
     my ($gender, $number) = get_gender_number_of_animate_source(@whole_source_nodes);
     if ($gender and $number) {
-      print STDERR "guess_source_type: Storing the class '$type' and the full source '$full' for resolving pronouns (gender $gender, number $number)\n";
-      $last_gender_number2class{$gender . '_' . $number} = $type;
+      print STDERR "guess_source_type: Storing the class '$class' and the full source '$full' for resolving pronouns (gender $gender, number $number)\n";
+      $last_gender_number2class{$gender . '_' . $number} = $class;
       $last_gender_number2full{$gender . '_' . $number} = $full;
     }
 
   }
   else {
-    $source2class{$full} = $type;
+    $source2class{$full} = $class;
     if ($should_be_counted) {
       $source2count{$full}++;
-      $class2count{$type}++;
+      $class2count{$class}++;
     }
   }
 
-  # print STDERR "guess_source_type: $type\n";
+  # print STDERR "guess_source_type: $class\n";
   if ($add_NE) {
-    $type = "$joined:$type";
+    $class = "$joined:$class";
   }
-  return "$type";
+  return "$class";
 }
 
 
-sub get_NameTag_class {
+sub get_NameTag_marks {
   my $node = shift;
-  my $named_entity_class = get_misc_value($node, 'NE');
-  if ($named_entity_class) {
-    $named_entity_class =~ s/[^a-z]*([a-z][a-z_])_.*/$1/; # e.g., ps_1 -> ps
+  my $ne = get_misc_value($node, 'NE') // '';
+  if ($ne) {
+    my @values = $ne =~ /([A-Za-z][a-z_]?)_[0-9]+/g; # get an array of the marks
+    my $marks = join '~', @values;
+    # print STDERR "get_NameTag_marks: $ne -> $marks\n";
+    return $marks;
   }
-  return $named_entity_class // '';
+  return '';
 }
 
-sub get_NameTag_or_extra_NE_class {
+
+sub get_NameTag_and_extra_NE_marks {
   my $node = shift;
-  my $named_entity_class = get_NameTag_class($node);
-  if (!$named_entity_class) {
-    $named_entity_class = get_extra_NE_for_node($node);
+  my $named_entity_marks = get_NameTag_marks($node);
+  my $named_entity_extra_marks = get_extra_NE_for_node($node);
+  if ($named_entity_marks and $named_entity_extra_marks) {
+    return $named_entity_marks . '~' . $named_entity_extra_marks;
   }
-  return $named_entity_class // '';
+
+  if ($named_entity_marks) {
+    return $named_entity_marks;
+  }
+
+  if ($named_entity_extra_marks) {
+    return $named_entity_extra_marks;
+  }
+  
+  return '';
 }
 
 
@@ -1254,7 +1471,6 @@ sub get_NameTag_or_extra_NE_class {
 Checks children of a given node and returns a fake NE value for some obvious words, such as 'mluvčí', 'premiér' etc.
 Also gives fake NE value for significantly anonymous words (zdroj, pozorovatel, informace).
 
-=cut
 
 sub get_extra_NE {
   my $node = shift;
@@ -1268,12 +1484,15 @@ sub get_extra_NE {
   }  
 }
 
+=cut
+
+
 sub get_extra_NE_for_node {
   my $node = shift;
   my $lemma = attr($node, 'lemma');
   my $form = attr($node, 'form');
   if ($lemma =~ /^(mluvčí|velitel(ka)?|ředitel(ka)?|vedoucí|šéf(ka)?|soudce|soudkyně|soud|obžaloba|obhajoba|obhájce|obhájkyně|prokurátor(ka)?|obžalovaný|obžalovaná)$/) {
-    # print STDERR "get_extra_NE: found 'mluvčí etc.'\n";
+    # print STDERR "get_extra_NE_for_node: found 'mluvčí etc.'\n";
     return 'im'; # "institution - mluvčí"
   }
   if ($keywords_anonymous{$lemma}) {
@@ -1285,6 +1504,11 @@ sub get_extra_NE_for_node {
   if ($keywords_unofficial{$lemma}) {
     return 'su' # "source - unofficial"
   }
+
+  if (is_state($node)) { # e.g., Čína
+    return 'gc'; # "states"
+  }
+
   if ($lemma =~ /^premiér(ka)?$/) {
     return 'io'; # "institution - goverment, political"
   }
@@ -1312,8 +1536,10 @@ sub get_extra_NE_for_node {
   if ($lemma =~ /^ministerstvo$/) { # with small 'm'
     return 'io'; # "institution - goverment, political"
   }
+  
   my @children = $node->getAllChildren;
   my @children_lemmas = map {attr($_, 'lemma')} @children;
+  
   if ($lemma =~ /^(místo)?předsed(a|kyně)$/) {
     if (grep {/ministersk[ýá]/} @children_lemmas or grep {/^(vláda|parlament|sněmovna|senát)$/} @children_lemmas) {
       return 'io'; # "institution - goverment, political"
@@ -1322,12 +1548,12 @@ sub get_extra_NE_for_node {
       return 'im'; # "institution - mluvčí"
     }
   }
+  
   if ($lemma =~ /^prezident(ka)?$/) {
-    if (grep {/republika/} @children_lemmas) {
+    if (grep {/^(republika|stát|země)$/} @children_lemmas) {
       return 'io'; # "institution - goverment, political"
     }
-    
-    if (grep {get_NameTag_class($_) eq 'gc'} @children) { # e.g., Čína
+    if (grep {is_state($_)} @children) {
       return 'io'; # "institution - goverment, political"
     }
   }
@@ -1339,6 +1565,18 @@ sub get_extra_NE_for_node {
   }
 }
 
+sub is_state {
+  my $node = shift;
+  my $lemma = attr($node, 'lemma');
+  if ($states{$lemma}) {
+    return 1;
+  }
+  if (lc($lemma) eq 'republika') {
+    return 1;
+  }
+  # two- and more-word countries should˚ be solved here...
+  return 0;
+}
 
 =item get_gender_number_of_animate_source
 
