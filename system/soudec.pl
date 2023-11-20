@@ -19,7 +19,7 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER = '1.0 (20231114)'; # version of the program
+my $VER = '1.0 (20231120)'; # version of the program
 
 # lists of keywords to classify a source
 my %keywords_anonymous = ('zdroj' => 1,
@@ -1294,7 +1294,10 @@ sub get_extra_NE_for_node {
   if ($lemma eq 'radní') {
     return 'io'; # "institution - goverment, political"
   }
-  if ($lemma =~ /^(místo)?starost[k]a/) {
+  if ($lemma =~ /^(místo)?starost(k)?a/) {
+    return 'io'; # "institution - goverment, political"
+  }
+  if ($lemma =~ /^armáda$/) {
     return 'io'; # "institution - goverment, political"
   }
   my @children = $node->getAllChildren;
