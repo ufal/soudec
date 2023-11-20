@@ -1300,6 +1300,9 @@ sub get_extra_NE_for_node {
   if ($lemma =~ /^armáda$/) {
     return 'io'; # "institution - goverment, political"
   }
+  if ($lemma =~ /^ministerstvo$/) { # with small 'm'
+    return 'io'; # "institution - goverment, political"
+  }
   my @children = $node->getAllChildren;
   my @children_lemmas = map {attr($_, 'lemma')} @children;
   if ($lemma =~ /^(místo)?předsed(a|kyně)$/) {
