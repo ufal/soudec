@@ -1015,6 +1015,7 @@ sub guess_source_type {
   my @whole_source_nodes_dfo = sort_nodes_dfo(@whole_source_nodes);
   my $source_root = $whole_source_nodes_dfo[0];
   my $source_root_NE_class; # will be set in the following cycle
+  my $source_root_lemma = attr($source_root, 'lemma') // '';
   
   # Collect NameTag marks for all source nodes
   my @source_named_entity_classes = ();
@@ -1141,6 +1142,9 @@ sub guess_source_type {
   # print STDERR "guess_source_type: whole source joined classes='$joined', source root class='$source_root_NE_class'\n";
   if ($source_root_NE_class eq 'gc') { # gc - state
     $type = 'official-political';
+  }
+  elsif ($source_root_lemma eq 'firma') {
+    $type = 'official-non-political';
   }
   elsif ($joined =~ /~sp/) { # sp - source anonymous-partial (fake NE class)
     $type = 'anonymous-partial';
