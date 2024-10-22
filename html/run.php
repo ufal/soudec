@@ -1,7 +1,5 @@
 <?php $main_page=basename(__FILE__); require('header.php') ?>
 
-<?php require('about.html') ?>
-
 <script type="text/javascript"><!--
   var input_file_content = null;
   var output_file_content = null;
@@ -88,18 +86,42 @@
 
 --></script>
 
-<div class="panel panel-info">
-  <div class="panel-heading">Service</div>
-  <div class="panel-body">
+<div class="panel panel-default">
+  <div class="panel-heading" role="tab" id="aboutHeading">
+    <div class="collapsed" role="button" data-toggle="collapse" href="#aboutContent" aria-expanded="false" aria-controls="aboutContent">
+      <span class="glyphicon glyphicon-triangle-bottom" aria-hidden="true"></span> SouDeC is an on-line tool and REST API service for detecting and classifying citation sources in Czech texts.
+    </div>
+  </div>
+  <div id="aboutContent" class="panel-collapse collapse" role="tabpanel" aria-labelledby="aboutHeading">
 
-    <?php require('licence.html') ?>
-    <p>Please note that due to time limitations on our proxy server, the maximum length for input text is approximately 5 thousand words.</p>
+    <div style="margin: 5px"><?php require('about.html') ?></div>
 
+  </div>
+</div>
 
-    <div id="error" class="alert alert-danger" style="display: none"></div>
+  <div class="panel panel-default">
+    <div class="panel-heading" role="tab" id="serverInfoHeading">
+      <div class="collapsed" role="button" data-toggle="collapse" href="#serverInfoContent" aria-expanded="false" aria-controls="serverInfoContent">
+        <span class="glyphicon glyphicon-triangle-bottom" aria-hidden="true"></span> The service is freely available for testing (click for details). 
+      </div>
+    </div>
+    <div id="serverInfoContent" class="panel-collapse collapse" role="tabpanel" aria-labelledby="serverInfoHeading">
+
+      <div style="margin: 5px">
+
+        <?php require('licence.html') ?>
+        <p>Please note that due to time limitations on our proxy server, the maximum length for input text is approximately 5 thousand words.</p>
+
+        <div id="error" class="alert alert-danger" style="display: none"></div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= OPTIONS ================ -->
 
     <div class="form-horizontal">
-      <div class="form-group row">
+      <div class="form-group row" style="margin-top: 10px; margin-bottom: 0px">
         <label class="col-sm-2 control-label">Input:</label>
         <div class="col-sm-10">
           <label title="Tokenize input using a tokenizer" class="radio-inline" id="option_input_plaintext"><input name="option_input" type="radio" value="txt" checked/>Plain text</label>
