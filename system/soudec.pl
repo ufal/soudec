@@ -738,7 +738,7 @@ my %class2count = ();
 foreach my $root (@trees) {
   print STDERR "\n====================================================================\n";
   print STDERR "Sentence id=" . attr($root, 'id') . ": " . attr($root, 'text') . "\n";
-  print_children($root, "\t");
+  print_tree($root, "\t");
   
   my @nodes = descendants($root);
   $tokens_count += scalar(@nodes) - 1; # without the root
@@ -758,7 +758,7 @@ foreach my $root (@trees) {
         my @extraNE_nodes = grep {get_extra_NE_for_node($node)} @potential_all_source_nodes;
         if (scalar(@NE_nodes) or scalar(@extraNE_nodes)) { # any Named Entity or extra Named Entity assigned to any of the nodes?
           print STDERR "Found a potential independent source:\n";
-          my $whole_potential_source = get_text(@potential_all_source_nodes);
+          my $whole_potential_source = text(\@potential_all_source_nodes);
           print STDERR " - WHOLE POTENTIAL SOURCE: $whole_potential_source\n";
           my $source_type = guess_source_type($root, 0, @potential_all_source_nodes);
           print STDERR " - POTENTIAL SOURCE TYPE: $source_type\n";
@@ -784,7 +784,7 @@ foreach my $root (@trees) {
             my $parent = $node->getParent;
             my $source = attr($parent, 'form');
             my @whole_source_nodes = get_whole_source_nodes($parent);
-            my $whole_source = get_text(@whole_source_nodes);
+            my $whole_source = text(\@whole_source_nodes);
             print STDERR " - SOURCE parent: $source\n - WHOLE SOURCE: $whole_source\n";
             my $source_type = guess_source_type($root, 1, @whole_source_nodes);
             print STDERR "   - SOURCE TYPE: $source_type\n";
@@ -795,7 +795,7 @@ foreach my $root (@trees) {
             if (@nsubj) {
               my $subject = attr($nsubj[0], 'form');
               my @whole_source_nodes = get_whole_source_nodes($nsubj[0]);
-              my $whole_source = get_text(@whole_source_nodes);
+              my $whole_source = text(\@whole_source_nodes);
               print STDERR " - SOURCE nsubj: $subject\n - WHOLE SOURCE: $whole_source\n";
               my $source_type = guess_source_type($root, 1, @whole_source_nodes);
               print STDERR "   - SOURCE TYPE: $source_type\n";
@@ -2341,10 +2341,10 @@ sub evaluate_single_event {
   my ($event, $lemma, $constraint, $root, @nodes) = @_;
   
   my $range = get_range(@nodes);
-  my $text = get_text(@nodes);
+  my $text = text(\@nodes);
   
   if ($event eq 'phrase') {
-    $h_phrase_range2text{$range} = get_text(@nodes);
+    $h_phrase_range2text{$range} = text(\@nodes);
     if ($ann_file) { # evaluate the event against manual annotation
       if ($h_ann_phrase_range2text{$range}) {
         print_eval('EVALUATION-EXACT-PHRASE-HIT', $range, $text, '-', $range, $text, '-');
@@ -2367,7 +2367,7 @@ sub evaluate_single_event {
     }
   }
   else { # source
-    $h_source_range2text{$range} = get_text(@nodes);
+    $h_source_range2text{$range} = text(\@nodes);
     $h_source_range2type{$range} = $event;
     if ($ann_file) { # evaluate the event against manual annotation
       if ($h_ann_source_range2text{$range}) {
@@ -2492,19 +2492,6 @@ sub get_range {
 }
 
 
-=item get_text
-
-Given an array of nodes, it gives their surface text
-
-=cut
-
-sub get_text {
-  my @nodes = @_;
-  my @nodes_ordered = sort {attr($a, 'ord') <=> attr($b, 'ord')} @nodes;
-  my $text = join(' ', map {attr($_, 'form')} @nodes_ordered);
-  return $text;
-}
-
 
 =item get_whole_source
 
@@ -2593,54 +2580,6 @@ sub _create_structure {
 
 =cut
 
-# print children recursively
-sub print_children {
-    my ($node, $pre) = @_;
-    my @children = $node->getAllChildren();
-    foreach my $child (@children) {
-        my $ord = attr($child, 'ord') // 'no_ord';
-        my $form = attr($child, 'form') // 'no_form';
-        print STDERR "$ord$pre$form\n";
-        print_children($child, $pre . "\t");
-    }
-}
-
-######### Tree::Simple METHODS #########
-
-sub set_attr {
-  my ($node, $attr, $value) = @_;
-  my $refha_props = $node->getNodeValue();
-  $$refha_props{$attr} = $value;
-}
-
-sub attr {
-  my ($node, $attr) = @_;
-  my $refha_props = $node->getNodeValue();
-  return $$refha_props{$attr};
-}
-
-=item descendants
-
-Returns an array of nodes in the subtree of the given node (excluding the node), in the breadth-first-order ('do šířky')
-
-=cut
-
-sub descendants {
-  my $node = shift;
-  my @children = $node->getAllChildren;
-  foreach my $child ($node->getAllChildren) {
-    push (@children, descendants($child));
-  }
-  return @children;
-}
-  
-sub root {
-  my $node = shift;
-  while ($node->getParent) {
-    $node = $node->getParent;
-  }
-  return $node;
-}
 
 
 ######### PARSING THE TEXT WITH UDPIPE #########

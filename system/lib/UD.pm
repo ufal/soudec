@@ -2,17 +2,19 @@ package UD;
 
 use strict;
 use warnings;
-use Exporter 'import';  # Umožňuje export funkcí
+use Exporter 'import';  # Allows exporting functions
 use Tree::Simple;
 
-# Definice exportovaných funkcí
-# our @EXPORT_OK = qw();  # Funkce, které budou dostupné při importu, pokud specificky zmíněny
-our @EXPORT = qw(parse_conllu root descendants attr set_attr);  # Funkce, které budou dostupné při importu automaticky
+# Definitions of functions to be exported
+# our @EXPORT_OK = qw();  # Functions available at import if specifically mentioned
+our @EXPORT = qw(parse_conllu root descendants attr set_attr text misc_property feat_property member_of_array print_tree);  # Functions available at import automatically
+
 
 
 =item
 
-Parses the CONLL-U format into Tree::Simple tree structures (one tree per sentence)
+Parses the CONLL-U format into Tree::Simple tree structures (one tree per sentence).
+Returns an array of tree tree roots.
 
 =cut
 
@@ -180,15 +182,48 @@ sub _create_structure {
     }
 }
 
+=item
+
+# not used from Jan Štěpánek's UD TrEd extension:
+
+sub _create_multiword {
+    my ($n, $root, $misc, $form) = @_;
+    my ($from, $to) = split /-/, $n;
+    $root->{multiword} = 'Treex::PML::Factory'->createList([
+        @{ $root->{multiword} || [] },
+        'Treex::PML::Factory'->createStructure(
+            { nodes => 'Treex::PML::Factory'->createList([ $from .. $to ]),
+              misc => $misc,
+              form => $form}
+        )
+    ]);
+}
+
+=cut
 
 
 ######### Simple::Tree METHODS #########
+
+
+=item set_attr
+
+Set the value of the given attribute of the given node.
+
+=cut
 
 sub set_attr {
   my ($node, $attr, $value) = @_;
   my $refha_props = $node->getNodeValue();
   $$refha_props{$attr} = $value;
 }
+
+
+=item set_attr
+
+Return the value of the given attribute of the given node.
+
+=cut
+
 
 sub attr {
   my ($node, $attr) = @_;
@@ -215,17 +250,120 @@ sub descendants {
 }
 
 
+=item
+
+Return the root of the tree of the given node.
+
+=cut
+
 sub root {
   my $node = shift;
 
   my $parent = $node->getParent;
-#  while ($parent and $parent ne 'root' and $parent ne 'ROOT') { # to be sure - the documentation says 'ROOT', in practice its 'root'
   while ($parent and $parent ne 'root' and $parent ne 'ROOT') { # to be sure - the documentation says 'ROOT', in practice its 'root'
-    # mylog(0, "root: found a parent\n");
     $node = $parent;
     $parent = $node->getParent;
   }
   return $node;
+}
+
+
+
+=item text
+
+Given a reference to an array of nodes, give surface text they represent.
+
+=cut
+
+sub text {
+  my $aref_nodes = shift;
+  my @ord_sorted = sort {attr($a, 'ord') <=> attr($b, 'ord')} @$aref_nodes;
+  my $text = '';
+  my $space_before = '';
+  foreach my $token (@ord_sorted) {
+    # mylog(0, "surface_text: processing token " . attr($token, 'form') . "\n");
+    $text .= $space_before . attr($token, 'form');
+    my $SpaceAfter = misc_property($token, 'SpaceAfter') // '';
+    $space_before = $SpaceAfter eq 'No' ? '' : ' ';
+  }
+  return $text;
+}
+
+
+=item misc_property
+
+Returns a value of the given property from the misc attribute. Or undef.
+
+=cut
+
+sub misc_property {
+  my ($node, $property) = @_;
+  my $misc = attr($node, 'misc') // '';
+  # mylog(0, "misc_property: token='" . attr($node, 'form') . "', misc=$misc\n");
+  if ($misc =~ /$property=([^|]+)/) {
+    my $value = $1;
+    # mylog(0, "misc_property: $property=$value\n");
+    return $value;
+  }
+  return undef;
+}  
+
+
+
+=item feat_property
+
+Returns a value of the given property from the feats attribute. Or undef.
+
+=cut
+
+sub feat_property {
+  my ($node, $property) = @_;
+  my $feats = attr($node, 'feats') // '';
+  # mylog(0, "feat_property: feats=$feats\n");
+  if ($feats =~ /$property=([^|]+)/) {
+    my $value = $1;
+    # mylog(0, "feat_property: $property=$value\n");
+    return $value;
+  }
+  return undef;
+}  
+
+
+=item print_tree
+
+Simple recursive printing of a subtree of a given node. If a second parameter is given, it is used as a prefix for each output line.
+
+=cut
+
+sub print_tree {
+    my ($node, $pre) = @_;
+    $pre = '' unless defined $pre;
+    my @children = $node->getAllChildren();
+    foreach my $child (@children) {
+        my $ord = attr($child, 'ord') // 'no_ord';
+        my $form = attr($child, 'form') // 'no_form';
+	#mylog(0, "$ord$pre$form\n");
+	print STDERR "$ord$pre$form\n";
+        print_tree($child, $pre . "\t");
+    }
+}
+
+
+=item member_of_array
+
+Checks if a given scalar is a member of a given array (passed as a reference).
+
+=cut
+
+sub member_of_array {
+  my ($m, $aref) = @_;
+  return 0 if (!$m or !$aref);
+  foreach my $a (@$aref) {
+    if ($m eq $a) {
+      return 1;
+    }
+  }
+  return 0;
 }
 
 
