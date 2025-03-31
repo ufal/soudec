@@ -13,6 +13,10 @@ use POSIX qw(strftime); # naming a file with date and time
 use File::Basename; # to get a filename from the whole path
 use Time::HiRes qw(gettimeofday tv_interval); # to measure how long the program ran
 
+use FindBin qw($Bin);  # $Bin je adresář, kde je skript
+use lib "$Bin/lib";    # Absolutní cesta k lib
+use UD;
+
 # STDIN and STDOUT in UTF-8
 binmode STDIN, ':encoding(UTF-8)';
 binmode STDOUT, ':encoding(UTF-8)';
@@ -602,6 +606,10 @@ my $conll_data_ne = call_nametag($conll_data);
 # Let us parse the CONLL format into Tree::Simple tree structures (one tree per sentence)
 ###################################################################################
 
+my @trees = parse_conllu($conll_data_ne); # array of trees in the document
+
+=item
+
 my @lines = split("\n", $conll_data_ne);
 
 my @trees = (); # array of trees in the document
@@ -710,7 +718,7 @@ if ($root) {
 }
 # end of Jan Štěpánek's modified cycle for reading UD CONLL
 
-
+=cut
 
 ###################################################################################
 # Now we have dependency trees of the sentences; let us search for citation phrases
@@ -727,7 +735,7 @@ my %source2class = ();
 my %class2count = ();
 
 
-foreach $root (@trees) {
+foreach my $root (@trees) {
   print STDERR "\n====================================================================\n";
   print STDERR "Sentence id=" . attr($root, 'id') . ": " . attr($root, 'text') . "\n";
   print_children($root, "\t");
@@ -1766,7 +1774,7 @@ END_OUTPUT_HEAD
   my $SD_type = ''; # type of the event - P for phrases, S for sources
   my $SD_subtype = ''; # source type
   
-  foreach $root (@trees) {
+  foreach my $root (@trees) {
   
     # PARAGRAPH SEPARATION (txt, html)
     if (attr($root, 'newpar') and $format =~ /^(txt|html)$/) {
@@ -2195,7 +2203,7 @@ sub get_sentence {
   my $range = shift;
   if ($range =~ /^(\d+):(\d+)/) {
     my ($start, $end) = ($1, $2);
-    foreach $root (@trees) { # go through all sentences
+    foreach my $root (@trees) { # go through all sentences
       if (attr($root, 'start') <= $start and attr($root, 'end') >= $end) { # we found the tree
         return attr($root, 'text');
       }
@@ -2239,7 +2247,7 @@ sub get_sentence_html {
     my ($start, $end) = $end_auto > 0 ? ($start_auto, $end_auto) : ($start_manual, $end_manual); # for searching for the sentence
     print STDERR "get_sentence_html:     start = $start, end = $end\n";
 
-    foreach $root (@trees) { # go through all sentences
+    foreach my $root (@trees) { # go through all sentences
       my ($start_sent, $end_sent) = (attr($root, 'start'), attr($root, 'end'));
       if ($start_sent <= $start and $end_sent >= $end) { # we found the tree
         my $sentence_text = attr($root, 'text');
@@ -2561,6 +2569,7 @@ sub get_source_base_form {
   return $source;
 }
 
+=item
 
 # the following function is modified from Jan Štěpánek's UD TrEd extension
 sub _create_structure {
@@ -2581,6 +2590,8 @@ sub _create_structure {
         }
     }
 }
+
+=cut
 
 # print children recursively
 sub print_children {
