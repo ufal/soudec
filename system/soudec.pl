@@ -16,6 +16,7 @@ use Time::HiRes qw(gettimeofday tv_interval); # to measure how long the program 
 use FindBin qw($Bin);  # $Bin je adresář, kde je skript
 use lib "$Bin/lib";    # Absolutní cesta k lib
 use UD;
+use mylog;
 
 # STDIN and STDOUT in UTF-8
 binmode STDIN, ':encoding(UTF-8)';
@@ -23,7 +24,11 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER = '1.0 (20231120)'; # version of the program
+my $VER = '1.0 (20250402)'; # version of the program
+
+$mylog::logging_level = 2; # default log level, can be changed using the -ll parameter (0=full, 1=limited, 2=minimal)
+
+my %logging_level_label = (0 => 'full', 1 => 'limited', 2 => 'minimal');
 
 # lists of keywords to classify a source
 my %keywords_anonymous = ('zdroj' => 1,
@@ -303,6 +308,7 @@ my $add_NE;
 my $add_antecedent;
 my $store_format;
 my $store_statistics;
+my $logging_level_override;
 my $version;
 my $help;
 
@@ -320,10 +326,14 @@ GetOptions(
     'aa|add-antecedent'    => \$add_antecedent, # add the antecedent if coreference is used to determine the class
     'sf|store-format=s'    => \$store_format, # log the result in the given format: txt, html, conllu
     'ss|store-statistics'  => \$store_statistics, # should the statistics be logged as an HTML file?
+    'll|logging-level=s'     => \$logging_level_override, # override the default (minimal) logging level (0=full, 1=limited, 2=minimal)
     'v|version'            => \$version, # print the version of the program and exit
     'h|help'               => \$help, # print a short help and exit
 );
 
+if (defined($logging_level_override)) {
+  $mylog::logging_level = $logging_level_override;
+}
 
 my $script_path = $0;  # Získá název spuštěného skriptu s cestou
 my $script_dir = dirname($script_path);  # Získá pouze adresář ze získané cesty
@@ -350,6 +360,7 @@ options:  -i|--input-file [input text file name]
          -aa|--add-antecedent (add the antecedent if coreference is used to determine the class)
          -sf|--store-format [format: log the output in the given format: txt, html, conllu]
          -ss|--store-statistics (log SouDeC statistics to an HTML file)
+         -ll|--logging-level (override the default (minimal) logging level (0=full, 1=limited, 2=minimal))
           -v|--version (prints the version of the program and ends)
           -h|--help (prints a short help and ends)
 END_TEXT
@@ -361,90 +372,96 @@ END_TEXT
 # Summarize the program arguments to the log (except for --version and --help)
 ###################################################################################
 
-print STDERR "\n####################################################################\n";
+mylog(2, "####################################################################\n");
+mylog(2, "SouDec $VER (logging level: $mylog::logging_level - $logging_level_label{$mylog::logging_level})\n");
+mylog(2, "####################################################################\n");
 
-print STDERR "Arguments:\n";
+mylog(0, "Arguments:\n");
 
 if ($stdin) {
-  print STDERR " - input: STDIN\n";
+  mylog(0, " - input: STDIN\n");
 }
 elsif ($input_file) {
-  print STDERR " - input: file $input_file\n";
+  mylog(0, " - input: file $input_file\n");
 }
 
 if (!defined $input_format) {
-  print STDERR " - input format: not specified, set to default $INPUT_FORMAT_DEFAULT\n";
+  mylog(0, " - input format: not specified, set to default $INPUT_FORMAT_DEFAULT\n");
   $input_format = $INPUT_FORMAT_DEFAULT;
 }
 elsif ($input_format !~ /^(txt|presegmented)$/) {
-  print STDERR " - input format: unknown ($input_format), set to default $INPUT_FORMAT_DEFAULT\n";
+  mylog(0, " - input format: unknown ($input_format), set to default $INPUT_FORMAT_DEFAULT\n");
   $input_format = $INPUT_FORMAT_DEFAULT;
 }
 else {
-  print STDERR " - input format: $input_format\n";
+  mylog(0, " - input format: $input_format\n");
 }
 
 if ($ann_file) {
-  print STDERR " - file with manual annotation: $ann_file\n";  
+  mylog(0, " - file with manual annotation: $ann_file\n");  
 }
 
 if (!defined $phrase_reliability_file) {
-  print STDERR " - phrase reliability file: not specified, set to default $PHRASE_RELIABILITY_FILE_DEFAULT\n";
+  mylog(0, " - phrase reliability file: not specified, set to default $PHRASE_RELIABILITY_FILE_DEFAULT\n");
   $phrase_reliability_file = "$script_dir/$PHRASE_RELIABILITY_FILE_DEFAULT";
 }
 else {
-  print STDERR " - phrase reliability file: $phrase_reliability_file\n";
+  mylog(0, " - phrase reliability file: $phrase_reliability_file\n");
 }
 
 if (!defined $min_phrase_reliability) {
-  print STDERR " - min. phrase reliability: not specified, set to default $MIN_RELIABILITY_DEFAULT\n";
+  mylog(0, " - min. phrase reliability: not specified, set to default $MIN_RELIABILITY_DEFAULT\n");
   $min_phrase_reliability = $MIN_RELIABILITY_DEFAULT;
 }
 else {
-  print STDERR " - min. phrase reliability: $min_phrase_reliability\n";
+  mylog(0, " - min. phrase reliability: $min_phrase_reliability\n");
 }
 
 $output_format = lc($output_format) if $output_format;
 if (!defined $output_format) {
-  print STDERR " - output format: not specified, set to default $OUTPUT_FORMAT_DEFAULT\n";
+  mylog(0, " - output format: not specified, set to default $OUTPUT_FORMAT_DEFAULT\n");
   $output_format = $OUTPUT_FORMAT_DEFAULT;
 }
 elsif ($output_format !~ /^(txt|html|conllu)$/) {
-  print STDERR " - output format: unknown ($output_format), set to default $OUTPUT_FORMAT_DEFAULT\n";
+  mylog(0, " - output format: unknown ($output_format), set to default $OUTPUT_FORMAT_DEFAULT\n");
   $output_format = $OUTPUT_FORMAT_DEFAULT;
 }
 else {
-  print STDERR " - output format: $output_format\n";
+  mylog(0, " - output format: $output_format\n");
 }
 
 if ($output_statistics) {
-  print STDERR " - add SouDeC statistics to the output; output will be JSON with two items: data (in $output_format) and stats (in HTML)\n";
+  mylog(0, " - add SouDeC statistics to the output; output will be JSON with two items: data (in $output_format) and stats (in HTML)\n");
 }
 
 if ($add_NE) {
-  print STDERR " - add named entities as marked by NameTag to classes in the output\n";
+  mylog(0, " - add named entities as marked by NameTag to classes in the output\n");
 }
 
 if ($add_antecedent) {
-  print STDERR " - add the antecedent to the classes in the output if coreference is used to determine the class\n";
+  mylog(0, " - add the antecedent to the classes in the output if coreference is used to determine the class\n");
 }
 
 $store_format = lc($store_format) if $store_format;
 if ($store_format) {
   if ($store_format =~ /^(txt|html|conllu)$/) {
-    print STDERR " - log the output to a file in $store_format\n";
+    mylog(0, " - log the output to a file in $store_format\n");
   }
   else {
-    print STDERR " - unknown format for logging the output ($store_format); the output will not be logged\n";
+    mylog(0, " - unknown format for logging the output ($store_format); the output will not be logged\n");
     $store_format = undef;
   }
 }
 
 if ($store_statistics) {
-  print STDERR " - log SouDeC statistics in an HTML file\n";
+  mylog(0, " - log SouDeC statistics in an HTML file\n");
 }
 
-print STDERR "\n";
+if (defined($logging_level_override)) {
+  mylog(2, " - logging level override: $logging_level_override - $logging_level_label{$logging_level_override}\n");
+}
+
+mylog(0, "\n");
 
 ###################################################################################
 # Let us first read the file with reliability of citation phrases
@@ -453,7 +470,7 @@ print STDERR "\n";
 my %phrase_lemma_constraint2reliability; # reliability of the phrase lemmas together with a constraint in percents (in how many percents it was used in training data as a citation phrase); the phrase lemma is separated by '_' from the constraint
 my %phrase_lemma2constraints; # which constraints does the phrase require (if any); the individual constraints are separated by '_'; an empty constraint is represented by 'NoConstraint'
 
-print STDERR "Reading phrase lemmas and their reliability from $phrase_reliability_file\n";
+mylog(1, "Reading phrase lemmas and their reliability from $phrase_reliability_file\n");
 
 open (PHRASES, '<:encoding(utf8)', $phrase_reliability_file)
   or die "Could not open file '$phrase_reliability_file' for reading: $!";
@@ -470,19 +487,19 @@ while (<PHRASES>) {
     my $reliability = $used_as_citation_phrase / $all_occurrences;
     my $reliability_percent = 100 * sprintf("%.2f", $reliability);
     $phrase_lemma_constraint2reliability{$lemma . '_' . $constraint} = $reliability_percent;
-    print STDERR "Phrase $lemma (with constraint $constraint) and reliability $reliability_percent\n";
+    mylog(0, "Phrase $lemma (with constraint $constraint) and reliability $reliability_percent\n");
     $phrases_count++;
     if ($phrase_lemma2constraints{$lemma}) { # if there already was a constraint for this lemma
-      print STDERR "Note: multiple constraints for lemma $lemma.\n";
+      mylog(0, "Note: multiple constraints for lemma $lemma.\n");
       $phrase_lemma2constraints{$lemma} .= "_";
     }
     $phrase_lemma2constraints{$lemma} .= $constraint;
   }
   else {
-    print STDERR "Unknown format of a line in file $phrase_reliability_file:\n$line\n";
+    mylog(0, "Unknown format of a line in file $phrase_reliability_file:\n$line\n");
   }
 }
-print STDERR "$phrases_count phrase lemmas (plus a constraint) have been read from file $phrase_reliability_file:\n";
+mylog(1, "$phrases_count phrase lemmas (plus a constraint) have been read from file $phrase_reliability_file:\n");
 
 
 ###################################################################################
@@ -519,7 +536,7 @@ my %h_source_range2type;
 
 
 if ($ann_file) {
-  print STDERR "Reading manual annotation from $ann_file\n";
+  mylog(1, "Reading manual annotation from $ann_file\n");
 
   open my $ann_handle, '<:encoding(utf8)', $ann_file
     or die "Cannot open file '$ann_file' for reading: $!";
@@ -538,13 +555,13 @@ if ($ann_file) {
     }
   }
   close($ann_handle);
-  print STDERR " - PHRASES:\n";
+  mylog(0, " - PHRASES:\n");
   foreach my $range (keys(%h_ann_phrase_range2text)) {
-    print STDERR "   - $range - $h_ann_phrase_range2text{$range}\n";
+    mylog(0, "   - $range - $h_ann_phrase_range2text{$range}\n");
   }
-  print STDERR " - SOURCES:\n";
+  mylog(0, " - SOURCES:\n");
   foreach my $range (keys(%h_ann_source_range2text)) {
-    print STDERR "   - $range - $h_ann_source_range2text{$range} - $h_ann_source_range2type{$range}\n";
+    mylog(0, "   - $range - $h_ann_source_range2text{$range} - $h_ann_source_range2type{$range}\n");
   }
 }
 
@@ -571,18 +588,18 @@ if ($stdin) { # the input text should be read from STDIN
   close $file_handle;
 
 } else {
-  print STDERR "No input to process! Exiting!\n";
+  mylog(2, "No input to process! Exiting!\n");
   exit -1;
 }
 
-#print STDERR $input_content;
+#mylog(0, $input_content);
 
 
 ###################################################################################
 # Let us parse the file using UDPipe REST API
 ###################################################################################
 
-my $conll_data = call_udpipe($input_content);
+my $conll_data = call_udpipe($input_content, 'cs', $input_format, 'all');
 
 # Store the result to a file (just to have it, not needed for further processing)
 #  open(OUT, '>:encoding(utf8)', "$input_file.conll") or die "Cannot open file '$input_file.conll' for writing: $!";
@@ -608,117 +625,7 @@ my $conll_data_ne = call_nametag($conll_data);
 
 my @trees = parse_conllu($conll_data_ne); # array of trees in the document
 
-=item
 
-my @lines = split("\n", $conll_data_ne);
-
-my @trees = (); # array of trees in the document
-
-my $root; # a single root
-
-my $min_start = 10000; # from indexes of the tokens, we will get indexes of the sentence
-my $max_end = 0;
-
-my $multiword = ''; # store a multiword line to keep with the following token
-
-# the following cycle for reading UD CONLL is modified from Jan Štěpánek's UD TrEd extension
-foreach my $line (@lines) {
-    chomp($line);
-    #print STDERR "Line: $line\n";
-    if ($line =~ /^#/ && !$root) {
-        $root = Tree::Simple->new({}, Tree::Simple->ROOT);
-        #print STDERR "Beginning of a new sentence!\n";
-    }
-
-    if ($line =~ /^#\s*newdoc/) { # newdoc
-        set_attr($root, 'newdoc', $line); # store the whole line incl. e.g. id = ...
-    } elsif ($line =~ /^#\s*newpar/) { # newpar
-        set_attr($root, 'newpar', $line); # store the whole line incl. e.g. id = ...
-    } elsif ($line =~ /^#\s*sent_id\s=\s*(\S+)/) {
-        my $sent_id = $1; # substr $sent_id, 0, 0, 'PML-' if $sent_id =~ /^(?:[0-9]|PML-)/;
-        set_attr($root, 'id', $sent_id);
-    } elsif ($line =~ /^#\s*text\s*=\s*(.*)/) {
-        set_attr($root, 'text', $1);
-        #print STDERR "Reading sentence '$1'\n";
-    } elsif ($line =~ /^#/) { # other comment, store it as well (all other comments in one attribute other_comment with newlines included)
-        my $other_comment_so_far = attr($root, 'other_comment') // '';
-        set_attr($root, 'other_comment', $other_comment_so_far . $line . "\n");
-        
-    } elsif ($line =~ /^$/) { # empty line, i.e. end of a sentence
-        _create_structure($root);
-        set_attr($root, 'start', $min_start);
-        set_attr($root, 'end', $max_end);
-        $min_start = $min_start = 10000;
-        $max_end = 0;
-        push(@trees, $root);
-        #print STDERR "End of sentence id='" . attr($root, 'id') . "'.\n\n";
-        $root = undef;
-
-    } else { # a token
-        my ($n, $form, $lemma, $upos, $xpos, $feats, $head, $deprel,
-            $deps, $misc) = split (/\t/, $line);
-        $_ eq '_' and undef $_
-            for $xpos, $feats, $deps, $misc;
-
-        # $misc = 'Treex::PML::Factory'->createList( [ split /\|/, ($misc // "") ]);
-        #if ($n =~ /-/) {
-        #    _create_multiword($n, $root, $misc, $form);
-        #    next
-        #}
-        if ($n =~ /-/) { # a multiword line, store it to keep with the next token
-          $multiword = $line;
-          next;
-        }
-        
-        #$feats = _create_feats($feats);
-        #$deps = [ map {
-        #    my ($parent, $func) = split /:/;
-        #    'Treex::PML::Factory'->createContainer($parent,
-        #                                            {func => $func});
-        #} split /\|/, ($deps // "") ];
-
-        my $node = Tree::Simple->new({});
-        set_attr($node, 'ord', $n);
-        set_attr($node, 'form', $form);
-        set_attr($node, 'lemma', $lemma);
-        set_attr($node, 'deprel', $deprel);
-        set_attr($node, 'upostag', $upos);
-        set_attr($node, 'xpostag', $xpos);
-        set_attr($node, 'feats', $feats);
-        set_attr($node, 'deps', $deps); # 'Treex::PML::Factory'->createList($deps),
-        set_attr($node, 'misc', $misc);
-        set_attr($node, 'head', $head);
-        
-        if ($multiword) { # the previous line was a multiword, store it at the current token
-          set_attr($node, 'multiword', $multiword);
-          $multiword = '';
-        }
-        
-        if ($misc and $misc =~ /TokenRange=(\d+):(\d+)\b/) {
-          my ($start, $end) = ($1, $2);
-          set_attr($node, 'start', $start);
-          set_attr($node, 'end', $end);
-          $min_start = $start if $start < $min_start;
-          $max_end = $end if $end > $max_end;          
-        }
-        
-        $root->addChild($node);
-        
-    }
-}
-# If there wasn't an empty line at the end of the file, we need to process the last tree here:
-if ($root) {
-    _create_structure($root);
-    set_attr($root, 'start', $min_start);
-    set_attr($root, 'end', $max_end);
-    push(@trees, $root);
-    #print STDERR "End of sentence id='" . attr($root, 'id') . "'.\n\n";
-    $root = undef;
-    #warn "Emtpy line missing at the end of input\n";
-}
-# end of Jan Štěpánek's modified cycle for reading UD CONLL
-
-=cut
 
 ###################################################################################
 # Now we have dependency trees of the sentences; let us search for citation phrases
@@ -736,8 +643,9 @@ my %class2count = ();
 
 
 foreach my $root (@trees) {
-  print STDERR "\n====================================================================\n";
-  print STDERR "Sentence id=" . attr($root, 'id') . ": " . attr($root, 'text') . "\n";
+  mylog(0, "\n");
+  mylog(0, "====================================================================\n");
+  mylog(0, "Sentence id=" . attr($root, 'id') . ": " . attr($root, 'text') . "\n");
   print_tree($root, "\t");
   
   my @nodes = descendants($root);
@@ -748,35 +656,35 @@ foreach my $root (@trees) {
     my $constraints = $phrase_lemma2constraints{$lemma};
 
     if (!$constraints) { # the lemma is not among citation phrases
-      print STDERR "No constraints for lemma '$lemma', skipping.\n";
+      mylog(0, "No constraints for lemma '$lemma', skipping.\n");
       # Let us check if it is a root node of a source (potentially without citation, e.g. "Požádali jsme o názor ředitele firmy.")
-      print STDERR "Checking if it is a root node of a source (potentially without citation).\n";
+      mylog(0, "Checking if it is a root node of a source (potentially without citation).\n");
       if (attr($node, 'upostag') eq 'NOUN' and attr($node, 'deprel') =~ /^(nsubj|obj|obl)/) { # it might be a root of a source
-        print STDERR " - it is a noun (nsubj, obj, obl).\n";
+        mylog(0, " - it is a noun (nsubj, obj, obl).\n");
         my @potential_all_source_nodes = get_whole_source_nodes($node);
         my @NE_nodes = grep {get_misc_value($_, 'NE')} @potential_all_source_nodes;
         my @extraNE_nodes = grep {get_extra_NE_for_node($node)} @potential_all_source_nodes;
         if (scalar(@NE_nodes) or scalar(@extraNE_nodes)) { # any Named Entity or extra Named Entity assigned to any of the nodes?
-          print STDERR "Found a potential independent source:\n";
+          mylog(0, "Found a potential independent source:\n");
           my $whole_potential_source = text(\@potential_all_source_nodes);
-          print STDERR " - WHOLE POTENTIAL SOURCE: $whole_potential_source\n";
+          mylog(0, " - WHOLE POTENTIAL SOURCE: $whole_potential_source\n");
           my $source_type = guess_source_type($root, 0, @potential_all_source_nodes);
-          print STDERR " - POTENTIAL SOURCE TYPE: $source_type\n";
+          mylog(0, " - POTENTIAL SOURCE TYPE: $source_type\n");
         }
       }
       next; 
     }
     foreach my $constraint (split(/_/, $constraints)) { # split the constraints by separator '_' and work with one constraint at a time
       my $reliability = $phrase_lemma_constraint2reliability{$lemma . '_' . $constraint} // 0;
-      print STDERR "Testing phrase lemma (constraint) '$lemma ($constraint)' with reliability $reliability\n";
+      mylog(0, "Testing phrase lemma (constraint) '$lemma ($constraint)' with reliability $reliability\n");
 
       my ($claim_parent, @phrase_nodes) = check_constraint($node, $lemma, $constraint); # check if the constraint is met (e.g., se/si is present) and return the expected parent of the claim and all nodes belonging to the phrase; empty constraint is represented by 'NoConstraint'
       if (!$claim_parent) {
-        print STDERR "- the constraint '$constraint' for lemma '$lemma' is not met.\n";
+        mylog(0, "- the constraint '$constraint' for lemma '$lemma' is not met.\n");
         next;
       }
       if ($reliability >= $min_phrase_reliability) {
-        print STDERR " - reliability of lemma '$lemma' with constraint '$constraint' is greater than threshold $min_phrase_reliability\n";
+        mylog(0, " - reliability of lemma '$lemma' with constraint '$constraint' is greater than threshold $min_phrase_reliability\n");
         # Checking if there is something like a claim, i.e. a finite-verb core object 
         if (has_finite_verb_object($claim_parent)) {
           evaluate_single_event('phrase', $lemma, $constraint, $root, @phrase_nodes);
@@ -785,9 +693,9 @@ foreach my $root (@trees) {
             my $source = attr($parent, 'form');
             my @whole_source_nodes = get_whole_source_nodes($parent);
             my $whole_source = text(\@whole_source_nodes);
-            print STDERR " - SOURCE parent: $source\n - WHOLE SOURCE: $whole_source\n";
+            mylog(0, " - SOURCE parent: $source\n - WHOLE SOURCE: $whole_source\n");
             my $source_type = guess_source_type($root, 1, @whole_source_nodes);
-            print STDERR "   - SOURCE TYPE: $source_type\n";
+            mylog(0, "   - SOURCE TYPE: $source_type\n");
             evaluate_single_event($source_type, $lemma, 'N/A', $root, @whole_source_nodes);
           }
           else {
@@ -796,15 +704,15 @@ foreach my $root (@trees) {
               my $subject = attr($nsubj[0], 'form');
               my @whole_source_nodes = get_whole_source_nodes($nsubj[0]);
               my $whole_source = text(\@whole_source_nodes);
-              print STDERR " - SOURCE nsubj: $subject\n - WHOLE SOURCE: $whole_source\n";
+              mylog(0, " - SOURCE nsubj: $subject\n - WHOLE SOURCE: $whole_source\n");
               my $source_type = guess_source_type($root, 1, @whole_source_nodes);
-              print STDERR "   - SOURCE TYPE: $source_type\n";
+              mylog(0, "   - SOURCE TYPE: $source_type\n");
               evaluate_single_event($source_type, $lemma, 'N/A', $root, @whole_source_nodes);
             }
           }
         }
         else {
-          print STDERR "   - no finite-verb core object found!\n";
+          mylog(0, "   - no finite-verb core object found!\n");
         }
       }
     }
@@ -893,7 +801,7 @@ Otherwise returns the expected parent of the claim and all nodes belonging to th
 sub check_constraint {
   my ($node, $lemma, $constraint) = @_;
 
-  print STDERR "check_constraint: checking constraint '$constraint'\n";
+  mylog(0, "check_constraint: checking constraint '$constraint'\n");
 
   my $claim_parent;
   my @phrase_nodes = ($node);
@@ -902,22 +810,22 @@ sub check_constraint {
   
   my $xpostag = attr($node, 'xpostag') // '';
   if ($constraint and $constraint eq 'PREP' and $xpostag =~ /^R/) {
-    print STDERR " - PREP, constraint OK\n";
+    mylog(0, " - PREP, constraint OK\n");
     return ($node, @phrase_nodes);
   }
  
   # check morphological properties of the node:
   my $feats = attr($node, 'feats') // '';
-  print STDERR "check_constraint: checking morphology: feats='$feats'\n";
+  mylog(0, "check_constraint: checking morphology: feats='$feats'\n");
   if ($feats =~ /\bVerbForm=Inf\b/) { # We do not want infinitive
-    print STDERR " - we do not want infinitive, returning undef\n";
+    mylog(0, " - we do not want infinitive, returning undef\n");
     return undef;
   }
-  print STDERR " - morphology OK\n";
+  mylog(0, " - morphology OK\n");
   #return undef if $feats =~ /\bPolarity=Neg\b/; # We do not want negation
 
   if ($constraint eq 'NoConstraint') { # no constraint, i.e. trivially matched
-    print STDERR " - no constraint, i.e. trivially matched\n";
+    mylog(0, " - no constraint, i.e. trivially matched\n");
     return ($node, @phrase_nodes);
   }
 
@@ -925,35 +833,35 @@ sub check_constraint {
   my @children = $node->getAllChildren;
   my @required_children_forms_lc = split('\|', $constraint); # get the individul required children (possibly with '!')
   foreach my $required_child_form_lc (@required_children_forms_lc) {
-    print STDERR " - checking if '$required_child_form_lc' is present/fulfilled\n";
+    mylog(0, " - checking if '$required_child_form_lc' is present/fulfilled\n");
     if ($required_child_form_lc eq 'POSTPOS') { # the attribution is in post position, i.e. the claim is the parent (i.e. a child of the grandparent)
       if ($deprel ne 'conj') {
-        print STDERR " - constraint POSTPOS but deprel is not 'conj'; returning undef\n";
+        mylog(0, " - constraint POSTPOS but deprel is not 'conj'; returning undef\n");
         return undef;
       }
       # check the order
       my $phrase_ord = attr($node, 'ord');
       my $parent_ord = attr($node->getParent, 'ord');
       if ($phrase_ord < $parent_ord) {
-        print STDERR " - constraint POSTPOS but parent is to the right; returning undef\n";
+        mylog(0, " - constraint POSTPOS but parent is to the right; returning undef\n");
         return undef;
       }
-      print STDERR " - constraint POSTPOS, setting the grandparent as the parent of claim\n";
+      mylog(0, " - constraint POSTPOS, setting the grandparent as the parent of claim\n");
       $claim_parent = $node->getParent->getParent;
     }
     elsif ($required_child_form_lc eq 'ANTEPOS') { # the attribution is in ante position, i.e. the claim is the parent (i.e. a child of the grandparent)
       if ($deprel ne 'csubj' and $deprel ne 'csubj:pass') {
-        print STDERR " - constraint ANTEPOS but deprel is not 'csubj' or 'csubj:pass'; returning undef\n";
+        mylog(0, " - constraint ANTEPOS but deprel is not 'csubj' or 'csubj:pass'; returning undef\n");
         return undef;
       }
       # check the order
       my $phrase_ord = attr($node, 'ord');
       my $parent_ord = attr($node->getParent, 'ord');
       if ($phrase_ord > $parent_ord) {
-        print STDERR " - constraint ANTEPOS but parent is to the left; returning undef\n";
+        mylog(0, " - constraint ANTEPOS but parent is to the left; returning undef\n");
         return undef;
       }
-      print STDERR " - constraint ANTEPOS, setting the grandparent as the parent of claim\n";
+      mylog(0, " - constraint ANTEPOS, setting the grandparent as the parent of claim\n");
       $claim_parent = $node->getParent->getParent;
     }
     elsif ($required_child_form_lc =~ /^(\S+)-(\S+)$/) { # a hierarchy required (e.g. 'za-to' in 'má za to')
@@ -962,7 +870,7 @@ sub check_constraint {
       $child_form_lc =~ s/!//;      
       my @good_children = grep {$child_form_lc eq lc(attr($_, 'form'))} @children;
       if (!@good_children) {
-        print STDERR " - constraint not matched (no good children), returning undef\n";
+        mylog(0, " - constraint not matched (no good children), returning undef\n");
         return undef;
       }
       my $good_child = $good_children[0]; # I doubt there might be more
@@ -974,7 +882,7 @@ sub check_constraint {
       $grandchild_form_lc =~ s/!//;      
       my @good_grandchildren = grep {$grandchild_form_lc eq lc(attr($_, 'form'))} $good_child->getAllChildren;
       if (!@good_grandchildren) {
-        print STDERR " - constraint not matched (no good grandchildren), returning undef\n";
+        mylog(0, " - constraint not matched (no good grandchildren), returning undef\n");
         return undef;
       }
       my $good_grandchild = $good_grandchildren[0]; # I doubt there might be more
@@ -988,7 +896,7 @@ sub check_constraint {
       $required_child_form_lc =~ s/!//;
       my @good_children = grep {$required_child_form_lc eq lc(attr($_, 'form'))} @children;
       if (!@good_children) {
-        print STDERR " - constraint not matched (no good children), returning undef\n";
+        mylog(0, " - constraint not matched (no good children), returning undef\n");
         return undef;
       }
       my $good_child = $good_children[0]; # I doubt there might be more
@@ -998,7 +906,7 @@ sub check_constraint {
       }
     }
   }
-  print STDERR " - OK, constraint matched.\n";
+  mylog(0, " - OK, constraint matched.\n");
   if (!$claim_parent) { # no special claim parent was set
     $claim_parent = $node;
   }
@@ -1015,7 +923,7 @@ Checks if the given node represents a finite verb
 sub is_finite {
   my $node = shift;
   my $VerbForm = get_feat_value($node, 'VerbForm') // '';
-  # print STDERR "is_finite: VerbForm = '$VerbForm'\n";
+  # mylog(0, "is_finite: VerbForm = '$VerbForm'\n");
   if ($VerbForm and $VerbForm ne 'Inf') {
     return 1;
   }
@@ -1066,10 +974,10 @@ sub has_finite_verb_object {
     my $parent_ord = attr($parent, 'ord');
     my @parent_right_brothers = grep {attr($_, 'ord') > $parent_ord} $grandparent->getAllChildren;
     if (@parent_right_brothers) {
-      print STDERR " - has_finite_verb_object: case 'podle' OK (a claim found)\n";
+      mylog(0, " - has_finite_verb_object: case 'podle' OK (a claim found)\n");
       return 1;
     }
-    print STDERR " - has_finite_verb_object: case 'podle' - no claim found\n";
+    mylog(0, " - has_finite_verb_object: case 'podle' - no claim found\n");
     return 0;
   }
   # Second, let us search for a claim among the children
@@ -1077,20 +985,20 @@ sub has_finite_verb_object {
                                     grep {is_finite($_)}
                                     $node->getAllChildren;
   if (@finite_verb_object_children) {
-    print STDERR " - has_finite_verb_object: OK (a finite claim found among children: " . attr($finite_verb_object_children[0], 'form') . ")\n";
+    mylog(0, " - has_finite_verb_object: OK (a finite claim found among children: " . attr($finite_verb_object_children[0], 'form') . ")\n");
     return 1;
   }
   my @clausal_object_children = grep {attr($_, 'deprel') =~ /^(ccomp)$/}
                                     $node->getAllChildren;
   if (@clausal_object_children) {
-    print STDERR " - has_finite_verb_object: OK (a clausal claim found among children: " . attr($clausal_object_children[0], 'form') . ")\n";
+    mylog(0, " - has_finite_verb_object: OK (a clausal claim found among children: " . attr($clausal_object_children[0], 'form') . ")\n");
     return 1;
   }
 
   # Third, the claim might also be in a parataxis position ("Jak už vědci uvedli při prvním kole vykopávek, jde pro ně o záhadu.")
   if (attr($node, 'deprel') and attr($node, 'deprel') eq 'parataxis') {
     if (is_finite($parent)) {
-      print STDERR " - has_finite_verb_object: OK (a claim found in a parataxis position): " . attr($parent, 'form') . ")\n";
+      mylog(0, " - has_finite_verb_object: OK (a claim found in a parataxis position): " . attr($parent, 'form') . ")\n");
       return 1;
     }
   }
@@ -1099,7 +1007,7 @@ sub has_finite_verb_object {
     my @children_with_o = grep {has_child_with_lemma($_, 'o')}
                           $node->getAllChildren;
     if (@children_with_o) {
-      print STDERR " - has_finite_verb_object: case 'o' OK (a claim found)\n";
+      mylog(0, " - has_finite_verb_object: case 'o' OK (a claim found)\n");
       return 1;
     }    
   }
@@ -1107,13 +1015,13 @@ sub has_finite_verb_object {
   my @children_with_excl = grep {has_child_with_lemma($_, '!')}
                            $node->getAllChildren;
   if (@children_with_excl) {
-    print STDERR " - has_finite_verb_object: case '!' OK (a claim found)\n";
+    mylog(0, " - has_finite_verb_object: case '!' OK (a claim found)\n");
     return 1;
   }    
   
   # Je potřeba vyřešit "Vyplývá to z údajů na internetových stránkách České národní banky.", kde claim je subject ("to") a source je obl:arg (z údajů), soubor doc-8359658.xml.txt.conll
   
-  print STDERR " - has_finite_verb_object: no claim found\n";
+  mylog(0, " - has_finite_verb_object: no claim found\n");
   return 0;
 }
 
@@ -1225,7 +1133,7 @@ sub guess_source_type {
 
   my $surname = undef; # We will set this if there is a surname found among the source nodes
   
-  print STDERR "guess_source_type: Entered the function; should_be_counted=$should_be_counted, source nodes: '" . join(' ', map {attr($_, 'form')} @whole_source_nodes) . "'\n";
+  mylog(0, "guess_source_type: Entered the function; should_be_counted=$should_be_counted, source nodes: '" . join(' ', map {attr($_, 'form')} @whole_source_nodes) . "'\n");
 
   my @whole_source_nodes_dfo = sort_nodes_dfo(@whole_source_nodes);
   my $source_root = $whole_source_nodes_dfo[0];
@@ -1236,9 +1144,9 @@ sub guess_source_type {
   my @source_named_entity_marks = ();
   foreach my $source_node (@whole_source_nodes_dfo) {
     my $named_entity_marks = get_NameTag_and_extra_NE_marks($source_node);
-    print STDERR "guess_source_type: node=" . attr($source_node, 'lemma') . ", named_entity_marks=$named_entity_marks\n";
+    mylog(0, "guess_source_type: node=" . attr($source_node, 'lemma') . ", named_entity_marks=$named_entity_marks\n");
     next if !$named_entity_marks;
-    # print STDERR "guess_source_type: " . attr($source_node, 'lemma') . ": '$named_entity_marks'\n";
+    # mylog(0, "guess_source_type: " . attr($source_node, 'lemma') . ": '$named_entity_marks'\n");
     if ($source_node eq $source_root) {
       $source_root_NE_marks = $named_entity_marks;
     }
@@ -1247,7 +1155,7 @@ sub guess_source_type {
       my $class = $surname2class{lc($lemma)};
 
       if ($class) {
-        print STDERR "Class for surname $lemma already determined before: $class\n";
+        mylog(0, "Class for surname $lemma already determined before: $class\n");
         my $antecedent = $surname2full{lc($lemma)};
         if ($should_be_counted) {
           $class2count{$class}++;
@@ -1257,7 +1165,7 @@ sub guess_source_type {
         # storing the antecedent for pronouns
         my ($gender, $number) = get_gender_number_of_animate_source($source_node);
         if ($gender and $number) {
-          print STDERR "Storing the class '$class' and the full source '$antecedent' for resolving pronouns (gender $gender, number $number)\n";
+          mylog(0, "Storing the class '$class' and the full source '$antecedent' for resolving pronouns (gender $gender, number $number)\n");
           $last_gender_number2class{$gender . '_' . $number} = $class;
           $last_gender_number2full{$gender . '_' . $number} = $antecedent;
         }
@@ -1288,7 +1196,7 @@ sub guess_source_type {
   my $source_noun_lemmas = join(' ', @a_source_noun_lemmas);
 
   if ($joined eq '~') { # no NameTag class assigned to the source
-    print STDERR "A source without a NameTag mark\n";
+    mylog(0, "A source without a NameTag mark\n");
     # let us have a look if we can find a better specified (longer) antecedent for the source
     # (1) if it is a pronoun (e.g., "Podle něj")
     # hashes for keeping classes and full expressions for a given gender and number of sources containing Animacy=Anim
@@ -1296,23 +1204,23 @@ sub guess_source_type {
     # my %last_gender_number2class;
     # my %last_gender_number2full; # the original (full) mention of the source
     if (scalar(@whole_source_nodes_dfo) eq 1) { # a single-word source
-      print STDERR "A single-word source\n";
+      mylog(0, "A single-word source\n");
       my $source_node = $whole_source_nodes_dfo[0];
       my $lemma = attr($source_node, 'lemma');
       my $upostag = attr($source_node, 'upostag');
       my $prontype = get_feat_value($source_node, 'PronType') // '';
       if (($upostag eq 'PRON' and $prontype eq 'Prs') or $lemma eq 'ten') { # a personal pronoun or lemma 'ten'
-        print STDERR "A personal pronoun or lemma 'ten'\n";
+        mylog(0, "A personal pronoun or lemma 'ten'\n");
         # les us try to find an antecedent with the same Gender and Number among last antecedents with Animacy=Anim
         my $gender = get_feat_value($source_node, 'Gender') // '';
         my $number = get_feat_value($source_node, 'Number') // '';
-        print STDERR "Gender $gender and Number $number\n";
+        mylog(0, "Gender $gender and Number $number\n");
         if ($gender and $number) {
           foreach my $one_gender (split(',', $gender)) { # Gender of pronouns may be, e.g., 'Masc,Neut'
             if ($last_gender_number2class{$one_gender . '_' . $number}) {
               my $class = $last_gender_number2class{$one_gender . '_' . $number};
               my $antecedent = $last_gender_number2full{$one_gender . '_' . $number};
-              print STDERR "Class for a $one_gender $number pronoun already determined before for '$antecedent': $class\n";
+              mylog(0, "Class for a $one_gender $number pronoun already determined before for '$antecedent': $class\n");
               if ($should_be_counted) {
                 $class2count{$class}++;
                 $source2count{$antecedent}++;
@@ -1340,7 +1248,7 @@ sub guess_source_type {
       if ($previous_noun_lemmas) { # found!
         my $class = $noun_lemmas2class{$previous_noun_lemmas};
         my $antecedent = $noun_lemmas2full{$previous_noun_lemmas};
-        print STDERR "Class for a source with the same nouns ($source_noun_lemmas) already determined before for '$antecedent': $class\n";
+        mylog(0, "Class for a source with the same nouns ($source_noun_lemmas) already determined before for '$antecedent': $class\n");
         if ($should_be_counted) {
           $class2count{$class}++;
           $source2count{$antecedent}++;
@@ -1355,7 +1263,7 @@ sub guess_source_type {
   
   my $class = 'anonymous-partial'; # default
 
-  # print STDERR "guess_source_type: whole source joined marks='$joined', source root marks='$source_root_NE_marks'\n";
+  # mylog(0, "guess_source_type: whole source joined marks='$joined', source root marks='$source_root_NE_marks'\n");
   if ($source_root_NE_marks =~ /\bgc\b/) { # gc - state
     $class = 'official-political';
   }
@@ -1387,7 +1295,7 @@ sub guess_source_type {
   my $full = get_source_base_form(@whole_source_nodes);
 
   if ($surname) { # first mention of the surname (possibly in a longer (full) source)
-    print STDERR "guess_source_type: There was a yet unseen surname ($surname) among the source nodes, let us remember it and its class ($class)\n";
+    mylog(0, "guess_source_type: There was a yet unseen surname ($surname) among the source nodes, let us remember it and its class ($class)\n");
     $surname2class{lc($surname)} = $class;
     $surname2full{lc($surname)} = $full;
     $source2class{$full} = $class;
@@ -1399,7 +1307,7 @@ sub guess_source_type {
     # storing the antecedent for pronouns
     my ($gender, $number) = get_gender_number_of_animate_source(@whole_source_nodes);
     if ($gender and $number) {
-      print STDERR "guess_source_type: Storing the class '$class' and the full source '$full' for resolving pronouns (gender $gender, number $number)\n";
+      mylog(0, "guess_source_type: Storing the class '$class' and the full source '$full' for resolving pronouns (gender $gender, number $number)\n");
       $last_gender_number2class{$gender . '_' . $number} = $class;
       $last_gender_number2full{$gender . '_' . $number} = $full;
     }
@@ -1408,7 +1316,7 @@ sub guess_source_type {
   
   # there was a NameTag mark for some of the source nodes
   elsif ($joined ne '~' and $source_noun_lemmas and not $noun_lemmas2class{$source_noun_lemmas}) { # if the source contains nouns (but not surnames) and has been recognized also by NameTag and we have not yet set this
-    print STDERR "guess_source_type: There was a NameTag mark for some of the source nodes and the source contains a noun\n";
+    mylog(0, "guess_source_type: There was a NameTag mark for some of the source nodes and the source contains a noun\n");
     $noun_lemmas2class{$source_noun_lemmas} = $class;
     $noun_lemmas2full{$source_noun_lemmas} = $full;
     $source2class{$full} = $class; # it may have been set before but never mind
@@ -1419,7 +1327,7 @@ sub guess_source_type {
     # storing the antecedent for pronouns
     my ($gender, $number) = get_gender_number_of_animate_source(@whole_source_nodes);
     if ($gender and $number) {
-      print STDERR "guess_source_type: Storing the class '$class' and the full source '$full' for resolving pronouns (gender $gender, number $number)\n";
+      mylog(0, "guess_source_type: Storing the class '$class' and the full source '$full' for resolving pronouns (gender $gender, number $number)\n");
       $last_gender_number2class{$gender . '_' . $number} = $class;
       $last_gender_number2full{$gender . '_' . $number} = $full;
     }
@@ -1433,7 +1341,7 @@ sub guess_source_type {
     }
   }
 
-  # print STDERR "guess_source_type: $class\n";
+  # mylog(0, "guess_source_type: $class\n");
   if ($add_NE) {
     $class = "$joined:$class";
   }
@@ -1447,7 +1355,7 @@ sub get_NameTag_marks {
   if ($ne) {
     my @values = $ne =~ /([A-Za-z][a-z_]?)_[0-9]+/g; # get an array of the marks
     my $marks = join '~', @values;
-    # print STDERR "get_NameTag_marks: $ne -> $marks\n";
+    # mylog(0, "get_NameTag_marks: $ne -> $marks\n");
     return $marks;
   }
   return '';
@@ -1500,7 +1408,7 @@ sub get_extra_NE_for_node {
   my $lemma = attr($node, 'lemma');
   my $form = attr($node, 'form');
   if ($lemma =~ /^(mluvčí|velitel(ka)?|ředitel(ka)?|vedoucí|šéf(ka)?|soudce|soudkyně|soud|obžaloba|obhajoba|obhájce|obhájkyně|prokurátor(ka)?|obžalovaný|obžalovaná)$/) {
-    # print STDERR "get_extra_NE_for_node: found 'mluvčí etc.'\n";
+    # mylog(0, "get_extra_NE_for_node: found 'mluvčí etc.'\n");
     return 'im'; # "institution - mluvčí"
   }
   if ($keywords_anonymous{$lemma}) {
@@ -1676,10 +1584,10 @@ Returns a value of the given property from the misc attribute. Or undef.
 sub get_misc_value {
   my ($node, $property) = @_;
   my $misc = attr($node, 'misc') // '';
-  # print STDERR "get_misc_value: misc=$misc\n";
+  # mylog(0, "get_misc_value: misc=$misc\n");
   if ($misc =~ /$property=([^|]+)/) {
     my $value = $1;
-    # print STDERR "get_misc_value: $property=$value\n";
+    # mylog(0, "get_misc_value: $property=$value\n");
     return $value;
   }
   return undef;
@@ -1696,10 +1604,10 @@ Returns a value of the given property from the feats attribute. Or undef.
 sub get_feat_value {
   my ($node, $property) = @_;
   my $feats = attr($node, 'feats') // '';
-  # print STDERR "get_feat_value: feats=$feats\n";
+  # mylog(0, "get_feat_value: feats=$feats\n");
   if ($feats =~ /$property=([^|]+)/) {
     my $value = $1;
-    # print STDERR "get_feat_value: $property=$value\n";
+    # mylog(0, "get_feat_value: $property=$value\n");
     return $value;
   }
   return undef;
@@ -2226,7 +2134,7 @@ Both ranges are marked in the sentence; the first one with bold, the other one w
 sub get_sentence_html {
   my ($range_auto, $range_manual) = @_;
 
-  print STDERR "get_sentence_html: $range_auto, $range_manual\n";
+  mylog(0, "get_sentence_html: $range_auto, $range_manual\n");
   
   # check if there is auto range given
   my ($start_auto, $end_auto) = (10000, -1);
@@ -2240,12 +2148,12 @@ sub get_sentence_html {
     ($start_manual, $end_manual) = ($1, $2);
   }
   
-  print STDERR "get_sentence_html:   $start_auto, $end_auto, $start_manual, $end_manual\n";
+  mylog(0, "get_sentence_html:   $start_auto, $end_auto, $start_manual, $end_manual\n");
 
   if ($end_auto > 0 or $end_manual > 0) { # at least one of the given ranges was properly defined
 
     my ($start, $end) = $end_auto > 0 ? ($start_auto, $end_auto) : ($start_manual, $end_manual); # for searching for the sentence
-    print STDERR "get_sentence_html:     start = $start, end = $end\n";
+    mylog(0, "get_sentence_html:     start = $start, end = $end\n");
 
     foreach my $root (@trees) { # go through all sentences
       my ($start_sent, $end_sent) = (attr($root, 'start'), attr($root, 'end'));
@@ -2291,7 +2199,7 @@ Otherwise returns undef.
 
 sub partial_match {
   my ($range, $rh_range2text) = @_;
-  # print STDERR "partial_match: input range: $range\n";
+  # mylog(0, "partial_match: input range: $range\n");
   my @range_parts = split(';', $range);
   foreach my $range_part (@range_parts) { # for each consequent range
     if ($range_part =~ /^(\d+):(\d+)$/) {
@@ -2303,7 +2211,7 @@ sub partial_match {
           if ($r_part =~ /^(\d+):(\d+)$/) {
             my ($s, $e) = ($1, $2);
             next if ($e<$start or $end<$s);
-            # print STDERR "partial_match:  - SUCCESS, matches with $r!\n";
+            # mylog(0, "partial_match:  - SUCCESS, matches with $r!\n");
             return $r;
           }
         }
@@ -2412,15 +2320,15 @@ sub evaluate_false_negatives {
 
   my $sent_start = attr($root, 'start');
   my $sent_end = attr($root, 'end');
-  print STDERR "evaluate_false_negatives: sentence $sent_start:$sent_end\n";
+  mylog(0, "evaluate_false_negatives: sentence $sent_start:$sent_end\n");
 
   # phrases
   foreach my $ann_phrase_range (keys(%h_ann_phrase_range2text)) {
     if ($ann_phrase_range =~ /^(\d+):(\d+)$/) {
       my ($s, $e) = ($1, $2);
-      print STDERR "evaluate_false_negatives:   ann phrase range $s:$e\n";
+      mylog(0, "evaluate_false_negatives:   ann phrase range $s:$e\n");
       next if ($e<$sent_start or $sent_end<$s); # choose only ranges from the given sentence
-      print STDERR "evaluate_false_negatives:     -within the sentence!\n";
+      mylog(0, "evaluate_false_negatives:     -within the sentence!\n");
       next if ($h_phrase_range2text{$ann_phrase_range}); # exact HIT, already reported elsewhere
       # now we know it is exact miss
       my $text = $h_ann_phrase_range2text{$ann_phrase_range};
@@ -2438,9 +2346,9 @@ sub evaluate_false_negatives {
   foreach my $ann_source_range (keys(%h_ann_source_range2text)) {
     if ($ann_source_range =~ /^(\d+):(\d+)$/) {
       my ($s, $e) = ($1, $2);
-      print STDERR "evaluate_false_negatives:   ann source range $s:$e\n";
+      mylog(0, "evaluate_false_negatives:   ann source range $s:$e\n");
       next if ($e<$sent_start or $sent_end<$s); # choose only ranges from the given sentence
-      print STDERR "evaluate_false_negatives:     -within the sentence!\n";
+      mylog(0, "evaluate_false_negatives:     -within the sentence!\n");
       next if ($h_source_range2text{$ann_source_range}); # exact HIT, already reported elsewhere
       # now we know it is exact miss
       my $text = $h_ann_source_range2text{$ann_source_range};
@@ -2466,7 +2374,7 @@ For non-contiguous ranges, the individual contiguous parts are separated by ';'
 sub get_range {
   my @nodes = sort {attr($a, 'start') <=> attr($b, 'start')} @_;
   return '' if !@nodes;
-  # print STDERR "get_range: nodes: " . join(' ', map {attr($_, 'form')} @nodes) . "\n";
+  # mylog(0, "get_range: nodes: " . join(' ', map {attr($_, 'form')} @nodes) . "\n");
   my $range = '';
   my $start = shift(@nodes);
   my $end = $start;
@@ -2487,7 +2395,7 @@ sub get_range {
   # now process the last contiguous part
   my $sep = $range ? ';' : '';
   $range .= $sep . attr($start, 'start') . ':' . attr($end, 'end');
-  # print STDERR "get_range: result: $range\n";
+  # mylog(0, "get_range: result: $range\n");
   return $range;
 }
 
@@ -2558,223 +2466,3 @@ sub get_source_base_form {
 
 =item
 
-# the following function is modified from Jan Štěpánek's UD TrEd extension
-sub _create_structure {
-    my ($root) = @_;
-    my %node_by_ord = map +(attr($_, 'ord') => $_), $root->getAllChildren;
-    # print STDERR "_create_structure: \%node_by_ord:\n";
-    foreach my $ord (sort {$a <=> $b} keys(%node_by_ord)) {
-      # print STDERR "_create_structure:   - $ord: " . attr($node_by_ord{$ord}, 'form') . "\n";
-    }
-    foreach my $node ($root->getAllChildren) {
-        my $head = attr($node, 'head');
-        # print STDERR "_create_structure: head $head\n";
-        if ($head) { # i.e., head is not 0, meaning this node should not be a child of the technical root
-            my $parent = $node->getParent();
-            $parent->removeChild($node);
-            my $new_parent = $node_by_ord{$head};
-            $new_parent->addChild($node);
-        }
-    }
-}
-
-=cut
-
-
-
-######### PARSING THE TEXT WITH UDPIPE #########
-
-=item call_udpipe
-
-Calling UDPipe REST API; the text to be parsed is passed in the argument
-Returns the parsed output in UD CONLL format
-
-=cut
-
-sub call_udpipe {
-    my $text = shift;
-
-=item
-
-    # Původní volání metodou GET - neprošly delší texty
-
-    # Nastavení URL pro volání REST::API s parametry
-    my $tokenizer = 'tokenizer=ranges';
-    if ($input_format eq 'presegmented') {
-      $tokenizer .= ';presegmented';
-    }
-    my $url = 'http://lindat.mff.cuni.cz/services/udpipe/api/process?' . $tokenizer . '&tagger&parser&data=' . uri_escape_utf8($text);
-
-    print STDERR "url = $url\n";
-    # Vytvoření instance LWP::UserAgent
-    my $ua = LWP::UserAgent->new;
-
-    # Vytvoření požadavku
-    my $req = HTTP::Request->new('GET', $url);
-    $req->header('Content-Type' => 'application/json');
-
-=cut
-
-=item
-
-    # Nefunkční pokus o volání metodou POST
-
-    # Nastavení URL pro volání REST::API
-    my $url = 'http://lindat.mff.cuni.cz/services/udpipe/api/process';
-
-    # Připravení dat pro POST požadavek
-    my %post_data = (
-        tokenizer => 'ranges',
-        tagger => 1,
-        parser => 1,
-        data => uri_escape_utf8($text)
-    );
-
-    if ($input_format eq 'presegmented') {
-        $post_data{tokenizer} .= ';presegmented';
-    }
-
-    # Vytvoření instance LWP::UserAgent
-    my $ua = LWP::UserAgent->new;
-
-    # Vytvoření POST požadavku s daty jako JSON
-    my $req = HTTP::Request->new('POST', $url);
-    $req->header('Content-Type' => 'application/json');
-    $req->content(encode_json(\%post_data));
-
-=cut
-
-
-    # Funkční volání metodou POST, i když podivně kombinuje URL-encoded s POST
-
-    # Nastavení URL pro volání REST::API s parametry
-    my $tokenizer = 'tokenizer=ranges';
-    if ($input_format eq 'presegmented') {
-      $tokenizer .= ';presegmented';
-    }
-    my $url = 'http://lindat.mff.cuni.cz/services/udpipe/api/process?' . $tokenizer . '&tagger&parser';
-
-    my $ua = LWP::UserAgent->new;
-
-    # Define the data to be sent in the POST request
-    my $data = "data=" . uri_escape_utf8($text);
-
-    my $req = HTTP::Request->new('POST', $url);
-    $req->header('Content-Type' => 'application/x-www-form-urlencoded');
-    $req->content($data);
-
-
-    # Odeslání požadavku a získání odpovědi
-    my $res = $ua->request($req);
-
-    # Zkontrolování, zda byla odpověď úspěšná
-    if ($res->is_success) {
-        # Získání odpovědi v JSON formátu
-        my $json_response = decode_json($res->content);
-        # Zpracování odpovědi
-        my $result = $json_response->{result};
-        # print STDERR "UDPipe result:\n$result\n";
-        return $result;
-    } else {
-        print STDERR "Chyba: " . $res->status_line . "\n";
-        return '';
-    }
-}
-
-######### NAMED ENTITIES WITH NAMETAG #########
-
-=item call_nametag
-
-Calling NameTag REST API; the text to be searched is passed in the argument in UD CONLL format
-Returns the text in UD CONLL-NE format.
-This function just splits the input conll format to individual sentences (or a few of sentences if $max_sentences is set to a larger number than 1) and calls function call_nametag_part on this part of the input, to avoid the NameTag error caused by a too large argument.
-
-=cut
-
-sub call_nametag {
-    my $conll = shift;
-    
-    my $result = '';
-    
-    # Let us call NameTag api for each X sentences separately, as too large input produces an error.
-    my $max_sentences = 100; # 5 was too large at first attempt, so let us hope 1 is safe enough.
-    
-    my $conll_part = '';
-    my $sent_count = 0;
-    foreach my $line (split /\n/, $conll) {
-      #print STDERR "Processing line $line\n";
-      $conll_part .= $line . "\n";
-      if ($line =~ /^\s*$/) { # empty line means end of sentence
-        #print STDERR "Found an empty line.\n";
-        $sent_count++;
-        if ($sent_count eq $max_sentences) {
-          $result .= call_nametag_part($conll_part);
-          $conll_part = '';
-          $sent_count = 0;
-        }
-      }
-    }
-    if ($conll_part) { # We need to call NameTag one more time
-      $result .= call_nametag_part($conll_part);    
-    }
-    return $result;
-}
-
-=item call_nametag_part
-
-Now actuall calling NameTag REST API for a small part of the input (to avoid error caused by a long argument).
-Returns the text in UD CONLL-NE format.
-If an error occurs, the function just returns the input conll text unchanged.
-
-=cut
-
-sub call_nametag_part {
-    my $conll = shift;
-
-=item
-    
-    # Stará verze metodou GET
-    
-    # Nastavení URL pro volání REST::API s parametry
-    my $url = 'http://lindat.mff.cuni.cz/services/nametag/api/recognize?input=conllu&output=conllu-ne&data=' . uri_escape_utf8($conll);
-
-    # Vytvoření instance LWP::UserAgent
-    my $ua = LWP::UserAgent->new;
-
-    # Vytvoření požadavku
-    my $req = HTTP::Request->new('GET', $url);
-    $req->header('Content-Type' => 'application/json');
-
-=cut
-
-    # Funkční volání metodou POST, i když podivně kombinuje URL-encoded s POST
-
-    # Nastavení URL pro volání REST::API s parametry
-    my $url = 'http://lindat.mff.cuni.cz/services/nametag/api/recognize?input=conllu&output=conllu-ne';
-
-    my $ua = LWP::UserAgent->new;
-
-    # Define the data to be sent in the POST request
-    my $data = "data=" . uri_escape_utf8($conll);
-
-    my $req = HTTP::Request->new('POST', $url);
-    $req->header('Content-Type' => 'application/x-www-form-urlencoded');
-    $req->content($data);
-
-
-    # Odeslání požadavku a získání odpovědi
-    my $res = $ua->request($req);
-
-    # Zkontrolování, zda byla odpověď úspěšná
-    if ($res->is_success) {
-        # Získání odpovědi v JSON formátu
-        my $json_response = decode_json($res->content);
-        # Zpracování odpovědi
-        my $result = $json_response->{result};
-        # print STDERR "NameTag result:\n$result\n";
-        return $result;
-    } else {
-        print STDERR "NameTag error: " . $res->status_line . "\n";
-        return $conll; 
-    }
-}

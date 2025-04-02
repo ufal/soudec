@@ -2,12 +2,19 @@ package UD;
 
 use strict;
 use warnings;
-use Exporter 'import';  # Allows exporting functions
+
+use LWP::UserAgent;
+use URI::Escape;
+use JSON;
 use Tree::Simple;
+
+use mylog;
+
+use Exporter 'import';  # Allows exporting functions
 
 # Definitions of functions to be exported
 # our @EXPORT_OK = qw();  # Functions available at import if specifically mentioned
-our @EXPORT = qw(parse_conllu root descendants attr set_attr text misc_property feat_property member_of_array print_tree);  # Functions available at import automatically
+our @EXPORT = qw(parse_conllu root descendants attr set_attr text misc_property feat_property member_of_array print_tree call_nametag call_udpipe);  # Functions available at import automatically
 
 
 
@@ -364,6 +371,201 @@ sub member_of_array {
     }
   }
   return 0;
+}
+
+
+########################################################################
+## PARSING THE TEXT WITH UDPIPE
+########################################################################
+
+
+our $udpipe_service_url = 'http://lindat.mff.cuni.cz/services/udpipe/api';
+our $nametag_service_url = 'http://lindat.mff.cuni.cz/services/nametag/api';
+
+# Translation of language codes to UDPipe models: 
+my %lang2model = (
+   'cs' => 'czech',
+   'en' => 'english',
+   'de' => 'german',
+   'es' => 'spanish'
+);
+
+
+=item call_udpipe
+
+Calling UDPipe REST API; the input to be processed is passed in the first argument.
+The second argument gives the language of the input ('cs', 'en', 'de', 'es').
+The third argument ('txt'/'presegmented'/'conllu') gives the input format.
+The optional fourth argument ('segment'/'parse'/'all') chooses between the two tasks (or does both, 'all' is default). The 'parse' option expects CoNLL-U input data format.
+Returns the output in CoNLL-U format.
+
+=cut
+
+sub call_udpipe {
+    my ($text, $language, $input_format, $task) = @_;
+    $task = 'all' unless defined $task;
+    
+    my $model_default = $lang2model{$language};
+    if (!$model_default) {
+      mylog(2, "call_udpipe: Undefined default model for language '$language'!\n");
+    }
+
+    my $model;
+    my $input;
+    my $tagger;
+    my $parser;
+
+    if ($task eq 'segment') {
+      $input = 'tokenizer=ranges';
+      if ($input_format eq 'presegmented') {
+        $input .= ';presegmented';
+      }
+      $model = "&model=$model_default";
+      if ($language eq 'cs') {
+        $model = '&model=czech-pdtc1.0'; # longer sentences
+      }
+      $tagger = '';
+      $parser = '';
+    }
+    elsif ($task eq 'parse') {
+      $input = 'input=conllu';
+      $model = "&model=$model_default";
+      $tagger = '&tagger';
+      $parser = '&parser';    
+    }
+    elsif ($task eq 'all') {
+      $input = 'tokenizer=ranges';
+      if ($input_format eq 'presegmented') {
+        $input .= ';presegmented';
+      }
+      $model = "&model=$model_default";
+      $tagger = '&tagger';
+      $parser = '&parser';    
+    }
+
+    # Funkční volání metodou POST, i když podivně kombinuje URL-encoded s POST
+
+    # Nastavení URL pro volání REST::API s parametry
+    #my $url = "http://lindat.mff.cuni.cz/services/udpipe/api/process?$input$model$tagger$parser";
+    my $url = "$udpipe_service_url/process?$input$model$tagger$parser";
+    mylog(2, "Call UDPipe: URL=$url\n");
+    
+    my $ua = LWP::UserAgent->new;
+
+    # Define the data to be sent in the POST request
+    my $data = "data=" . uri_escape_utf8($text);
+
+    my $req = HTTP::Request->new('POST', $url);
+    $req->header('Content-Type' => 'application/x-www-form-urlencoded');
+    $req->content($data);
+
+
+    # Odeslání požadavku a získání odpovědi
+    my $res = $ua->request($req);
+
+    # Zkontrolování, zda byla odpověď úspěšná
+    if ($res->is_success) {
+        # Získání odpovědi v JSON formátu
+        my $json_response = decode_json($res->content);
+        # Zpracování odpovědi
+        my $result = $json_response->{result};
+        # print STDERR "UDPipe result:\n$result\n";
+        return $result;
+    } else {
+        mylog(2, "call_udpipe: URL: $url\n");
+        mylog(1, "call_udpipe: Text: $text\n");
+        mylog(2, "call_udpipe: Chyba: " . $res->status_line . "\n");
+        return '';
+    }
+}
+
+
+
+########################################################################
+## RECOGNITION OF NAMED ENTITIES WITH NAMETAG
+########################################################################
+
+=item call_nametag
+
+Calling NameTag REST API; the text to be searched is passed in the argument in UD CONLL format
+Returns the text in UD CONLL-NE format.
+This function just splits the input conll format to individual sentences (or a few of sentences if $max_sentences is set to a larger number than 1) and calls function call_nametag_part on this part of the input, to avoid the NameTag error caused by a too large argument.
+
+=cut
+
+sub call_nametag {
+    my $conll = shift;
+    
+    my $result = '';
+    
+    # Let us call NameTag api for each X sentences separately, as too large input produces an error.
+    my $max_sentences = 100; # 5 was too large at first attempt, so let us hope 1 is safe enough.
+    
+    my $conll_part = '';
+    my $sent_count = 0;
+    foreach my $line (split /\n/, $conll) {
+      #mylog(0, "Processing line $line\n");
+      $conll_part .= $line . "\n";
+      if ($line =~ /^\s*$/) { # empty line means end of sentence
+        #mylog(0, "Found an empty line.\n");
+        $sent_count++;
+        if ($sent_count eq $max_sentences) {
+          $result .= call_nametag_part($conll_part);
+          $conll_part = '';
+          $sent_count = 0;
+        }
+      }
+    }
+    if ($conll_part) { # We need to call NameTag one more time
+      $result .= call_nametag_part($conll_part);    
+    }
+    return $result;
+}
+
+
+=item call_nametag_part
+
+Now actuall calling NameTag REST API for a small part of the input (to avoid error caused by a long argument).
+Returns the text in UD CONLL-NE format.
+If an error occurs, the function just returns the input conll text unchanged.
+
+=cut
+
+sub call_nametag_part {
+    my $conll = shift;
+
+    # Funkční volání metodou POST, i když podivně kombinuje URL-encoded s POST
+
+    # Nastavení URL pro volání REST::API s parametry
+    my $url = "$nametag_service_url/recognize?input=conllu&output=conllu-ne";
+    mylog(2, "Call NameTag: URL=$url\n");
+
+    my $ua = LWP::UserAgent->new;
+
+    # Define the data to be sent in the POST request
+    my $data = "data=" . uri_escape_utf8($conll);
+
+    my $req = HTTP::Request->new('POST', $url);
+    $req->header('Content-Type' => 'application/x-www-form-urlencoded');
+    $req->content($data);
+
+
+    # Odeslání požadavku a získání odpovědi
+    my $res = $ua->request($req);
+
+    # Zkontrolování, zda byla odpověď úspěšná
+    if ($res->is_success) {
+        # Získání odpovědi v JSON formátu
+        my $json_response = decode_json($res->content);
+        # Zpracování odpovědi
+        my $result = $json_response->{result};
+        # mylog(0, "NameTag result:\n$result\n");
+        return $result;
+    } else {
+        mylog(2, "call_nametag_part: URL: $url\n");
+        mylog(2, "call_nametag_part: Chyba: " . $res->status_line . "\n");
+        return $conll; 
+    }
 }
 
 
