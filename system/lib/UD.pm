@@ -162,7 +162,9 @@ sub parse_conllu {
       }
       $prev_node = $node;
     }
-    set_attr($ordered_nodes[-1], 'right', undef);
+    if (@ordered_nodes) { # not an empty tree
+      set_attr($ordered_nodes[-1], 'right', undef);
+    }
   }
 
   return @trees;
