@@ -15,7 +15,7 @@
   </tr>
   <tr>
       <th>Development repository</th>
-      <td><a href="https://svn.ms.mff.cuni.cz/svn/signal_a_sum/source_detection/Perl_UDPipeREST/" target="_blank">https://svn.ms.mff.cuni.cz/svn/signal_a_sum/source_detection/Perl_UDPipeREST/</a> (soudec/soudec)</td>
+      <td><a href="https://github.com/ufal/soudec" target="_blank">https://github.com/ufal/soudec</a></td>
   </tr>
   <tr>
       <th>Status</th>
