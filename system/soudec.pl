@@ -15,8 +15,11 @@ use Time::HiRes qw(gettimeofday tv_interval); # to measure how long the program 
 
 use FindBin qw($Bin);  # $Bin je adresář, kde je skript
 use lib "$Bin/lib";    # Absolutní cesta k lib
-use UD;
-use mylog;
+
+use UD v1.0.0;
+use mylog v1.0.0;
+$mylog::name = 'SouDeC';
+
 
 # STDIN and STDOUT in UTF-8
 binmode STDIN, ':encoding(UTF-8)';

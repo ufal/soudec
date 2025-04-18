@@ -1,5 +1,7 @@
 package UD;
 
+our $VERSION = v1.0.0;
+
 use strict;
 use warnings;
 
@@ -12,15 +14,29 @@ use mylog;
 
 use Exporter 'import';  # Allows exporting functions
 
-# Definitions of functions to be exported
-# our @EXPORT_OK = qw();  # Functions available at import if specifically mentioned
-our @EXPORT = qw(parse_conllu root descendants attr set_attr text misc_property feat_property member_of_array print_tree call_nametag call_udpipe);  # Functions available at import automatically
+# Functions available at import if specifically mentioned
+# our @EXPORT_OK = qw();
+
+# Functions available at import automatically:
+our @EXPORT = qw(parse_conllu
+                 root
+                 descendants
+                 attr
+                 set_attr
+                 text
+                 misc_property
+                 feat_property
+                 member_of_array
+                 print_tree
+                 call_nametag
+                 call_udpipe
+                );
 
 
 
 =item
 
-Parses the CONLL-U format into Tree::Simple tree structures (one tree per sentence).
+Parses the CoNLL-U format into Tree::Simple tree structures (one tree per sentence).
 Returns an array of tree tree roots.
 
 =cut
