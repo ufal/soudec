@@ -27,7 +27,7 @@
   </tr>
   <tr>
       <th>Licence</th>
-      <td><a href="http://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA</a></td>
+      <td><a href="https://www.mozilla.org/MPL/2.0/" target="_blank">MPL 2.0</a></td>
   </tr>
   <tr>
       <th>Contact</th>
