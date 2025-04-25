@@ -1,26 +1,32 @@
 #!/usr/bin/env perl
 
 # skript se na serveru spustí pomocí
-# morbo api.pl
+# morbo api.pl (testování, v jednu chvíli jen jeden klient)
+# nebo hypnotoad api.pl (ostrý provoz, více klientů naráz)
 
-# Pak naslouchá na defaultním portu 3000 a lokálně funguje např.:
-# curl http://localhost:3000/api/test
+# Pak v případě morbo naslouchá na defaultním portu 3000 a lokálně funguje např.:
+# curl http://localhost:3000/api/info
+# A v případě hypnotoad naslouchá na defaultním portu 8080 a lokálně funguje např.:
+# curl http://localhost:8080/api/info
 
-# Perlovský balíček Mojolicious obsahující i příkaz morbo se instaloval pomocí 
+# Perlovský balíček Mojolicious obsahující i příkaz morbo se instaloval pomocí
 # sudo apt-get install libmojolicious-perl
 
 # Pro přesměrování požadavků z Apache2 bylo mj. potřeba nastavit v /etc/apache2/sites-available/000-default.conf v sekci <VirtualHost *:80>:
 #        ServerName localhost
-#        # Proxy pro /api/detect a /api/test
-#        ProxyPass "/api/detect" "http://localhost:3000/api/detect"
-#        ProxyPassReverse "/api/detect" "http://localhost:3000/api/detect"
-#        ProxyPass "/api/test" "http://localhost:3000/api/test"
-#        ProxyPassReverse "/api/test" "http://localhost:3000/api/test"
+#        # Proxy pro /api/process a /api/info
+#        ProxyPass "/api/process" "http://localhost:8080/api/process"
+#        ProxyPassReverse "/api/process" "http://localhost:8080/api/process"
+#        ProxyPass "/api/info" "http://localhost:8080/api/info"
+#        ProxyPassReverse "/api/info" "http://localhost:8080/api/info"
+# (port 8080 pro hypnotoad, resp. 3000 pro morbo)
+
 # A v /etc/apache2/apache2.conf bylo potřeba přidat:
 #        LoadModule proxy_module modules/mod_proxy.so
 #        LoadModule proxy_http_module modules/mod_proxy_http.so
 # Pak funguje např.
-# curl http://localhost/api/test
+# curl http://localhost/api/info
+
 
 use strict;
 use warnings;
@@ -106,6 +112,13 @@ any '/api/detect' => sub {
 	#                                    result => "input format: '$input_format', output format: '$output_format', text: '$text'" });
     #}
 };
+
+app->config(hypnotoad => {
+    workers => 4,
+    heartbeat_timeout => 50,
+});
+
+#app->log->level('debug');
 
 app->start;
 
