@@ -1,6 +1,6 @@
 package UD;
 
-our $VERSION = v1.0.0;
+our $VERSION = v1.1.0;
 
 use strict;
 use warnings;
@@ -259,17 +259,45 @@ sub attr {
 
 =item descendants
 
-Returns all descendants of the given node in the dfo; on the same level, the nodes are sorted by attribute 'ord'
-
+Returns all descendants of the given node in the dfo.
+The hash reference as the second parameter can carry these parameters:
+ sort_children: if defined and true, the children are always sorted by attribute 'ord'
+ exclude_coord: if defined and true, descendants are given in the UD linguistic sense, i.e., coordination at first level is excluded
+ include_root: if defined and true, the given node is included as well
 =cut
 
 sub descendants {
-  my $node = shift;
+  my ($node, $haref_params) = @_;
+  # Use empty hash reference if the second argument is not given (or is not a hash ref)
+  $haref_params = {} unless defined $haref_params && ref($haref_params) eq 'HASH';
+
+  # A copy of the parameters without include_root and exclude_coord for recursion (both should happen only at first level)
+  my %params_for_recursion = %$haref_params;
+  delete $params_for_recursion{include_root};
+  delete $params_for_recursion{exclude_coord};
+  
   my @descendants = ();
-  my @children = sort {attr($a, 'ord') <=> attr($b, 'ord')} $node->getAllChildren;
+  if ($haref_params->{include_root}) {
+    push(@descendants, $node);
+  }
+
+  my @children;
+  if ($haref_params->{sort_children}) {
+    @children = sort {attr($a, 'ord') <=> attr($b, 'ord')} $node->getAllChildren;
+  }
+  else {
+    @children = $node->getAllChildren;
+  }
+  
   foreach my $child (@children) {
+
+    if ($haref_params->{exclude_coord}) { # coordinated nodes should not be included
+      my $deprel = attr($child, 'deprel') // '';
+      next if $deprel eq 'conj'; # skip the coordinated node
+    }
+    
     push(@descendants, $child);
-    push(@descendants, descendants($child));
+    push(@descendants, descendants($child, \%params_for_recursion));
   }
   return @descendants;
 }

@@ -16,7 +16,7 @@ use Time::HiRes qw(gettimeofday tv_interval); # to measure how long the program 
 use FindBin qw($Bin);  # $Bin je adresář, kde je skript
 use lib "$Bin/lib";    # Absolutní cesta k lib
 
-use UD v1.0.0;
+use UD v1.1.0;
 use mylog v1.0.0;
 $mylog::name = 'SouDeC';
 
@@ -27,7 +27,7 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER = '1.0 (20250402)'; # version of the program
+my $VER = '1.0 (20250425)'; # version of the program
 
 $mylog::logging_level = 2; # default log level, can be changed using the -ll parameter (0=full, 1=limited, 2=minimal)
 
@@ -651,7 +651,7 @@ foreach my $root (@trees) {
   mylog(0, "Sentence id=" . attr($root, 'id') . ": " . attr($root, 'text') . "\n");
   print_tree($root, "\t");
   
-  my @nodes = descendants($root);
+  my @nodes = descendants($root, {sort_children => 1});
   $tokens_count += scalar(@nodes) - 1; # without the root
   
   foreach my $node (@nodes) {
