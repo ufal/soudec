@@ -1,4 +1,3 @@
-<?php $main_page=basename(__FILE__); require('header.php') ?>
 
 <script type="text/javascript"><!--
   var input_file_content = null;
@@ -92,31 +91,7 @@
       <span class="glyphicon glyphicon-triangle-bottom" aria-hidden="true"></span> SouDeC is an on-line tool and REST API service for detecting and classifying citation sources in Czech texts.
     </div>
   </div>
-  <div id="aboutContent" class="panel-collapse collapse" role="tabpanel" aria-labelledby="aboutHeading">
-
-    <div style="margin: 5px"><?php require('about.html') ?></div>
-
-  </div>
 </div>
-
-  <div class="panel panel-default">
-    <div class="panel-heading" role="tab" id="serverInfoHeading">
-      <div class="collapsed" role="button" data-toggle="collapse" href="#serverInfoContent" aria-expanded="false" aria-controls="serverInfoContent">
-        <span class="glyphicon glyphicon-triangle-bottom" aria-hidden="true"></span> The service is freely available for testing (click for details). 
-      </div>
-    </div>
-    <div id="serverInfoContent" class="panel-collapse collapse" role="tabpanel" aria-labelledby="serverInfoHeading">
-
-      <div style="margin: 5px">
-
-        <?php require('licence.html') ?>
-        <p>Please note that due to time limitations on our proxy server, the maximum length for input text is approximately 5 thousand words.</p>
-
-        <div id="error" class="alert alert-danger" style="display: none"></div>
-
-      </div>
-    </div>
-  </div>
 
   <!-- ================= OPTIONS ================ -->
 
@@ -169,23 +144,5 @@
      </div>
     </div>
 
-    <h3 id="acknowledgements_title" style="margin-top: 30px">Acknowledgements</h3>
-    <p id="acknowledgements_text">The development of SouDeC was financed by the TAČR project TL05000057: Signál a šum v éře Žurnalistiky 5.0 - komparativní perspektiva novinářských žánrů automatizovaných obsahů.</p>
-    <p>
-      SouDeC uses external services for its work:
-    </p>
-    <ul>
-      <li>
-        UDPipe (<a href="https://lindat.mff.cuni.cz/services/udpipe/" target="_blank">https://lindat.mff.cuni.cz/services/udpipe/</a>)
-      </li>
-      <li>
-        NameTag (<a href="http://lindat.mff.cuni.cz/services/nametag/" target="_blank">http://lindat.mff.cuni.cz/services/nametag/</a>)
-      </li>
-    </ul>
-    <p> 
-      This work has been using language resources developed, stored or distributed by the LINDAT/CLARIAH-CZ project of the Ministry of Education of the Czech Republic (project <i>LM2023062</i>).
-    </p>
   </div>
-</div>
 
-<?php require('footer.php') ?>
