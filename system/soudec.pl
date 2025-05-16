@@ -598,9 +598,16 @@ if ($stdin) { # the input text should be read from STDIN
 #mylog(0, $input_content);
 
 
+my $processing_time;
+my $processing_time_udpipe;
+my $processing_time_nametag;
+
+
 ###################################################################################
 # Let us parse the file using UDPipe REST API
 ###################################################################################
+
+my $start_time_udpipe = [gettimeofday];
 
 my $conll_data = call_udpipe($input_content, 'cs', $input_format, 'all');
 
@@ -609,9 +616,16 @@ my $conll_data = call_udpipe($input_content, 'cs', $input_format, 'all');
 #  print OUT $conll_data;
 #  close(OUT);
 
+# Measure time spent by UDPipe 
+my $end_time_udpipe = [gettimeofday];
+$processing_time_udpipe = tv_interval($start_time_udpipe, $end_time_udpipe);
+
+
 ###################################################################################
 # Now let us add info about named entities using NameTag REST API
 ###################################################################################
+
+my $start_time_nametag = [gettimeofday];
 
 my $conll_data_ne = call_nametag($conll_data);
 
@@ -620,6 +634,9 @@ my $conll_data_ne = call_nametag($conll_data);
 #  print OUT $conll_data_ne;
 #  close(OUT);
 
+# Measure time spent by NameTag 
+my $end_time_nametag = [gettimeofday];
+$processing_time_nametag = tv_interval($start_time_nametag, $end_time_nametag);
 
 
 ###################################################################################
@@ -629,10 +646,19 @@ my $conll_data_ne = call_nametag($conll_data);
 my @trees = parse_conllu($conll_data_ne); # array of trees in the document
 
 
+################################################
+# Now we have dependency trees of the sentences
+################################################
 
-###################################################################################
-# Now we have dependency trees of the sentences; let us search for citation phrases
-###################################################################################
+
+######################################################
+######################################################
+#
+# MAIN LOOP: let us search for citation phrases
+#
+######################################################
+######################################################
+
 
 print_log_header();
 
@@ -1876,12 +1902,14 @@ sub get_short_class {
 =item get_stats
 
 Produces an html document with statistics about the detection, using info from these variables and hashes:
-my $sentences_count;
-my $tokens_count;
-my $processing_time;
-my %source2count;
-my %source2class;
-my %class2count;
+ - $sentences_count;
+ - $tokens_count;
+ - $processing_time;
+ - $processing_time_udpipe;
+ - $processing_time_nametag;
+ - %source2count;
+ - %source2class;
+ - %class2count;
 
 =cut
 
@@ -1963,7 +1991,11 @@ END_HEAD
   $stats .= "<p>Number of sentences: $sentences_count\n";
   $stats .= "<br/>Number of tokens: $tokens_count\n";
   my $rounded_time = sprintf("%.1f", $processing_time);
+  my $rounded_time_udpipe = sprintf("%.1f", $processing_time_udpipe);
+  my $rounded_time_nametag = sprintf("%.1f", $processing_time_nametag);
   $stats .= "<br/>Processing time: $rounded_time sec.\n";
+  $stats .= "<br/> &nbsp; - UDPipe: $rounded_time_udpipe sec.\n";
+  $stats .= "<br/> &nbsp; - NameTag: $rounded_time_nametag sec.\n";
   $stats .= "</p>\n";
 
   $stats .= "<p>\n";
