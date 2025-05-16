@@ -62,6 +62,39 @@ any '/api/test' => sub {
     }
 };
 
+
+# Endpoint pro info
+any '/api/info' => sub {
+    my $c = shift;
+    my $method = $c->req->method;
+
+    # Spuštění skriptu soudec.pl s parametrem pro získání info
+    my @cmd = ('/usr/bin/perl', "$script_dir/soudec.pl",
+               '--info');
+    my $stdin_data = '';
+    my $result_json;
+    run \@cmd, \$stdin_data, \$result_json;
+        
+    # Decode the output as a JSON object
+    my $json_data = decode_json($result_json);
+
+    # Access the 'version' and 'features' items in the JSON object
+    
+    my $version  = $json_data->{'version'};
+    my $features = $json_data->{'features'};
+    my $version_utf8 = decode_utf8($version);
+    my $features_utf8 = decode_utf8($features);
+
+    # Vytvoření odpovědi
+    $c->res->headers->content_type('application/json; charset=UTF-8');
+    my $data = {message => "This is the info function of the SouDeC service called via $method.",
+                version => "$version_utf8",
+                features => "$features_utf8" };
+    # print STDERR Dumper($data);
+    return $c->render(json => $data);
+};
+
+
 # Endpoint pro detect
 any '/api/detect' => sub {
     my $c = shift;

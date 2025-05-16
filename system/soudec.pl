@@ -29,6 +29,11 @@ my $start_time = [gettimeofday];
 
 my $VER = '1.1 (20250516)'; # version of the program
 
+my @features = ('detection and classification of citation sources'
+               );
+
+my $FEATS = join(' • ', @features); 
+
 $mylog::logging_level = 2; # default log level, can be changed using the -ll parameter (0=full, 1=limited, 2=minimal)
 
 my %logging_level_label = (0 => 'full', 1 => 'limited', 2 => 'minimal');
@@ -313,6 +318,7 @@ my $store_format;
 my $store_statistics;
 my $logging_level_override;
 my $version;
+my $info;
 my $help;
 
 # getting the arguements
@@ -329,8 +335,9 @@ GetOptions(
     'aa|add-antecedent'    => \$add_antecedent, # add the antecedent if coreference is used to determine the class
     'sf|store-format=s'    => \$store_format, # log the result in the given format: txt, html, conllu
     'ss|store-statistics'  => \$store_statistics, # should the statistics be logged as an HTML file?
-    'll|logging-level=s'     => \$logging_level_override, # override the default (minimal) logging level (0=full, 1=limited, 2=minimal)
+    'll|logging-level=s'   => \$logging_level_override, # override the default (minimal) logging level (0=full, 1=limited, 2=minimal)
     'v|version'            => \$version, # print the version of the program and exit
+    'n|info'               => \$info, # print the info (program version and supported features) as JSON and exit
     'h|help'               => \$help, # print a short help and exit
 );
 
@@ -344,6 +351,18 @@ my $script_dir = dirname($script_path);  # Získá pouze adresář ze získané 
 
 if ($version) {
   print "SouDeC version $VER.\n";
+  exit 0;
+}
+
+if ($info) {
+  my $json_data = {
+       version  => $VER,
+       features => $FEATS,
+     };
+  # Encode the Perl data structure into a JSON string
+  my $json_string = encode_json($json_data);
+  # Print the JSON string to STDOUT
+  print $json_string;
   exit 0;
 }
 

@@ -7,7 +7,7 @@
 
 
   document.addEventListener("DOMContentLoaded", function() {
-    //getInfo(); // get the server version
+    getInfo(); // get the server version
     displayShortSelectedOptions(); // display default settings at the info bar
   
     const textarea = document.getElementById('input');
@@ -78,6 +78,53 @@
         jQuery('#submit').prop('disabled', false);
     }});
   }
+
+
+  function getInfo() { // call the server and get the DReUD version and a list of supported features
+
+    var options = {info: null};
+    //console.log("getInfo: options: ", options);
+
+    var form_data = null;
+    if (window.FormData) {
+      form_data = new FormData();
+      for (var key in options)
+        form_data.append(key, options[key]);
+    }
+
+    var version = '<?php echo $lang[$currentLang]['run_server_info_version_unknown']; ?> (<font color="red"><?php echo $lang[$currentLang]['run_server_info_status_error']; ?>!</font>)';
+    //console.log("Calling api/info");
+    jQuery.ajax('//quest.ms.mff.cuni.cz/soudec/api/info',
+           {data: form_data ? form_data : options, processData: form_data ? false : true,
+            contentType: form_data ? false : 'application/x-www-form-urlencoded; charset=UTF-8',
+            dataType: "json", type: "POST", success: function(json) {
+      try {
+        if ("version" in json) {
+          version = json.version;
+          version += ', <span style="font-style: normal"><?php echo $lang[$currentLang]['run_server_info_status']; ?>:</span> <font color="green">online</font>';
+          //console.log("json.version: ", version);
+        }
+
+      } catch(e) {
+        // no need to do anything
+      }
+    }, error: function(jqXHR, textStatus) {
+      console.log("An error occurred " + ("responseText" in jqXHR ? ": " + jqXHR.responseText : "!"));
+    }, complete: function() {
+      //console.log("Complete.");
+      var info = "<h4><?php echo $lang[$currentLang]['run_server_info_label']; ?></h4>\n<ul><li><?php echo $lang[$currentLang]['run_server_info_version']; ?>: <i>" + version + "</i>\n</ul>\n";
+      //console.log("Info: ", info);
+      document.getElementById('server_info').innerHTML = info;
+      document.getElementById('server_info').classList.remove('d-none');
+
+      var short_info = "&nbsp; <?php echo $lang[$currentLang]['run_server_info_version']; ?>: <i>" + version + "</i>";
+      //console.log("Short info: ", short_info);
+      document.getElementById('server_short_info').innerHTML = short_info;
+      document.getElementById('server_short_info').classList.remove('d-none');
+      
+    }});
+  }
+
 
   function saveAs(blob, file_name) {
     const url = window.URL.createObjectURL(blob);
