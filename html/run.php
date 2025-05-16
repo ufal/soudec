@@ -1,10 +1,29 @@
-<?php $main_page=basename(__FILE__); require('header.php') ?>
 
 <script type="text/javascript"><!--
   var input_file_content = null;
   var output_file_content = null;
   var output_file_stats = null;
   var output_format = null;
+
+
+  document.addEventListener("DOMContentLoaded", function() {
+    //getInfo(); // get the server version
+    displayShortSelectedOptions(); // display default settings at the info bar
+  
+    const textarea = document.getElementById('input');
+    let originalValue = textarea.value;
+
+    textarea.addEventListener('focus', function() {
+        if (this.value === originalValue) {
+            this.value = '';
+            this.style.color = '#333333'; // Změní barvu na tmavou při psaní
+        }
+    });
+
+    // Nastavení barvy pro předvyplněný text při načtení
+    textarea.style.color = '#bbbbbb';
+  });
+
 
   function doSubmit() {
     //var model = jQuery('#model :selected').text();
@@ -29,8 +48,9 @@
     output_file_content = null;
     jQuery('#output_formatted').empty();
     jQuery('#output_stats').empty();
-    jQuery('#submit').html('<span class="fa fa-cog"></span> Waiting for Results <span class="fa fa-cog"></span>');
+    jQuery('#submit').html('<span class="spinner-border spinner-border-sm" style="width: 1.2rem; height: 1.2rem;" role="status" aria-hidden="true"></span>&nbsp;<?php echo $lang[$currentLang]['run_process_input_processing']; ?>&nbsp;<span class="spinner-border spinner-border-sm" style="width: 1.2rem; height: 1.2rem; animation-direction: reverse;" role="status" aria-hidden="true"></span>');
     jQuery('#submit').prop('disabled', true);
+
     jQuery.ajax('//quest.ms.mff.cuni.cz/soudec/api/detect',
            {data: form_data ? form_data : options, processData: form_data ? false : true,
             contentType: form_data ? false : 'application/x-www-form-urlencoded; charset=UTF-8',
@@ -54,8 +74,8 @@
     }, error: function(jqXHR, textStatus) {
       alert("An error occurred" + ("responseText" in jqXHR ? ": " + jqXHR.responseText : "!"));
     }, complete: function() {
-      jQuery('#submit').html('<span class="fa fa-arrow-down"></span> Process Input <span class="fa fa-arrow-down"></span>');
-      jQuery('#submit').prop('disabled', false);
+        jQuery('#submit').html('<span class="fa fa-arrow-down"></span> <?php echo $lang[$currentLang]['run_process_input']; ?> <span class="fa fa-arrow-down"></span>');
+        jQuery('#submit').prop('disabled', false);
     }});
   }
 
@@ -83,109 +103,174 @@
     saveAs(stats_blob, "statistics.html");
   }
 
+  function displayShortSelectedOptions() {
+    // Získání vybraného formátu vstupu
+    const inputOptions = document.getElementsByName('option_input');
+    let selectedInput = '';
+    let selectedInputLabel = '';
+    for (const option of inputOptions) {
+        if (option.checked) {
+            selectedInput = option.id;
+            selectedInputLabel = document.querySelector(`label[for="${selectedInput}"]`).textContent.trim();
+            break;
+        }
+    }
+
+    // Získání vybraného výstupního formátu 
+    const outputOptions = document.getElementsByName('option_output');
+    let selectedOutput = '';
+    let selectedOutputLabel = '';
+    for (const option of outputOptions) {
+        if (option.checked) {
+            selectedOutput = option.id;
+            selectedOutputLabel = document.querySelector(`label[for="${selectedOutput}"]`).textContent.trim();
+            break;
+        }
+    }
+
+    // Získání názvů popisků
+    const inputLabel = "<span class=\"fw-bold me-2\"><?php echo $lang[$currentLang]['run_options_input_label']; ?>:</span>";
+    const outputLabel = "<span class=\"fw-bold ms-3 me-2\"><?php echo $lang[$currentLang]['run_options_output_label']; ?>:</span>";
+
+    // Sestavení výsledného řetězce
+    document.getElementById('options_short_info').innerHTML = `${inputLabel} ${selectedInputLabel}, ${outputLabel} ${selectedOutputLabel}`;
+    // Collapse the options panel after an option has been changed:
+    const aboutContent = document.getElementById('aboutContent');
+    const collapse = new bootstrap.Collapse(aboutContent, { toggle: false });
+    collapse.hide();
+  }
+
 
 --></script>
 
-<div class="panel panel-default">
-  <div class="panel-heading" role="tab" id="aboutHeading">
-    <div class="collapsed" role="button" data-toggle="collapse" href="#aboutContent" aria-expanded="false" aria-controls="aboutContent">
-      <span class="glyphicon glyphicon-triangle-bottom" aria-hidden="true"></span> SouDeC is an on-line tool and REST API service for detecting and classifying citation sources in Czech texts.
-    </div>
+<!-- ================= OPTIONS ================ -->
+
+<!-- ================= Options card ================ -->
+<div class="card">
+  <div class="card-header p-0" role="tab" id="aboutHeading">
+    <button class="btn btn-link collapsed py-2 px-3 w-100 text-start d-block text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#aboutContent" aria-expanded="false" aria-controls="aboutContent">
+      <i class="fa-solid fa-caret-down"></i> <span id="options_short_info"></span>
+    </button>
   </div>
-  <div id="aboutContent" class="panel-collapse collapse" role="tabpanel" aria-labelledby="aboutHeading">
+  <!-- ================= Options panel ================ -->
+  <div id="aboutContent" class="collapse m-1" role="tabpanel" aria-labelledby="aboutHeading">
 
-    <div style="margin: 5px"><?php require('about.html') ?></div>
-
-  </div>
-</div>
-
-  <div class="panel panel-default">
-    <div class="panel-heading" role="tab" id="serverInfoHeading">
-      <div class="collapsed" role="button" data-toggle="collapse" href="#serverInfoContent" aria-expanded="false" aria-controls="serverInfoContent">
-        <span class="glyphicon glyphicon-triangle-bottom" aria-hidden="true"></span> The service is freely available for testing (click for details). 
+    <!-- ================= input format ================ -->
+    <div class="row gx-2 gy-0 mt-lg-3 mb-lg-3">
+      <div class="col-12 col-md-2 text-end">
+        <label class="form-label fw-bold me-5"><?php echo $lang[$currentLang]['run_options_input_label']; ?>:</label>
       </div>
-    </div>
-    <div id="serverInfoContent" class="panel-collapse collapse" role="tabpanel" aria-labelledby="serverInfoHeading">
-
-      <div style="margin: 5px">
-
-        <?php require('licence.html') ?>
-        <p>Please note that due to time limitations on our proxy server, the maximum length for input text is approximately 5 thousand words.</p>
-
-        <div id="error" class="alert alert-danger" style="display: none"></div>
+      <div class="col-12 col-md-10">
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="option_input" id="option_input_plaintext" value="txt" checked onchange="displayShortSelectedOptions();">
+          <label class="form-check-label" for="option_input_plaintext" title="<?php echo $lang[$currentLang]['run_options_input_plain_popup']; ?>">
+            <?php echo $lang[$currentLang]['run_options_input_plain']; ?>
+          </label>
+        </div>
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="option_input" id="option_input_presegmented" value="presegmented" onchange="displayShortSelectedOptions();">
+          <label class="form-check-label" for="option_input_presegmented" title="<?php echo $lang[$currentLang]['run_options_input_presegmented_popup']; ?>">
+            <?php echo $lang[$currentLang]['run_options_input_presegmented']; ?>
+          </label>
+        </div>
 
       </div>
-    </div>
-  </div>
 
-  <!-- ================= OPTIONS ================ -->
+      <!-- ================= output format ================ -->
+      <div class="col-12 col-md-2 text-end">
+        <label class="form-label fw-bold me-5"><?php echo $lang[$currentLang]['run_options_output_label']; ?>:</label>
+      </div>
+      <div class="col-12 col-md-10">
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="option_output" id="option_output_txt" value="txt" onchange="displayShortSelectedOptions();">
+          <label class="form-check-label" for="option_output_txt" title="<?php echo $lang[$currentLang]['run_options_output_txt_popup']; ?>">
+            <?php echo $lang[$currentLang]['run_options_output_txt']; ?>
+          </label>
+	</div>
 
-    <div class="form-horizontal">
-      <div class="form-group row" style="margin-top: 10px; margin-bottom: 0px">
-        <label class="col-sm-2 control-label">Input:</label>
-        <div class="col-sm-10">
-          <label title="Tokenize input using a tokenizer" class="radio-inline" id="option_input_plaintext"><input name="option_input" type="radio" value="txt" checked/>Plain text</label>
-          <label title="Tokenize a pre-segmented input using a tokenizer" class="radio-inline" id="option_input_presegmented"><input name="option_input" type="radio" value="presegmented"/>Pre-segmented (<a href="http://ufal.mff.cuni.cz/soudec/users-manual#run_soudec_input" target="_blank">sentence per line</a>)</label>
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="option_output" id="option_output_html" value="html" checked onchange="displayShortSelectedOptions();">
+          <label class="form-check-label" for="option_output_html" title="<?php echo $lang[$currentLang]['run_options_output_html_popup']; ?>">
+            <?php echo $lang[$currentLang]['run_options_output_html']; ?>
+          </label>
+	</div>
+
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="option_output" id="option_output_conllu" value="conllu" onchange="displayShortSelectedOptions();">
+          <label class="form-check-label" for="option_output_conllu" title="<?php echo $lang[$currentLang]['run_options_output_conllu_popup']; ?>">
+            <?php echo $lang[$currentLang]['run_options_output_conllu']; ?>
+          </label>
         </div>
       </div>
-      <div class="form-group row">
-        <label class="col-sm-2 control-label">Output:</label>
-        <div class="col-sm-10">
-          <label title="TXT with sources and phrases marked with special characters" class="radio-inline" id="option_output_txt"><input name="option_output" type="radio" value="txt"/>TXT (<a href="http://ufal.mff.cuni.cz/soudec/users-manual#run_soudec_output" target="_blank">marked with special characters</a>)</label>
-          <label title="HTML with colour-marked sources and phrases" class="radio-inline" id="option_output_html"><input name="option_output" type="radio" value="html" checked/>HTML (<a href="http://ufal.mff.cuni.cz/soudec/users-manual#run_soudec_output" target="_blank">colour-marked</a>)</label>
-          <label title="CoNLL-U format with sources and phrases in MISC" class="radio-inline" id="option_output_conllu"><input name="option_output" type="radio" value="conllu"/>CoNLL-U (<a href="http://ufal.mff.cuni.cz/soudec/users-manual#run_soudec_output" target="_blank">CoNLL-U+NE+SD</a>)</label>
-        </div>
-      </div>
     </div>
+  </div>
 
-    <ul class="nav nav-tabs nav-justified nav-tabs-green">
-     <li class="active" style="position:relative"><a href="#input_text" data-toggle="tab"><span class="fa fa-font"></span> Input Text</a>
-          <button type="button" class="btn btn-primary btn-xs" style="position:absolute; top: 11px; right: 10px; padding: 0 2em" onclick="var t=document.getElementById('input'); t.value=''; t.focus();">Delete input text</button>
-     </li>
-    </ul>
+  <!-- ================= INPUT FIELDS ================ -->
 
+  <!-- ================ záložky input panelů =============== -->
+  <ul class="nav nav-tabs nav-fill nav-tabs-green">
+    <li class="nav-item" id="input_text_header">
+      <a class="nav-link active d-flex align-items-center" href="#input_text" data-bs-toggle="tab">
+        <span class="fa fa-font"></span>&nbsp;<?php echo $lang[$currentLang]['run_input_text']; ?>
+        <div class="ms-auto d-flex gap-2">
+          <button class="btn btn-sm btn-primary btn-soudec-colors btn-soudec-small" onclick="var t=document.getElementById('input'); t.value=''; t.focus();" title="<?php echo $lang[$currentLang]['run_input_text_button_delete_tooltip']; ?>">
+            <span class="fas fa-trash"></span> <?php echo $lang[$currentLang]['run_input_text_button_delete']; ?>
+          </button>
+        </div>
+      </a>
+    </li>
+  </ul>
+
+  <!-- ================ input panel =============== -->
+  <div class="tab-content" id="input_tabs" style="border: 1px solid #ddd; border-radius: 0 0 .25rem .25rem; padding: 15px;">
+    <div class="tab-pane show active" id="input_text">
+      <textarea id="input" class="form-control" rows="10" cols="80"><?php echo $lang['cs']['run_input_text_default_text']; ?></textarea>
+    </div>
+  </div>
+
+  <!-- ================= THE MAIN PROCESS BUTTON ================ -->
+
+  <button id="submit" class="btn btn-primary btn-soudec-colors form-control mt-3" type="submit" onclick="doSubmit()">
+    <span class="fa fa-arrow-down"></span> <?php echo $lang[$currentLang]['run_process_input']; ?> <span class="fa fa-arrow-down"></span>
+  </button>
+
+  <!-- ================= OUTPUT FIELDS ================ -->
     
-    <div class="tab-content" id="input_tabs" style="border-right: 1px solid #ddd; border-left: 1px solid #ddd; border-bottom: 1px solid #ddd; border-bottom-right-radius: 5px; border-bottom-left-radius: 5px; padding: 15px">
-     <div class="tab-pane active" id="input_text">
-      <textarea id="input" class="form-control" rows="10" cols="80"></textarea>
-     </div>
-    </div>
+  <ul class="nav nav-tabs nav-tabs-green nav-tabs-custom nav-fill">
 
-    <button id="submit" class="btn btn-primary form-control" type="submit" style="margin-top: 15px; margin-bottom: 15px" onclick="doSubmit()"><span class="fa fa-arrow-down"></span> Process Input <span class="fa fa-arrow-down"></span></button>
+    <!-- output text tab -->
+    <li class="nav-item" id="output_text_header">
+      <a class="nav-link active d-flex align-items-center" href="#output_formatted" data-bs-toggle="tab">
+        <span class="fa fa-font me-2"></span>
+        <span><?php echo $lang[$currentLang]['run_output_text']; ?></span>
+        <div class="ms-auto d-flex gap-2">
+          <button class="btn btn-primary btn-sm btn-soudec-colors btn-soudec-small" onclick="saveOutput(); event.stopPropagation();">
+            <span class="fa fa-download"></span>
+          </button>
+        </div>
+      </a>
+    </li>
 
-    <ul class="nav nav-tabs nav-justified nav-tabs-green">
-     <li class="active" style="position:relative"><a href="#output_formatted" data-toggle="tab"><span class="fa fa-font"></span> Output</a>
-          <button type="button" class="btn btn-primary btn-xs" style="position:absolute; top: 11px; right: 10px; padding: 0 2em" onclick="saveOutput();"><span class="fa fa-download"></span> Save</button>
-     </li>
-     <li style="position:relative"><a href="#output_stats" data-toggle="tab"><span class="fa fa-table"></span> Statistics</a>
-          <button type="button" class="btn btn-primary btn-xs" style="position:absolute; top: 11px; right: 10px; padding: 0 2em" onclick="saveStats();"><span class="fa fa-download"></span> Save</button>
-     </li>
-    </ul>
+    <!-- output stats tab -->
+    <li class="nav-item" id="output_stats_header">
+      <a class="nav-link d-flex align-items-center" href="#output_stats" data-bs-toggle="tab">
+        <span class="fa fa-font me-2"></span>
+        <span><?php echo $lang[$currentLang]['run_output_statistics']; ?></span>
+        <div class="ms-auto d-flex gap-2">
+          <button class="btn btn-primary btn-sm btn-soudec-colors btn-soudec-small" onclick="saveStats(); event.stopPropagation();">
+            <span class="fa fa-download"></span>
+          </button>
+        </div>
+      </a>
+    </li>
 
-    <div class="tab-content" id="output_tabs" style="border-right: 1px solid #ddd; border-left: 1px solid #ddd; border-bottom: 1px solid #ddd; border-bottom-right-radius: 5px; border-bottom-left-radius: 5px; padding: 15px">
-     <div class="tab-pane active" id="output_formatted">
-     </div>
-     <div class="tab-pane" id="output_stats">
-     </div>
-    </div>
+  </ul>
 
-    <h3 id="acknowledgements_title" style="margin-top: 30px">Acknowledgements</h3>
-    <p id="acknowledgements_text">The development of SouDeC was financed by the TAČR project TL05000057: Signál a šum v éře Žurnalistiky 5.0 - komparativní perspektiva novinářských žánrů automatizovaných obsahů.</p>
-    <p>
-      SouDeC uses external services for its work:
-    </p>
-    <ul>
-      <li>
-        UDPipe (<a href="https://lindat.mff.cuni.cz/services/udpipe/" target="_blank">https://lindat.mff.cuni.cz/services/udpipe/</a>)
-      </li>
-      <li>
-        NameTag (<a href="http://lindat.mff.cuni.cz/services/nametag/" target="_blank">http://lindat.mff.cuni.cz/services/nametag/</a>)
-      </li>
-    </ul>
-    <p> 
-      This work has been using language resources developed, stored or distributed by the LINDAT/CLARIAH-CZ project of the Ministry of Education of the Czech Republic (project <i>LM2023062</i>).
-    </p>
+  <!-- output panels -->
+  <div class="tab-content" id="output_tabs" style="border-right: 1px solid #ddd; border-left: 1px solid #ddd; border-bottom: 1px solid #ddd; border-bottom-right-radius: 5px; border-bottom-left-radius: 5px; padding: 15px;">
+    <div class="tab-pane active" id="output_formatted" style="min-height: 300px; max-height: 85vh; overflow-y: auto;"></div>
+    <div class="tab-pane" id="output_stats" style="min-height: 300px; max-height: 85vh; overflow-y: auto;"></div>
   </div>
+
 </div>
 
-<?php require('footer.php') ?>

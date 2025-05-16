@@ -1,39 +1,66 @@
-<?php $main_page=basename(__FILE__); require('header.php') ?>
+<?php
+  if ($currentLang == 'cs') {
+?>
+    <div style="margin: 5px"><?php require('about_cs.html') ?></div>
+<?php
+  } else {
+?>
+    <div style="margin: 5px"><?php require('about_en.html') ?></div>
+<?php
+  }
+?>
 
-<?php require('about.html') ?>
 
 <div class="panel panel-info">
-  <div class="panel-heading">Basic info</div>
+  <div class="panel-heading"><?php echo $lang[$currentLang]['info_basic_label']; ?></div>
   <table class="table table-striped table-bordered">
   <tr>
-      <th>Authors</th>
-      <td>Jiří Mírovský, Barbora Hladká</td>
+      <th><?php echo $lang[$currentLang]['info_basic_authors']; ?></th>
+      <td>Jiří Mírovský, Barbora Hladká
+      </td>
   </tr>
   <tr>
-      <th>Homepage</th>
-      <td><a href="http://ufal.mff.cuni.cz/soudec/" target="_blank">http://ufal.mff.cuni.cz/soudec/</a></td>
+      <th><?php echo $lang[$currentLang]['info_basic_homepage']; ?></th>
+      <td><a href="https://ufal.mff.cuni.cz/soudec/" target="_blank">https://ufal.mff.cuni.cz/soudec/</a></td>
   </tr>
   <tr>
-      <th>Development repository</th>
-      <td><a href="https://github.com/ufal/soudec" target="_blank">https://github.com/ufal/soudec</a></td>
+      <th><?php echo $lang[$currentLang]['info_basic_repository']; ?></th>
+      <td><a href="https://github.com/ufal/soudec/" target="_blank">https://github.com/ufal/soudec/</a></td>
   </tr>
   <tr>
-      <th>Status</th>
-      <td>Stable, version 1.0</td>
+      <th><?php echo $lang[$currentLang]['info_basic_development_status']; ?></th>
+      <td><?php echo $lang[$currentLang]['info_basic_development_status_development']; ?></td>
   </tr>
   <tr>
-      <th>OS</th>
+      <th><?php echo $lang[$currentLang]['info_basic_OS']; ?></th>
       <td>Linux</td>
   </tr>
   <tr>
-      <th>Licence</th>
+      <th><?php echo $lang[$currentLang]['info_basic_licence']; ?></th>
       <td><a href="https://www.mozilla.org/MPL/2.0/" target="_blank">MPL 2.0</a></td>
   </tr>
   <tr>
-      <th>Contact</th>
+      <th><?php echo $lang[$currentLang]['info_basic_contact']; ?></th>
       <td><a href="mailto:mirovsky@ufal.mff.cuni.cz">mirovsky@ufal.mff.cuni.cz</a></td>
   </tr>
   </table>
 </div>
 
-<?php require('footer.php') ?>
+
+<!-- ================= ACKNOWLEDGEMENTS ================ -->
+
+<div class="mt-3 mb-3">
+  <?php
+    if ($currentLang == 'cs') {
+  ?>
+    <div><?php include('acknowledgements_cs.html'); ?></div>
+  <?php
+    } else {
+  ?>
+    <div><?php include('acknowledgements_en.html'); ?></div>
+  <?php
+    }
+  ?>
+</div>
+
+

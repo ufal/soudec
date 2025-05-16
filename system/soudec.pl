@@ -27,7 +27,7 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER = '1.0 (20250425)'; # version of the program
+my $VER = '1.1 (20250516)'; # version of the program
 
 $mylog::logging_level = 2; # default log level, can be changed using the -ll parameter (0=full, 1=limited, 2=minimal)
 
@@ -1429,6 +1429,9 @@ sub get_extra_NE_for_node {
   }
 
   if ($lemma =~ /^premiér(ka)?$/) {
+    return 'io'; # "institution - goverment, political"
+  }
+  if ($lemma =~ /^prezident(ka)?$/) {
     return 'io'; # "institution - goverment, political"
   }
   if ($lemma =~ /^poslan(ec|kyně)$/) {
