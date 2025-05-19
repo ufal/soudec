@@ -1,3 +1,7 @@
+
+<div class="panel panel-info">
+  <h3><?php echo $lang[$currentLang]['info_basic_label']; ?></h3>
+
 <?php
   if ($currentLang == 'cs') {
 ?>
@@ -11,8 +15,6 @@
 ?>
 
 
-<div class="panel panel-info">
-  <div class="panel-heading"><?php echo $lang[$currentLang]['info_basic_label']; ?></div>
   <table class="table table-striped table-bordered">
   <tr>
       <th><?php echo $lang[$currentLang]['info_basic_authors']; ?></th>
@@ -44,7 +46,6 @@
       <td><a href="mailto:mirovsky@ufal.mff.cuni.cz">mirovsky@ufal.mff.cuni.cz</a></td>
   </tr>
   </table>
-</div>
 
 
 <!-- ================= ACKNOWLEDGEMENTS ================ -->
@@ -64,3 +65,4 @@
 </div>
 
 
+</div>

@@ -4,13 +4,13 @@ $lang = array(
         'menu_about' => 'O programu',
 	'menu_run' => 'Spustit',
 	'menu_api' => 'REST API',
-	'run_about_line' => 'DReUD je budoucí program, webová aplikace a služba REST API pro analýzu lokálních diskurzních vztahů v systému UD.',
+	'run_about_line' => 'SouDeC je program, webová aplikace a služba REST API pro detekci a klasifikaci citačních zdrojů v českých textech.',
 	'run_server_info_word_limit' => 'Upozorňujeme, že vzhledem k časovým limitům našeho proxy serveru je maximální délka vstupního textu přibližně 10 tisíc slov.',
 	'run_server_info_label' => 'Server',
 	'run_server_info_version' => 'verze',
 	'run_server_info_version_unknown' => 'neznámá',
 	'run_server_info_status' => 'stav',
-	'run_server_info_status_error' => 'server DReUD je momentálně mimo provoz',
+	'run_server_info_status_error' => 'server SouDeC je momentálně mimo provoz',
 	'run_options_input_label' => 'Vstup',
 	'run_options_input_plain' => 'Prostý text',
 	'run_options_input_plain_popup' => 'Vstupní formát: prostý text',
@@ -58,20 +58,20 @@ $lang = array(
 	'info_basic_OS' => 'OS',
 	'info_basic_licence' => 'Licence',
 	'info_basic_contact' => 'Kontakt',
-	'api_service_url' => 'Rozhraní REST API k webové službě DReUD je k dispozici na'
+	'api_service_url' => 'Rozhraní REST API k webové službě SouDeC je k dispozici na'
     ),
 
     'en' => array(
         'menu_about' => 'About',
 	'menu_run' => 'Run',
 	'menu_api' => 'REST API',
-	'run_about_line' => 'DReUD is an upcoming tool, a web application and a REST API service for shallow discourse parsing in UD.',
+	'run_about_line' => 'SouDeC is a tool, a web application and a REST API service for detection and classification of citation sources in Czech.',
 	'run_server_info_word_limit' => 'Please note that due to time limitations on our proxy server, the maximum length for input text is approximately 10 thousand words.',
 	'run_server_info_label' => 'Server',
 	'run_server_info_version' => 'version',
 	'run_server_info_version_unknown' => 'unknown',
 	'run_server_info_status' => 'status',
-	'run_server_info_status_error' => 'the DReUD server seems to be off-line',
+	'run_server_info_status_error' => 'the SouDeC server seems to be off-line',
 	'run_options_input_label' => 'Input',
 	'run_options_input_plain' => 'Plain text',
 	'run_options_input_plain_popup' => 'Plain text input format',
@@ -118,7 +118,7 @@ $lang = array(
 	'info_basic_OS' => 'OS',
 	'info_basic_licence' => 'Licence',
 	'info_basic_contact' => 'Contact',
-	'api_service_url' => 'DReUD REST API web service is available on'
+	'api_service_url' => 'SouDeC REST API web service is available on'
     )
 );
 ?>
