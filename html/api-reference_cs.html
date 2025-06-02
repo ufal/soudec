@@ -1,68 +1,94 @@
 
 <h2 id="api_reference">API Reference</h2>
-
-<p>The SouDeC REST API can be accessed <a href="#" onclick="event.preventDefault(); selectMainTab('run');">directly</a> or via web
-programming tools that support standard HTTP request methods and JSON for output
-handling.</p>
+<p>K rozhraní REST API služby SouDeC lze přistupovat <a href="#" onclick="event.preventDefault(); selectMainTab('run');">přímo z těchto stránek</a> nebo pomocí
+webových programových nástrojů, které podporují standardní metody požadavků HTTP a formát JSON
+pro zpracování výsledků.</p>
 
 <table class='table table-striped table-bordered'>
 <tr>
-    <th>Service Request</th>
-    <th>Description</th>
-    <th>HTTP Method</th>
+    <th>Požadavek API</th>
+    <th>Popis</th>
+    <th>Metoda HTTP</th>
 </tr>
 <tr>
     <td><a href="#detect">detect</a></td>
-    <td><a href="http://ufal.mff.cuni.cz/soudec/users-manual#run_soudec" target="_blank">detect and classify sources</a></td>
+    <td><a href="http://ufal.mff.cuni.cz/soudec/users-manual#run_soudec" target="_blank">detekuje a klasifikuje zdroje</a></td>
+    <td>GET/POST</td>
+</tr>
+<tr>
+    <td><a href="#info">info</a></td>
+    <td><!--a href="http://ufal.mff.cuni.cz/soudec/users-manual#info" target="_blank"-->vrátí verzi serveru a seznam podporovaných vlastností</a></td>
     <td>GET/POST</td>
 </tr>
 </table>
 
 
-<h3>Method <a id='detect'>detect</a></h3>
+<h3>Metoda <a id='detect'>detect</a></h3>
 
-<p>Process the given data as described in <a href="http://ufal.mff.cuni.cz/soudec/users-manual#run_soudec" target="_blank">the User's Manual</a>.</p>
+<p>Zpracuje vstupní data tak, jak je popsáno v <a href="http://ufal.mff.cuni.cz/soudec/users-manual#run_soudec" target="_blank">uživatelské dokumentaci</a>.</p>
 
 <table class='table table-striped table-bordered'>
-<tr><th>Parameter</th><th>Mandatory</th><th>Data type</th><th>Description</th></tr>
-<tr><td>text</td><td>yes</td><td>string</td><td>Input text in <b>UTF-8</b>.</td></tr>
-<tr><td>input</td><td>no</td><td>string</td><td>Input format; possible values: <code>txt</code> (default), <code>presegmented</code>, see <a href="http://ufal.mff.cuni.cz/soudec/users-manual#run_soudec_input" target="_blank">input format</a> for details.</td></tr>
-<tr><td>output</td><td>no</td><td>string</td><td>Output format; possible values: <code>txt</code> (default), <code>html</code>, <code>conllu</code>, see <a href="http://ufal.mff.cuni.cz/soudec/users-manual#run_soudec_output" target="_blank">output format</a> for details.</td></tr>
+<tr><th>Parametr</th><th>Povinný</th><th>Typ dat</th><th>Popis</th></tr>
+<tr><td>text</td><td>ano</td><td>řetězec</td><td>Vstupní text v kódování <b>UTF-8</b>.</td></tr>
+<tr><td>input</td><td>ne</td><td>řetězec</td><td>Vstupní formát; možné hodnoty: <code>txt</code> (defaultní), <code>presegmented</code> (věta na řádek), viz. <a href="http://ufal.mff.cuni.cz/soudec/users-manual#run_soudec_input" target="_blank">vstupní formát</a>.</td></tr>
+<tr><td>output</td><td>ne</td><td>řetězec</td><td>Výstupní formát; možné hodnoty: <code>txt</code> (defaultní), <code>html</code>, <code>conllu</code>, viz. <a href="http://ufal.mff.cuni.cz/soudec/users-manual#run_soudec_output" target="_blank">výstupní formát</a>.</td></tr>
 </table>
 
 <p>
-The response is in <a href="http://en.wikipedia.org/wiki/JSON" target="_blank">JSON</a> format of the
-following structure:</p>
+Odpověď serveru je ve formátu <a href="http://en.wikipedia.org/wiki/JSON" target="_blank">JSON</a> s touto strukturou:</p>
 
 <pre class="prettyprint lang-json">
 {
- "result": "processed_output"
- "stats": "statistics"
+ "message": "přehledová_zpráva"
+ "result": "zpracovaný_výstup"
+ "stats": "statistiky"
 }
 </pre>
 
-The <code>processed_output</code> is the output of SouDeC in the requested output format
-<br/>and <code>statistics</code> is an HTML overview of the detected sources and their classes.
+<p>
+<code>přehledová_zpráva</code> je krátká přehledová zpráva o aktuálním volání REST API;
+<br/><code>zpracovaný_výstup</code> je výstup programu SouDeC ve zvoleném výstupním formátu;
+<br/><code>statistiky</code> je přehled ve formátu HTML obsahující detekované zdroje a jejich třídy.
+</p>
+
+<h3>Metoda <a id='info'>info</a></h3>
+
+<p>Vrátí informace o serveru - verzi služby SouDeC a seznam podporovaných vlastností. Metoda nemá parametry.</p>
+
+<p>
+Odpověď je ve formátu <a href="http://en.wikipedia.org/wiki/JSON" target="_blank">JSON</a> s touto strukturou:</p>
+
+<pre class="prettyprint lang-json">
+{
+ "version": "verze_SouDCu"
+ "features": "podporované_vlastnosti"
+}
+</pre>
+
+<p>
+<code>verze_SouDCu</code> je verze serveru sestávající z čísla verze a data vytvoření této verze.
+<br><code>podporované_vlastnosti</code>jsou seznam podporovaných vlastností.
+</p>
 
 
-<h2 style="margin-top: 20px">Browser Example</h2>
+<h2 style="margin-top: 20px">Příklad pro webový prohlížeč</h2>
 <table style='width: 100%'>
  <tr><td style='vertical-align: middle'><pre style='margin-bottom: 0; white-space: pre-wrap' class="prettyprint lang-html">http://quest.ms.mff.cuni.cz/soudec/api/detect?input=txt&amp;output=txt&amp;text=SouDec tvrdí, že tohle je citace.</pre></td>
-     <td style='vertical-align: middle; width: 6em'><button style='width: 100%' type="button" class="btn btn-success btn-xs" onclick="window.open('http://quest.ms.mff.cuni.cz/soudec/api/detect?input=txt&amp;output=txt&amp;text=SouDec tvrdí, že tohle je citace.')">try&nbsp;this</button></td></tr>
+     <td style='vertical-align: middle; width: 6em'><button style='width: 100%' type="button" class="btn btn-success btn-xs" onclick="window.open('http://quest.ms.mff.cuni.cz/soudec/api/detect?input=txt&amp;output=txt&amp;text=SouDec tvrdí, že tohle je citace.')">vyzkoušet</button></td></tr>
 </table>
 
 <hr />
 
-<h2 id="using_curl">Accessing API using Curl</h2>
+<h2 id="using_curl">Přístup k API pomocí Curl</h2>
 
-The described API can be comfortably used by <code>curl</code>. Several examples follow:
+Popsané rozhraní REST API lze snadno používat pomocí <code>curl</code>. Několik příkladů:
 
-<h3>Passing Input on Command Line (if UTF-8 locale is being used)</h3>
+<h3>Předání vstupu z příkazové řádky (předpokládá se nastavení prostředí UTF-8)</h3>
 <pre style="white-space: pre-wrap" class="prettyprint lang-sh">curl --data 'input=txt&amp;output=txt&amp;text=SouDec tvrdí, že tohle je citace.' http://quest.ms.mff.cuni.cz/soudec/api/detect</pre>
 
-<h3>Using Files as Input (files must be in UTF-8 encoding)</h3>
+<h3>Použití vstupního souboru (soubory musejí být kódovány v UTF-8)</h3>
 <pre style="white-space: pre-wrap" class="prettyprint lang-sh">curl --data-urlencode 'input=txt' --data-urlencode 'output=html' --data-urlencode 'text@input_file.txt' http://quest.ms.mff.cuni.cz/soudec/api/detect</pre>
 
-<h3>Converting JSON Result to Plain Text</h3>
+<h3>Konverze výsledku z formátu JSON do prostého textu</h3>
 <pre style="white-space: pre-wrap" class="prettyprint lang-sh">curl --data 'input=txt&amp;output=txt&amp;text=SouDec tvrdí, že tohle je citace.' http://quest.ms.mff.cuni.cz/soudec/api/detect | PYTHONIOENCODING=utf-8 python -c "import sys,json; sys.stdout.write(json.load(sys.stdin)['result'])"</pre>
 
