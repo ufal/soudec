@@ -67,9 +67,11 @@ any '/api/test' => sub {
 any '/api/info' => sub {
     my $c = shift;
     my $method = $c->req->method;
+    my $uilang = $c->param('uilang') // ''; # UI language
 
     # Spuštění skriptu soudec.pl s parametrem pro získání info
     my @cmd = ('/usr/bin/perl', "$script_dir/soudec.pl",
+	       '--ui-language', $uilang,
                '--info');
     my $stdin_data = '';
     my $result_json;
@@ -104,14 +106,16 @@ any '/api/detect' => sub {
         my $text = $c->param('text'); # input text
         my $input_format = $c->param('input'); # input format
         my $output_format = $c->param('output'); # output format
+        my $uilang = $c->param('uilang') // ''; # UI language
 
-	     # Spuštění skriptu soudec.pl s předáním parametrů a standardního vstupu
+        # Spuštění skriptu soudec.pl s předáním parametrů a standardního vstupu
         my @cmd = ('/usr/bin/perl', "$script_dir/soudec.pl",
 		   '--stdin',
 		   '--store-conllu',
 		   '--phrase-file', "$script_dir/resources/phrases_reliability.csv",
 		   '--input-format', $input_format, 
 		   '--output-format', $output_format,
+	           '--ui-language', $uilang,
 		   '--output-statistics');
         my $stdin_data = $text;
         my $result_json;

@@ -35,7 +35,20 @@
     // console.log("doSubmit: Input format: ", input_format);
     output_format = jQuery('input[name=option_output]:checked').val();
     // console.log("doSubmit: Output format: ", output_format);
-    var options = {text: input_text, input: input_format, output: output_format};
+
+    <?php
+      if ($currentLang == 'cs') {
+    ?>
+      var ui_lang = 'cs'; 
+    <?php
+      } else {
+    ?>
+      var ui_lang = 'en'; 
+    <?php
+      }
+    ?>
+
+    var options = {text: input_text, input: input_format, output: output_format, uilang: ui_lang};
     // console.log("doSubmit: options: ", options);
 
     var form_data = null;
@@ -82,7 +95,17 @@
 
   function getInfo() { // call the server and get the DReUD version and a list of supported features
 
-    var options = {info: null};
+    <?php
+      if ($currentLang == 'cs') {
+    ?>
+    var options = {info: null, uilang: 'cs'};
+    <?php
+      } else {
+    ?>
+    var options = {info: null, uilang: 'en'};
+    <?php
+      }
+    ?>
     //console.log("getInfo: options: ", options);
 
     var form_data = null;

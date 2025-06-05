@@ -27,12 +27,18 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER = '1.1 (20250516)'; # version of the program
+my $VER_en = '1.2 (20250605)'; # version of the program
+my $VER_cs = '1.2 (20250605)'; # version of the program
 
-my @features = ('detection and classification of citation sources'
-               );
+my @features_cs = ('detekce citačních zdrojů',
+                   'klasifikace citačních zdrojů'
+                  );
+my @features_en = ('detection of citation sources',
+                   'classification of citation sources'
+                  );
 
-my $FEATS = join(' • ', @features); 
+my $FEATS_cs = join(' • ', @features_cs); 
+my $FEATS_en = join(' • ', @features_en); 
 
 $mylog::logging_level = 2; # default log level, can be changed using the -ll parameter (0=full, 1=limited, 2=minimal)
 
@@ -302,6 +308,8 @@ my $OUTPUT_FORMAT_DEFAULT = 'txt';
 my $INPUT_FORMAT_DEFAULT = 'txt';
 # default phrase reliability file
 my $PHRASE_RELIABILITY_FILE_DEFAULT = 'resources/phrases_reliability.csv';
+# default UI language
+my $UI_LANGUAGE_DEFAULT = 'en';
 
 # variables for arguments
 my $input_file;
@@ -312,6 +320,7 @@ my $phrase_reliability_file;
 my $min_phrase_reliability;
 my $output_format;
 my $output_statistics;
+my $ui_language;
 my $add_NE;
 my $add_antecedent;
 my $store_format;
@@ -331,6 +340,7 @@ GetOptions(
     'r|reliability=i'      => \$min_phrase_reliability, # minimal required phrase reliability
     'of|output-format=s'   => \$output_format, # output format, possible values: txt, html, conllu
     'os|output-statistics' => \$output_statistics, # adds statistics to the output; if present, output is JSON with two items: data (in output-format) and stats (in HTML)
+    'uil|ui-language=s'    => \$ui_language, # localize the response whenever possible to the given language: en (default), cs
     'ne|named-entities'    => \$add_NE, # add named entities as marked by NameTag to the classes in the output
     'aa|add-antecedent'    => \$add_antecedent, # add the antecedent if coreference is used to determine the class
     'sf|store-format=s'    => \$store_format, # log the result in the given format: txt, html, conllu
@@ -350,15 +360,30 @@ my $script_dir = dirname($script_path);  # Získá pouze adresář ze získané 
 
 
 if ($version) {
-  print "SouDeC version $VER.\n";
+  if ($ui_language eq 'cs') {
+    print "SouDeC verze $VER_cs.\n";
+  }
+  else {
+    print "SouDeC version $VER_en.\n";
+  }
   exit 0;
 }
 
+
 if ($info) {
-  my $json_data = {
-       version  => $VER,
-       features => $FEATS,
-     };
+  my $json_data;
+  if ($ui_language eq 'cs') {
+    $json_data = {
+       version  => $VER_cs,
+       features => $FEATS_cs,
+    };
+  }
+  else {
+    $json_data = {
+       version  => $VER_en,
+       features => $FEATS_en,
+    };
+  }
   # Encode the Perl data structure into a JSON string
   my $json_string = encode_json($json_data);
   # Print the JSON string to STDOUT
@@ -366,8 +391,9 @@ if ($info) {
   exit 0;
 }
 
+
 if ($help) {
-  print "SouDeC version $VER.\n";
+  print "SouDeC version $VER_en.\n";
   my $text = <<'END_TEXT';
 Usage: soudec.pl [options]
 options:  -i|--input-file [input text file name]
@@ -378,7 +404,8 @@ options:  -i|--input-file [input text file name]
           -r|--reliability [minimal required phrase reliability]
          -of|--output-format [output format: txt (default), html, conllu]
          -os|--output-statistics (add SouDeC statistics to output; if present, output is JSON with two items: data (in output-format) and stats (in HTML))
-         -ne|--named-entities (add NameTag marks to classes in the output)
+        -uil|--ui-language [language: localize the response whenever possible to the given language: en (default), cs]
+	 -ne|--named-entities (add NameTag marks to classes in the output)
          -aa|--add-antecedent (add the antecedent if coreference is used to determine the class)
          -sf|--store-format [format: log the output in the given format: txt, html, conllu]
          -ss|--store-statistics (log SouDeC statistics to an HTML file)
@@ -395,7 +422,7 @@ END_TEXT
 ###################################################################################
 
 mylog(2, "####################################################################\n");
-mylog(2, "SouDec $VER (logging level: $mylog::logging_level - $logging_level_label{$mylog::logging_level})\n");
+mylog(2, "SouDec $VER_en (logging level: $mylog::logging_level - $logging_level_label{$mylog::logging_level})\n");
 mylog(2, "####################################################################\n");
 
 mylog(0, "Arguments:\n");
@@ -2003,26 +2030,46 @@ sub get_stats {
 </head>
 END_HEAD
 
-  $stats .= "<body>\n";
-
-  $stats .= "<h3>SouDeC version $VER</h3>\n";
-  
-  $stats .= "<p>Number of sentences: $sentences_count\n";
-  $stats .= "<br/>Number of tokens: $tokens_count\n";
   my $rounded_time = sprintf("%.1f", $processing_time);
   my $rounded_time_udpipe = sprintf("%.1f", $processing_time_udpipe);
   my $rounded_time_nametag = sprintf("%.1f", $processing_time_nametag);
-  $stats .= "<br/>Processing time: $rounded_time sec.\n";
-  $stats .= "<br/> &nbsp; - UDPipe: $rounded_time_udpipe sec.\n";
-  $stats .= "<br/> &nbsp; - NameTag: $rounded_time_nametag sec.\n";
-  $stats .= "</p>\n";
+ 
+  $stats .= "<body>\n";
+
+  if ($ui_language eq 'cs') {
+
+    $stats .= "<h3>SouDeC verze $VER_cs</h3>\n";
+    $stats .= "<p>Počet vět: $sentences_count\n";
+    $stats .= "<br/>Počet tokenů: $tokens_count\n";
+    $stats .= "<br/>Doba zpracování: $rounded_time s\n";
+    $stats .= "<br/> &nbsp; - UDPipe: $rounded_time_udpipe s\n";
+    $stats .= "<br/> &nbsp; - NameTag: $rounded_time_nametag s\n";
+    $stats .= "</p>\n";
+
+  }
+  else {
+
+    $stats .= "<h3>SouDeC version $VER_en</h3>\n";
+    $stats .= "<p>Number of sentences: $sentences_count\n";
+    $stats .= "<br/>Number of tokens: $tokens_count\n";
+    $stats .= "<br/>Processing time: $rounded_time s\n";
+    $stats .= "<br/> &nbsp; - UDPipe: $rounded_time_udpipe s\n";
+    $stats .= "<br/> &nbsp; - NameTag: $rounded_time_nametag s\n";
+    $stats .= "</p>\n";
+
+  }
 
   $stats .= "<p>\n";
   $stats .= "<table border=0><tr><td>\n";
 
   # table with distribution of classes
   $stats .= "<table>\n";
-  $stats .= "<tr><th>Class</th><th>Count</th></tr>\n";
+  if ($ui_language eq 'cs') {
+    $stats .= "<tr><th>Třída</th><th>Počet</th></tr>\n";
+  }
+  else {
+    $stats .= "<tr><th>Class</th><th>Count</th></tr>\n";
+  }
   foreach my $class (sort {$class2count{$b} <=> $class2count{$a}} keys(%class2count)) {
     $stats .= "<tr><td>$class</td><td>$class2count{$class}</td></tr>\n";
   }
@@ -2065,7 +2112,12 @@ END_HEAD
   # table with distribution of sources
   $stats .= "<p>\n";
   $stats .= "<table>\n";
-  $stats .= "<tr><th>Source</th><th>Class</th><th>Count</th></tr>\n";
+  if ($ui_language eq 'cs') {
+    $stats .= "<tr><th>Zdroj</th><th>Třída</th><th>Počet</th></tr>\n";
+  }
+  else {
+    $stats .= "<tr><th>Source</th><th>Class</th><th>Count</th></tr>\n";
+  }
   foreach my $source (sort {$source2count{$b} <=> $source2count{$a}} grep {$source2count{$_}} keys(%source2class)) {
     $stats .= "<tr><td>$source</td><td>$source2class{$source}</td><td>$source2count{$source}</td></tr>\n";
   }

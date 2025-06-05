@@ -11,19 +11,19 @@ pro zpracování výsledků.</p>
     <th>Metoda HTTP</th>
 </tr>
 <tr>
-    <td><a href="#detect">detect</a></td>
+    <td><a href="#api-detect">detect</a></td>
     <td><a href="http://ufal.mff.cuni.cz/soudec/users-manual#run_soudec" target="_blank">detekuje a klasifikuje zdroje</a></td>
     <td>GET/POST</td>
 </tr>
 <tr>
-    <td><a href="#info">info</a></td>
+    <td><a href="#api-info">info</a></td>
     <td><!--a href="http://ufal.mff.cuni.cz/soudec/users-manual#info" target="_blank"-->vrátí verzi serveru a seznam podporovaných vlastností</a></td>
     <td>GET/POST</td>
 </tr>
 </table>
 
 
-<h3>Metoda <a id='detect'>detect</a></h3>
+<h3>Metoda <a id='api-detect'>detect</a></h3>
 
 <p>Zpracuje vstupní data tak, jak je popsáno v <a href="http://ufal.mff.cuni.cz/soudec/users-manual#run_soudec" target="_blank">uživatelské dokumentaci</a>.</p>
 
@@ -32,6 +32,7 @@ pro zpracování výsledků.</p>
 <tr><td>text</td><td>ano</td><td>řetězec</td><td>Vstupní text v kódování <b>UTF-8</b>.</td></tr>
 <tr><td>input</td><td>ne</td><td>řetězec</td><td>Vstupní formát; možné hodnoty: <code>txt</code> (defaultní), <code>presegmented</code> (věta na řádek), viz. <a href="http://ufal.mff.cuni.cz/soudec/users-manual#run_soudec_input" target="_blank">vstupní formát</a>.</td></tr>
 <tr><td>output</td><td>ne</td><td>řetězec</td><td>Výstupní formát; možné hodnoty: <code>txt</code> (defaultní), <code>html</code>, <code>conllu</code>, viz. <a href="http://ufal.mff.cuni.cz/soudec/users-manual#run_soudec_output" target="_blank">výstupní formát</a>.</td></tr>
+<tr><td>uilang</td><td>ne</td><td>řetězec</td><td>Jazyková lokalizace vrácených informací; možné hodnoty: <code>en</code> (defaultní), <code>cs</code>.</td></tr>
 </table>
 
 <p>
@@ -51,9 +52,14 @@ Odpověď serveru je ve formátu <a href="http://en.wikipedia.org/wiki/JSON" tar
 <br/><code>statistiky</code> je přehled ve formátu HTML obsahující detekované zdroje a jejich třídy.
 </p>
 
-<h3>Metoda <a id='info'>info</a></h3>
+<h3>Metoda <a id='api-info'>info</a></h3>
 
-<p>Vrátí informace o serveru - verzi služby SouDeC a seznam podporovaných vlastností. Metoda nemá parametry.</p>
+<p>Vrátí informace o serveru - verzi služby SouDeC a seznam podporovaných vlastností.</p>
+
+<table class='table table-striped table-bordered'>
+<tr><th>Parametr</th><th>Povinný</th><th>Typ dat</th><th>Popis</th></tr>
+<tr><td>uilang</td><td>ne</td><td>řetězec</td><td>Jazyková lokalizace vrácených informací; možné hodnoty: <code>en</code> (defaultní), <code>cs</code>.</td></tr>
+</table>
 
 <p>
 Odpověď je ve formátu <a href="http://en.wikipedia.org/wiki/JSON" target="_blank">JSON</a> s touto strukturou:</p>

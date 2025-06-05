@@ -5,7 +5,8 @@
   </button>
   <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="tocDropdown">
     <li><a class="dropdown-item" href="#api_reference">API Reference</a></li>
-    <li><a class="dropdown-item" href="#process"><span class="fa fa-caret-right"></span> <code>process</code></a></li>
+    <li><a class="dropdown-item" href="#api-detect"><span class="fa fa-caret-right"></span> <code>detect</code></a></li>
+    <li><a class="dropdown-item" href="#api-info"><span class="fa fa-caret-right"></span> <code>info</code></a></li>
     <li><hr class="dropdown-divider"></li>
     <li><a class="dropdown-item" href="#using_curl">Accessing API using Curl</a></li>
   </ul>
