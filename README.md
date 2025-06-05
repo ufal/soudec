@@ -1,6 +1,6 @@
 # SouDeC 
 
-SouDeC (Source Detection and Classification) is command-line tool, a web application and a REST API service for detecting and classifying citation sources in Czech texts. Taking a plain text (typically, a newspaper article) as an input, it runs external services for dependency parsing and named entity recognition and then identifies citation phrases and sources in the text and classifies each source into one of five classes: anonymous, anonymous-partial, unofficial, official-non-political, official-political.
+SouDeC (Source Detection and Classification) is command-line tool, a web application and a REST API service for detecting and classifying citation sources in Czech texts. Taking a plain text (typically, a newspaper article) as an input, it runs external services for dependency parsing and named entity recognition and then identifies citation phrases and sources in the text and classifies each source into one of five classes: _anonymous_, _anonymous-partial_, _unofficial_, _official-non-political_, _official-political_.
 
 SouDeC Web Application is available at [http://quest.ms.mff.cuni.cz/soudec/](http://quest.ms.mff.cuni.cz/soudec/).
 
