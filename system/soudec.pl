@@ -27,8 +27,8 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER_en = '1.2 (20250605)'; # version of the program
-my $VER_cs = '1.2 (20250605)'; # version of the program
+my $VER_en = '1.3 (20250609)'; # version of the program
+my $VER_cs = $VER_en; # version of the program
 
 my @features_cs = ('detekce citačních zdrojů',
                    'klasifikace citačních zdrojů'
@@ -991,7 +991,7 @@ sub check_constraint {
 
 =item is_finite
 
-Checks if the given node represents a finite verb
+Checks if the given node represents a finite verb or something similer, e.g. "ano", "ne".
 
 =cut
 
@@ -1020,6 +1020,17 @@ sub is_finite {
   my $form = attr($node, 'form');
   if ($form =~ /^(slova|to|tom)$/) {
     return 1;
+  }
+  # It may be a yes/no response, e.g. "ano" or "on ne" (deprel = dep)
+  if ($form =~ /^(ano|ne)$/) {
+    return 1;
+  }
+  my $deprel = attr($node, 'deprel') // '';
+  if ($deprel eq 'dep') {
+    my @ano_ne_children = grep {attr($_, 'lemma') and attr($_, 'lemma') =~ /(ano|ne)/} $node->getAllChildren;
+    if (@ano_ne_children) {
+      return 1;
+    }
   }
   return 0;
 }
@@ -1056,7 +1067,7 @@ sub has_finite_verb_object {
     return 0;
   }
   # Second, let us search for a claim among the children
-  my @finite_verb_object_children = grep {attr($_, 'deprel') =~ /^(obj|iobj|ccomp|xcomp|obl:arg|acl|root|csubj:pass)$/}
+  my @finite_verb_object_children = grep {attr($_, 'deprel') =~ /^(obj|iobj|ccomp|xcomp|obl:arg|acl|root|csubj:pass|dep)$/}
                                     grep {is_finite($_)}
                                     $node->getAllChildren;
   if (@finite_verb_object_children) {
@@ -1503,9 +1514,6 @@ sub get_extra_NE_for_node {
   if ($lemma =~ /^premiér(ka)?$/) {
     return 'io'; # "institution - goverment, political"
   }
-  if ($lemma =~ /^prezident(ka)?$/) {
-    return 'io'; # "institution - goverment, political"
-  }
   if ($lemma =~ /^poslan(ec|kyně)$/) {
     return 'io'; # "institution - goverment, political"
   }
@@ -1550,7 +1558,9 @@ sub get_extra_NE_for_node {
     if (grep {is_state($_)} @children) {
       return 'io'; # "institution - goverment, political"
     }
+    return 'im'; # "institution - mluvčí"
   }
+
   my @children_forms = map {attr($_, 'form')} @children;
   if ($lemma =~ /^dům$/) {
     if (grep {/^Bíl[ýé]/} @children_forms) {

@@ -1,6 +1,6 @@
 
 echo "Searching for sources" >err
 
-echo "Předseda Poslanecké sněmovny řekl novinářům, že dnes schůze končí." |\
-./system/soudec.pl --stdin --output-format txt  2>>err
+echo "Prezident republiky prohlásil, že na schůzku nepojede. Prezident příslušné obchodní společnosti řekl, že on ano." |\
+./system/soudec.pl --stdin --ll 0 --output-format txt  2>>err
 
