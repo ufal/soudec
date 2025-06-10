@@ -48,7 +48,7 @@
       }
     ?>
 
-    var options = {text: input_text, input: input_format, output: output_format, uilang: ui_lang};
+    var options = {text: input_text, input: input_format, output: output_format, uilang: ui_lang, stats: 'html'};
     // console.log("doSubmit: options: ", options);
 
     var form_data = null;
@@ -75,8 +75,8 @@
               var formatted_content = output_format == "html" ? output_file_content : output_file_content.replace(/\n/g, "\n<br>");
               jQuery('#output_formatted').html(formatted_content);
 	  }
-	  if ("stats" in json) {
-              output_file_stats = json.stats;
+	  if ("stats_html" in json) {
+              output_file_stats = json.stats_html;
               jQuery('#output_stats').html(output_file_stats);
 	  }
 

@@ -27,7 +27,7 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER_en = '1.3 (20250609)'; # version of the program
+my $VER_en = '1.4 (20250610)'; # version of the program
 my $VER_cs = $VER_en; # version of the program
 
 my @features_cs = ('detekce citačních zdrojů',
@@ -43,6 +43,243 @@ my $FEATS_en = join(' • ', @features_en);
 $mylog::logging_level = 2; # default log level, can be changed using the -ll parameter (0=full, 1=limited, 2=minimal)
 
 my %logging_level_label = (0 => 'full', 1 => 'limited', 2 => 'minimal');
+
+#######################################
+
+# default minimal required phrase reliability
+my $MIN_RELIABILITY_DEFAULT = 10;
+# default output format
+my $OUTPUT_FORMAT_DEFAULT = 'txt';
+# default input format
+my $INPUT_FORMAT_DEFAULT = 'txt';
+# default phrase reliability file
+my $PHRASE_RELIABILITY_FILE_DEFAULT = 'resources/phrases_reliability.csv';
+# default UI language
+my $UI_LANGUAGE_DEFAULT = 'en';
+
+# variables for arguments
+my $input_file;
+my $ann_file;
+my $stdin;
+my $input_format;
+my $phrase_reliability_file;
+my $min_phrase_reliability;
+my $output_format;
+my $output_statistics;
+my $ui_language;
+my $add_NE;
+my $add_antecedent;
+my $store_format;
+my $store_statistics;
+my $logging_level_override;
+my $version;
+my $info;
+my $help;
+
+# getting the arguements
+GetOptions(
+    'i|input-file=s'         => \$input_file, # the name of the input file
+    'a|ann-file=s'           => \$ann_file, # the name of the file with manual annotation
+    'si|stdin'               => \$stdin, # should the input be read from STDIN?
+    'if|input-format=s'      => \$input_format, # input format, possible values: txt, presegmented
+    'p|phrase-file=s'        => \$phrase_reliability_file, # the name of the file with a list of citation phrases and their reliability
+    'r|reliability=i'        => \$min_phrase_reliability, # minimal required phrase reliability
+    'of|output-format=s'     => \$output_format, # output format, possible values: txt, html, conllu
+    'os|output-statistics=s' => \$output_statistics, # add statistics to the output in the given format (html, tsv, or a comma-separated list thereof); if present, output is JSON with items: data (in output-format) and stats_html and/or stats_tsv
+    'uil|ui-language=s'      => \$ui_language, # localize the response whenever possible to the given language: en (default), cs
+    'ne|named-entities'      => \$add_NE, # add named entities as marked by NameTag to the classes in the output
+    'aa|add-antecedent'      => \$add_antecedent, # add the antecedent if coreference is used to determine the class
+    'sf|store-format=s'      => \$store_format, # log the result in the given format: txt, html, conllu
+    'ss|store-statistics=s'  => \$store_statistics, # log statistics in the given format (html, tsv, or a comma-separated list thereof)
+    'll|logging-level=s'     => \$logging_level_override, # override the default (minimal) logging level (0=full, 1=limited, 2=minimal)
+    'v|version'              => \$version, # print the version of the program and exit
+    'n|info'                 => \$info, # print the info (program version and supported features) as JSON and exit
+    'h|help'                 => \$help, # print a short help and exit
+);
+
+if (defined($logging_level_override)) {
+  $mylog::logging_level = $logging_level_override;
+}
+
+my $script_path = $0;  # Získá název spuštěného skriptu s cestou
+my $script_dir = dirname($script_path);  # Získá pouze adresář ze získané cesty
+
+
+if ($version) {
+  if ($ui_language eq 'cs') {
+    print "SouDeC verze $VER_cs.\n";
+  }
+  else {
+    print "SouDeC version $VER_en.\n";
+  }
+  exit 0;
+}
+
+
+if ($info) {
+  my $json_data;
+  if ($ui_language eq 'cs') {
+    $json_data = {
+       version  => $VER_cs,
+       features => $FEATS_cs,
+    };
+  }
+  else {
+    $json_data = {
+       version  => $VER_en,
+       features => $FEATS_en,
+    };
+  }
+  # Encode the Perl data structure into a JSON string
+  my $json_string = encode_json($json_data);
+  # Print the JSON string to STDOUT
+  print $json_string;
+  exit 0;
+}
+
+
+if ($help) {
+  print "SouDeC version $VER_en.\n";
+  my $text = <<'END_TEXT';
+Usage: soudec.pl [options]
+options:  -i|--input-file [input text file name]
+          -a|--ann-file [manual annotation file name]
+         -si|--stdin (input text provided via stdin)
+         -if|--input-format [input format: txt (default) or presegmented]
+          -p|--phrase-file [phrases reliability file name]
+          -r|--reliability [minimal required phrase reliability]
+         -of|--output-format [output format: txt (default), html, conllu]
+         -os|--output-statistics (format: add statistics to the output in the given format (html, tsv, or a comma-separated list thereof); if present, output is JSON with items: data (in output-format) and stats_html and/or stats_tsv)
+        -uil|--ui-language [language: localize the response whenever possible to the given language: en (default), cs]
+	 -ne|--named-entities (add NameTag marks to classes in the output)
+         -aa|--add-antecedent (add the antecedent if coreference is used to determine the class)
+         -sf|--store-format [format: log the output in the given format: txt, html, conllu]
+         -ss|--store-statistics (format: log statistics in the given format ('html', 'tsv', or a comma-separated list thereof))
+         -ll|--logging-level (override the default (minimal) logging level (0=full, 1=limited, 2=minimal))
+          -v|--version (prints the version of the program and ends)
+          -h|--help (prints a short help and ends)
+END_TEXT
+  print $text;
+  exit 0;
+}
+
+###################################################################################
+# Summarize the program arguments to the log (except for --version and --help)
+###################################################################################
+
+mylog(2, "####################################################################\n");
+mylog(2, "SouDec $VER_en (logging level: $mylog::logging_level - $logging_level_label{$mylog::logging_level})\n");
+mylog(2, "####################################################################\n");
+
+mylog(0, "Arguments:\n");
+
+if ($stdin) {
+  mylog(0, " - input: STDIN\n");
+}
+elsif ($input_file) {
+  mylog(0, " - input: file $input_file\n");
+}
+
+if (!defined $input_format) {
+  mylog(0, " - input format: not specified, set to default $INPUT_FORMAT_DEFAULT\n");
+  $input_format = $INPUT_FORMAT_DEFAULT;
+}
+elsif ($input_format !~ /^(txt|presegmented)$/) {
+  mylog(0, " - input format: unknown ($input_format), set to default $INPUT_FORMAT_DEFAULT\n");
+  $input_format = $INPUT_FORMAT_DEFAULT;
+}
+else {
+  mylog(0, " - input format: $input_format\n");
+}
+
+if ($ann_file) {
+  mylog(0, " - file with manual annotation: $ann_file\n");  
+}
+
+if (!defined $phrase_reliability_file) {
+  mylog(0, " - phrase reliability file: not specified, set to default $PHRASE_RELIABILITY_FILE_DEFAULT\n");
+  $phrase_reliability_file = "$script_dir/$PHRASE_RELIABILITY_FILE_DEFAULT";
+}
+else {
+  mylog(0, " - phrase reliability file: $phrase_reliability_file\n");
+}
+
+if (!defined $min_phrase_reliability) {
+  mylog(0, " - min. phrase reliability: not specified, set to default $MIN_RELIABILITY_DEFAULT\n");
+  $min_phrase_reliability = $MIN_RELIABILITY_DEFAULT;
+}
+else {
+  mylog(0, " - min. phrase reliability: $min_phrase_reliability\n");
+}
+
+$output_format = lc($output_format) if $output_format;
+if (!defined $output_format) {
+  mylog(0, " - output format: not specified, set to default $OUTPUT_FORMAT_DEFAULT\n");
+  $output_format = $OUTPUT_FORMAT_DEFAULT;
+}
+elsif ($output_format !~ /^(txt|html|conllu)$/) {
+  mylog(0, " - output format: unknown ($output_format), set to default $OUTPUT_FORMAT_DEFAULT\n");
+  $output_format = $OUTPUT_FORMAT_DEFAULT;
+}
+else {
+  mylog(0, " - output format: $output_format\n");
+}
+
+$output_statistics = $output_statistics // '';
+$output_statistics = lc($output_statistics) if $output_statistics;
+if ($output_statistics) {
+  if ($output_statistics =~ /^(html|tsv)(,(html|tsv))*$/) {
+    mylog(0, " - add SouDeC statistics to the output in format(s) '$output_statistics'; the output will be JSON with items: data (in $output_format) and stats_html and/or stats_tsv\n");
+  }
+  else {
+    mylog(0, " - unknown format for statistics ($output_statistics); the statistics will not be part of output\n");
+    $output_statistics = undef;
+  }
+}
+
+if ($add_NE) {
+  mylog(0, " - add named entities as marked by NameTag to classes in the output\n");
+}
+
+if ($add_antecedent) {
+  mylog(0, " - add the antecedent to the classes in the output if coreference is used to determine the class\n");
+}
+
+$store_format = lc($store_format) if $store_format;
+if ($store_format) {
+  if ($store_format =~ /^(txt|html|conllu)$/) {
+    mylog(0, " - log the output to a file in $store_format\n");
+  }
+  else {
+    mylog(0, " - unknown format for logging the output ($store_format); the output will not be logged\n");
+    $store_format = undef;
+  }
+}
+
+if ($store_statistics) {
+  mylog(0, " - log SouDeC statistics in an HTML file\n");
+}
+$store_statistics = $store_statistics // '';
+$store_statistics = lc($store_statistics) if $store_statistics;
+if ($store_statistics) {
+  if ($store_statistics =~ /^(html|tsv)(,(html|tsv))*$/) {
+    mylog(0, " - log SouDeC statistics in format(s) '$store_statistics'\n");
+  }
+  else {
+    mylog(0, " - unknown format for statistics ($store_statistics); the statistics will not be logged\n");
+    $store_statistics = undef;
+  }
+}
+
+
+if (defined($logging_level_override)) {
+  mylog(2, " - logging level override: $logging_level_override - $logging_level_label{$logging_level_override}\n");
+}
+
+mylog(0, "\n");
+
+
+###################################################################################
 
 # lists of keywords to classify a source
 my %keywords_anonymous = ('zdroj' => 1,
@@ -298,220 +535,6 @@ my $color_source_antecedent = 'darkblue';
 my $color_source_brackets = 'darkblue';
 
 
-#######################################
-
-# default minimal required phrase reliability
-my $MIN_RELIABILITY_DEFAULT = 10;
-# default output format
-my $OUTPUT_FORMAT_DEFAULT = 'txt';
-# default input format
-my $INPUT_FORMAT_DEFAULT = 'txt';
-# default phrase reliability file
-my $PHRASE_RELIABILITY_FILE_DEFAULT = 'resources/phrases_reliability.csv';
-# default UI language
-my $UI_LANGUAGE_DEFAULT = 'en';
-
-# variables for arguments
-my $input_file;
-my $ann_file;
-my $stdin;
-my $input_format;
-my $phrase_reliability_file;
-my $min_phrase_reliability;
-my $output_format;
-my $output_statistics;
-my $ui_language;
-my $add_NE;
-my $add_antecedent;
-my $store_format;
-my $store_statistics;
-my $logging_level_override;
-my $version;
-my $info;
-my $help;
-
-# getting the arguements
-GetOptions(
-    'i|input-file=s'       => \$input_file, # the name of the input file
-    'a|ann-file=s'         => \$ann_file, # the name of the file with manual annotation
-    'si|stdin'             => \$stdin, # should the input be read from STDIN?
-    'if|input-format=s'    => \$input_format, # input format, possible values: txt, presegmented
-    'p|phrase-file=s'      => \$phrase_reliability_file, # the name of the file with a list of citation phrases and their reliability
-    'r|reliability=i'      => \$min_phrase_reliability, # minimal required phrase reliability
-    'of|output-format=s'   => \$output_format, # output format, possible values: txt, html, conllu
-    'os|output-statistics' => \$output_statistics, # adds statistics to the output; if present, output is JSON with two items: data (in output-format) and stats (in HTML)
-    'uil|ui-language=s'    => \$ui_language, # localize the response whenever possible to the given language: en (default), cs
-    'ne|named-entities'    => \$add_NE, # add named entities as marked by NameTag to the classes in the output
-    'aa|add-antecedent'    => \$add_antecedent, # add the antecedent if coreference is used to determine the class
-    'sf|store-format=s'    => \$store_format, # log the result in the given format: txt, html, conllu
-    'ss|store-statistics'  => \$store_statistics, # should the statistics be logged as an HTML file?
-    'll|logging-level=s'   => \$logging_level_override, # override the default (minimal) logging level (0=full, 1=limited, 2=minimal)
-    'v|version'            => \$version, # print the version of the program and exit
-    'n|info'               => \$info, # print the info (program version and supported features) as JSON and exit
-    'h|help'               => \$help, # print a short help and exit
-);
-
-if (defined($logging_level_override)) {
-  $mylog::logging_level = $logging_level_override;
-}
-
-my $script_path = $0;  # Získá název spuštěného skriptu s cestou
-my $script_dir = dirname($script_path);  # Získá pouze adresář ze získané cesty
-
-
-if ($version) {
-  if ($ui_language eq 'cs') {
-    print "SouDeC verze $VER_cs.\n";
-  }
-  else {
-    print "SouDeC version $VER_en.\n";
-  }
-  exit 0;
-}
-
-
-if ($info) {
-  my $json_data;
-  if ($ui_language eq 'cs') {
-    $json_data = {
-       version  => $VER_cs,
-       features => $FEATS_cs,
-    };
-  }
-  else {
-    $json_data = {
-       version  => $VER_en,
-       features => $FEATS_en,
-    };
-  }
-  # Encode the Perl data structure into a JSON string
-  my $json_string = encode_json($json_data);
-  # Print the JSON string to STDOUT
-  print $json_string;
-  exit 0;
-}
-
-
-if ($help) {
-  print "SouDeC version $VER_en.\n";
-  my $text = <<'END_TEXT';
-Usage: soudec.pl [options]
-options:  -i|--input-file [input text file name]
-          -a|--ann-file [manual annotation file name]
-         -si|--stdin (input text provided via stdin)
-         -if|--input-format [input format: txt (default) or presegmented]
-          -p|--phrase-file [phrases reliability file name]
-          -r|--reliability [minimal required phrase reliability]
-         -of|--output-format [output format: txt (default), html, conllu]
-         -os|--output-statistics (add SouDeC statistics to output; if present, output is JSON with two items: data (in output-format) and stats (in HTML))
-        -uil|--ui-language [language: localize the response whenever possible to the given language: en (default), cs]
-	 -ne|--named-entities (add NameTag marks to classes in the output)
-         -aa|--add-antecedent (add the antecedent if coreference is used to determine the class)
-         -sf|--store-format [format: log the output in the given format: txt, html, conllu]
-         -ss|--store-statistics (log SouDeC statistics to an HTML file)
-         -ll|--logging-level (override the default (minimal) logging level (0=full, 1=limited, 2=minimal))
-          -v|--version (prints the version of the program and ends)
-          -h|--help (prints a short help and ends)
-END_TEXT
-  print $text;
-  exit 0;
-}
-
-###################################################################################
-# Summarize the program arguments to the log (except for --version and --help)
-###################################################################################
-
-mylog(2, "####################################################################\n");
-mylog(2, "SouDec $VER_en (logging level: $mylog::logging_level - $logging_level_label{$mylog::logging_level})\n");
-mylog(2, "####################################################################\n");
-
-mylog(0, "Arguments:\n");
-
-if ($stdin) {
-  mylog(0, " - input: STDIN\n");
-}
-elsif ($input_file) {
-  mylog(0, " - input: file $input_file\n");
-}
-
-if (!defined $input_format) {
-  mylog(0, " - input format: not specified, set to default $INPUT_FORMAT_DEFAULT\n");
-  $input_format = $INPUT_FORMAT_DEFAULT;
-}
-elsif ($input_format !~ /^(txt|presegmented)$/) {
-  mylog(0, " - input format: unknown ($input_format), set to default $INPUT_FORMAT_DEFAULT\n");
-  $input_format = $INPUT_FORMAT_DEFAULT;
-}
-else {
-  mylog(0, " - input format: $input_format\n");
-}
-
-if ($ann_file) {
-  mylog(0, " - file with manual annotation: $ann_file\n");  
-}
-
-if (!defined $phrase_reliability_file) {
-  mylog(0, " - phrase reliability file: not specified, set to default $PHRASE_RELIABILITY_FILE_DEFAULT\n");
-  $phrase_reliability_file = "$script_dir/$PHRASE_RELIABILITY_FILE_DEFAULT";
-}
-else {
-  mylog(0, " - phrase reliability file: $phrase_reliability_file\n");
-}
-
-if (!defined $min_phrase_reliability) {
-  mylog(0, " - min. phrase reliability: not specified, set to default $MIN_RELIABILITY_DEFAULT\n");
-  $min_phrase_reliability = $MIN_RELIABILITY_DEFAULT;
-}
-else {
-  mylog(0, " - min. phrase reliability: $min_phrase_reliability\n");
-}
-
-$output_format = lc($output_format) if $output_format;
-if (!defined $output_format) {
-  mylog(0, " - output format: not specified, set to default $OUTPUT_FORMAT_DEFAULT\n");
-  $output_format = $OUTPUT_FORMAT_DEFAULT;
-}
-elsif ($output_format !~ /^(txt|html|conllu)$/) {
-  mylog(0, " - output format: unknown ($output_format), set to default $OUTPUT_FORMAT_DEFAULT\n");
-  $output_format = $OUTPUT_FORMAT_DEFAULT;
-}
-else {
-  mylog(0, " - output format: $output_format\n");
-}
-
-if ($output_statistics) {
-  mylog(0, " - add SouDeC statistics to the output; output will be JSON with two items: data (in $output_format) and stats (in HTML)\n");
-}
-
-if ($add_NE) {
-  mylog(0, " - add named entities as marked by NameTag to classes in the output\n");
-}
-
-if ($add_antecedent) {
-  mylog(0, " - add the antecedent to the classes in the output if coreference is used to determine the class\n");
-}
-
-$store_format = lc($store_format) if $store_format;
-if ($store_format) {
-  if ($store_format =~ /^(txt|html|conllu)$/) {
-    mylog(0, " - log the output to a file in $store_format\n");
-  }
-  else {
-    mylog(0, " - unknown format for logging the output ($store_format); the output will not be logged\n");
-    $store_format = undef;
-  }
-}
-
-if ($store_statistics) {
-  mylog(0, " - log SouDeC statistics in an HTML file\n");
-}
-
-if (defined($logging_level_override)) {
-  mylog(2, " - logging level override: $logging_level_override - $logging_level_label{$logging_level_override}\n");
-}
-
-mylog(0, "\n");
-
 ###################################################################################
 # Let us first read the file with reliability of citation phrases
 ###################################################################################
@@ -711,7 +734,6 @@ print_log_header();
 # variables and hashes for statistics
 my $sentences_count = scalar(@trees);
 my $tokens_count = 0;
-my $processing_time;
 my %source2count = ();
 my %source2class = ();
 my %class2count = ();
@@ -805,23 +827,35 @@ $processing_time = tv_interval($start_time, $end_time);
 
 
 # calculate and format statistics if needed
-my $stats;
+my $stats_html;
+my $stats_tsv;
 if ($store_statistics or $output_statistics) { # we need to calculate statistics
-  $stats = get_stats();
+  if ($store_statistics =~ /\bhtml\b/ or $output_statistics =~ /\bhtml\b/) {
+    $stats_html = get_stats_html();
+  }
+  if ($store_statistics =~ /\btsv\b/ or $output_statistics =~ /\btsv\b/) {
+    $stats_tsv = get_stats_tsv();
+  }
 }
 
 
-# print the input text with marked sources in the selected output format to STDOUT
+# p´rint the input text with marked sources in the selected output format to STDOUT
 my $output = get_output($output_format);
 
 if (!$output_statistics) { # statistics should not be a part of output
   print $output;
 }
-else { # statistics should be a part of output, i.e. output will be JSON with two items: data (in output-format) and stats (in html)
+else { # statistics should be a part of output, i.e. output will be JSON with items: data (in output-format) and stats_html and/or stats_tsv
   my $json_data = {
        data  => $output,
-       stats => $stats,
      };
+  if ($output_statistics =~ /\bhtml\b/) {
+    $json_data->{stats_html} = $stats_html;
+  }
+  if ($output_statistics =~ /\btsv\b/) {
+    $json_data->{stats_tsv} = $stats_tsv;
+  }
+
   # Encode the Perl data structure into a JSON string
   my $json_string = encode_json($json_data);
   # Print the JSON string to STDOUT
@@ -836,12 +870,13 @@ if ($store_format) { # # log the input text with marked sources in the given for
   close(OUT);
 }
 
-if ($store_statistics) { # log statistics about the detection to a html file
-  my $stats = get_stats();
+if ($store_statistics) { # log statistics about the detection to a html and/or tsv file
   my $file_name = basename($input_file); # the file name without the path
-  open(OUT, '>:encoding(utf8)', "$script_dir/log/$file_name.stats.html") or die "Cannot open file '$script_dir/log/$file_name.stats.html' for writing: $!";
-  print OUT $stats;
-  close(OUT);
+  foreach my $format (split(',', $store_statistics)) {
+    open(OUT, '>:encoding(utf8)', "$script_dir/log/$file_name.stats.$format") or die "Cannot open file '$script_dir/log/$file_name.stats.$format' for writing: $!";
+    print OUT $format eq 'html' ? $stats_html : $stats_tsv;
+    close(OUT);
+  }
 }
 
 ################################################################
@@ -1955,7 +1990,7 @@ sub get_short_class {
   return 'onp' if $class =~ /official-non-political/;
 }
 
-=item get_stats
+=item get_stats_html
 
 Produces an html document with statistics about the detection, using info from these variables and hashes:
  - $sentences_count;
@@ -1969,7 +2004,7 @@ Produces an html document with statistics about the detection, using info from t
 
 =cut
 
-sub get_stats {
+sub get_stats_html {
   my $stats = "<html>\n";
   $stats .= <<END_HEAD;
 <head>
@@ -2039,6 +2074,124 @@ sub get_stats {
   </style>
 </head>
 END_HEAD
+
+  my $rounded_time = sprintf("%.1f", $processing_time);
+  my $rounded_time_udpipe = sprintf("%.1f", $processing_time_udpipe);
+  my $rounded_time_nametag = sprintf("%.1f", $processing_time_nametag);
+ 
+  $stats .= "<body>\n";
+
+  if ($ui_language eq 'cs') {
+
+    $stats .= "<h3>SouDeC verze $VER_cs</h3>\n";
+    $stats .= "<p>Počet vět: $sentences_count\n";
+    $stats .= "<br/>Počet tokenů: $tokens_count\n";
+    $stats .= "<br/>Doba zpracování: $rounded_time s\n";
+    $stats .= "<br/> &nbsp; - UDPipe: $rounded_time_udpipe s\n";
+    $stats .= "<br/> &nbsp; - NameTag: $rounded_time_nametag s\n";
+    $stats .= "</p>\n";
+
+  }
+  else {
+
+    $stats .= "<h3>SouDeC version $VER_en</h3>\n";
+    $stats .= "<p>Number of sentences: $sentences_count\n";
+    $stats .= "<br/>Number of tokens: $tokens_count\n";
+    $stats .= "<br/>Processing time: $rounded_time s\n";
+    $stats .= "<br/> &nbsp; - UDPipe: $rounded_time_udpipe s\n";
+    $stats .= "<br/> &nbsp; - NameTag: $rounded_time_nametag s\n";
+    $stats .= "</p>\n";
+
+  }
+
+  $stats .= "<p>\n";
+  $stats .= "<table border=0><tr><td>\n";
+
+  # table with distribution of classes
+  $stats .= "<table>\n";
+  if ($ui_language eq 'cs') {
+    $stats .= "<tr><th>Třída</th><th>Počet</th></tr>\n";
+  }
+  else {
+    $stats .= "<tr><th>Class</th><th>Count</th></tr>\n";
+  }
+  foreach my $class (sort {$class2count{$b} <=> $class2count{$a}} keys(%class2count)) {
+    $stats .= "<tr><td>$class</td><td>$class2count{$class}</td></tr>\n";
+  }
+  $stats .= "</table>\n";
+  
+  $stats .= "</td><td style=\"padding-left: 20px;\">\n";
+
+  # chart creation
+  my @categories = qw(a ap u onp op);
+  my %hdata = (
+      'a'  => $class2count{'anonymous'} // 0,
+      'ap' => $class2count{'anonymous-partial'} // 0,
+      'u'  => $class2count{'unofficial'} // 0,
+      'onp'  => $class2count{'official-non-political'} // 0,
+      'op' => $class2count{'official-political'} // 0
+  );
+  my @values = map {$hdata{$_}} @categories;
+  my $max_value = max(@values);
+  my @percentages = map {100 * $_ / ($max_value+0.001)} @values; # to avoid division by 0
+  $stats .= "  <div class=\"bar\">\n";
+  $stats .= "      <div class=\"bar-segment bar-a\" style=\"height: $percentages[0]%;\"></div>\n";
+  $stats .= "      <div class=\"bar-segment bar-ap\" style=\"height: $percentages[1]%;\"></div>\n";
+  $stats .= "      <div class=\"bar-segment bar-u\" style=\"height: $percentages[2]%;\"></div>\n";
+  $stats .= "      <div class=\"bar-segment bar-onp\" style=\"height: $percentages[3]%;\"></div>\n";
+  $stats .= "      <div class=\"bar-segment bar-op\" style=\"height: $percentages[4]%;\"></div>\n";
+  $stats .= "  </div>\n";
+  # nadpisy sloupců
+  $stats .= "  <div>\n";
+  $stats .= "  <span class=\"bar-label\">a</span>\n";
+  $stats .= "  <span class=\"bar-label\">ap</span>\n";
+  $stats .= "  <span class=\"bar-label\">u</span>\n";
+  $stats .= "  <span class=\"bar-label\">onp</span>\n";
+  $stats .= "  <span class=\"bar-label\">op</span>\n";
+  $stats .= "  </div>\n";
+
+  $stats .= "</td></tr></table>\n";
+  
+  $stats .= "</p>\n";
+
+  # table with distribution of sources
+  $stats .= "<p>\n";
+  $stats .= "<table>\n";
+  if ($ui_language eq 'cs') {
+    $stats .= "<tr><th>Zdroj</th><th>Třída</th><th>Počet</th></tr>\n";
+  }
+  else {
+    $stats .= "<tr><th>Source</th><th>Class</th><th>Count</th></tr>\n";
+  }
+  foreach my $source (sort {$source2count{$b} <=> $source2count{$a}} grep {$source2count{$_}} keys(%source2class)) {
+    $stats .= "<tr><td>$source</td><td>$source2class{$source}</td><td>$source2count{$source}</td></tr>\n";
+  }
+  $stats .= "</table>\n";
+  $stats .= "</p>\n";
+
+  $stats .= "</body>\n";
+  $stats .= "</html>\n";
+
+  return $stats;
+}
+
+
+=item get_stats_html
+
+Produces an html document with statistics about the detection, using info from these variables and hashes:
+ - $sentences_count;
+ - $tokens_count;
+ - $processing_time;
+ - $processing_time_udpipe;
+ - $processing_time_nametag;
+ - %source2count;
+ - %source2class;
+ - %class2count;
+
+=cut
+
+sub get_stats_tsv {
+  my $stats = '';
 
   my $rounded_time = sprintf("%.1f", $processing_time);
   my $rounded_time_udpipe = sprintf("%.1f", $processing_time_udpipe);

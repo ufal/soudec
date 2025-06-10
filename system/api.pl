@@ -100,54 +100,52 @@ any '/api/info' => sub {
 # Endpoint pro detect
 any '/api/detect' => sub {
     my $c = shift;
-    #if ($c->req->method eq 'POST') {
 
-        my $method = $c->req->method;
-        my $text = $c->param('text'); # input text
-        my $input_format = $c->param('input'); # input format
-        my $output_format = $c->param('output'); # output format
-        my $uilang = $c->param('uilang') // ''; # UI language
+    my $method = $c->req->method;
+    my $text = $c->param('text'); # input text
+    my $input_format = $c->param('input'); # input format
+    my $output_format = $c->param('output'); # output format
+    my $output_statistics = $c->param('stats'); # output statistics format
+    my $uilang = $c->param('uilang') // ''; # UI language
 
-        # Spuštění skriptu soudec.pl s předáním parametrů a standardního vstupu
-        my @cmd = ('/usr/bin/perl', "$script_dir/soudec.pl",
-		   '--stdin',
-		   '--store-conllu',
-		   '--phrase-file', "$script_dir/resources/phrases_reliability.csv",
-		   '--input-format', $input_format, 
-		   '--output-format', $output_format,
-	           '--ui-language', $uilang,
-		   '--output-statistics');
-        my $stdin_data = $text;
-        my $result_json;
-        run \@cmd, \$stdin_data, \$result_json;
-        
-        # Decode the output as a JSON object
-        my $json_data = decode_json($result_json);
+    # Spuštění skriptu soudec.pl s předáním parametrů a standardního vstupu
+    my @cmd = ('/usr/bin/perl', "$script_dir/soudec.pl",
+                '--stdin',
+                '--store-conllu',
+                '--phrase-file', "$script_dir/resources/phrases_reliability.csv",
+                '--input-format', $input_format, 
+                '--output-format', $output_format,
+                '--ui-language', $uilang,
+                '--output-statistics', $output_statistics
+                );
+    my $stdin_data = $text;
+    my $result_json;
+    run \@cmd, \$stdin_data, \$result_json;
+    
+    # Decode the output as a JSON object
+    my $json_data = decode_json($result_json);
 
-        # Access the 'data' and 'stats' items in the JSON object
-        my $result  = $json_data->{'data'};
-        my $stats = $json_data->{'stats'};
-	      my $result_utf8 = decode_utf8($result);
-	      my $stats_utf8 = decode_utf8($stats);
-	      
-        # Vytvoření odpovědi
-	      $c->res->headers->content_type('application/json; charset=UTF-8');
-	      my $data = {message => "This is the detect function of the SouDec service called via $method; input format=$input_format, output format=$output_format.",
-                                    result => "$result_utf8", stats => "$stats_utf8" };
-        # print STDERR Dumper($data);
-	      return $c->render(json => $data);
-    # }
-    # else { # GET
-
-        # # Přečtěte parametry z GET requestu
-	# my $text = $c->param('text'); # input text
-	# my $input_format = $c->param('input'); # input format
-	# my $output_format = $c->param('output'); # output format
-
-        # # Zpracování GET požadavku
-	# return $c->render(json => { message => 'This is the detect function called via GET.',
-	#                                    result => "input format: '$input_format', output format: '$output_format', text: '$text'" });
-    #}
+    # Access the 'data' and 'stats' items in the JSON object
+    my $result  = $json_data->{'data'};
+    my $stats_html = $json_data->{'stats_html'} // '';
+    my $stats_tsv = $json_data->{'stats_tsv'} // '';
+    my $result_utf8 = decode_utf8($result);
+    my $stats_html_utf8 = decode_utf8($stats_html);
+    my $stats_tsv_utf8 = decode_utf8($stats_tsv);
+    
+    # Vytvoření odpovědi
+    $c->res->headers->content_type('application/json; charset=UTF-8');
+    my $data = {message => "This is the detect function of the SouDec service called via $method; input format=$input_format, output format=$output_format.",
+                result => "$result_utf8"
+                };
+    if ($stats_html) {
+        $data->{stats_html} = $stats_html_utf8;
+    }
+    if ($stats_tsv) {
+        $data->{stats_tsv} = $stats_tsv_utf8;
+    }
+    # print STDERR Dumper($data);
+    return $c->render(json => $data);
 };
 
 app->config(hypnotoad => {
