@@ -31,6 +31,7 @@
 use strict;
 use warnings;
 use Mojolicious::Lite;
+use Sys::Syslog qw(:standard :macros); # Načtení modulu Sys::Syslog s potřebnými konstantami
 use IPC::Run qw(run);
 use JSON;
 use Encode;
@@ -108,10 +109,16 @@ any '/api/detect' => sub {
     my $output_statistics = $c->param('stats'); # output statistics format
     my $uilang = $c->param('uilang') // ''; # UI language
 
+    # Získání URL refereru
+    my $referer = $c->req->headers->referer // 'unknown'; # URL, odkud požadavek přišel, nebo 'unknown' pokud chybí
+
+    # Zápis do syslogu
+    syslog(LOG_INFO, 'SouDeC: Request "detect" from: %s, method: %s, input format: %s, output format: %s, UI language: %s',
+           $referer, $method, $input_format, $output_format, $uilang);
+
     # Spuštění skriptu soudec.pl s předáním parametrů a standardního vstupu
     my @cmd = ('/usr/bin/perl', "$script_dir/soudec.pl",
                 '--stdin',
-                '--store-conllu',
                 '--phrase-file', "$script_dir/resources/phrases_reliability.csv",
                 '--input-format', $input_format, 
                 '--output-format', $output_format,

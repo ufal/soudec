@@ -12,6 +12,7 @@ use Getopt::Long; # reading arguments
 use POSIX qw(strftime); # naming a file with date and time
 use File::Basename; # to get a filename from the whole path
 use Time::HiRes qw(gettimeofday tv_interval); # to measure how long the program ran
+use Data::Dumper;
 
 use FindBin qw($Bin);  # $Bin je adresář, kde je skript
 use lib "$Bin/lib";    # Absolutní cesta k lib
@@ -743,7 +744,7 @@ foreach my $root (@trees) {
   mylog(0, "\n");
   mylog(0, "====================================================================\n");
   mylog(0, "Sentence id=" . attr($root, 'id') . ": " . attr($root, 'text') . "\n");
-  print_tree($root, "\t");
+  #print_tree($root, "\t");
   
   my @nodes = descendants($root, {sort_children => 1});
   $tokens_count += scalar(@nodes) - 1; # without the root
@@ -839,7 +840,7 @@ if ($store_statistics or $output_statistics) { # we need to calculate statistics
 }
 
 
-# p´rint the input text with marked sources in the selected output format to STDOUT
+# print the input text with marked sources in the selected output format to STDOUT
 my $output = get_output($output_format);
 
 if (!$output_statistics) { # statistics should not be a part of output
@@ -857,6 +858,7 @@ else { # statistics should be a part of output, i.e. output will be JSON with it
   }
 
   # Encode the Perl data structure into a JSON string
+  # print STDERR "JSON data with statistics: " . Dumper($json_data);
   my $json_string = encode_json($json_data);
   # Print the JSON string to STDOUT
   print $json_string;  
@@ -2301,15 +2303,15 @@ Prints header info for the document (name of the file, start of the html table)
 =cut
 
 sub print_log_header {
-  print STDERR "<!-- HTML-EVALUATION-EXACT --><h3>$input_file</h3>\n";
-  print STDERR "<!-- HTML-EVALUATION-PARTIAL --><h3>$input_file</h3>\n";
+  mylog(0, "<!-- HTML-EVALUATION-EXACT --><h3>$input_file</h3>\n");
+  mylog(0, "<!-- HTML-EVALUATION-PARTIAL --><h3>$input_file</h3>\n");
   if ($ann_file) {
-    print STDERR "<!-- HTML-EVALUATION-EXACT --><table><tr><th>type</th><th>automatic</th><th>class</th><th>manual</th><th>class</th><th>sentence</th></tr>\n";
-    print STDERR "<!-- HTML-EVALUATION-PARTIAL --><table><tr><th>type</th><th>automatic</th><th>class</th><th>manual</th><th>class</th><th>sentence</th></tr>\n";
+    mylog(0, "<!-- HTML-EVALUATION-EXACT --><table><tr><th>type</th><th>automatic</th><th>class</th><th>manual</th><th>class</th><th>sentence</th></tr>\n");
+    mylog(0, "<!-- HTML-EVALUATION-PARTIAL --><table><tr><th>type</th><th>automatic</th><th>class</th><th>manual</th><th>class</th><th>sentence</th></tr>\n");
   }
   else {
-    print STDERR "<!-- HTML-EVALUATION-EXACT --><p>No manual annotation provided.</p>\n";
-    print STDERR "<!-- HTML-EVALUATION-PARTIAL --><p>No manual annotation provided.</p>\n";
+    mylog(0, "<!-- HTML-EVALUATION-EXACT --><p>No manual annotation provided.</p>\n");
+    mylog(0, "<!-- HTML-EVALUATION-PARTIAL --><p>No manual annotation provided.</p>\n");
   }
 }
 
@@ -2322,8 +2324,8 @@ Prints tail info for the document (end of the html table)
 
 sub print_log_tail {
   if ($ann_file) {
-    print STDERR "<!-- HTML-EVALUATION-EXACT --></table>\n";
-    print STDERR "<!-- HTML-EVALUATION-PARTIAL --></table>\n";
+    mylog(0, "<!-- HTML-EVALUATION-EXACT --></table>\n");
+    mylog(0, "<!-- HTML-EVALUATION-PARTIAL --></table>\n");
   }
 }
 
@@ -2339,7 +2341,7 @@ sub print_eval {
   my $range = ($auto_range =~/^\d+:\d+$/) ? $auto_range : $ann_range;
   my $sentence = get_sentence_html($auto_range, $ann_range);
   # first print the simple TSV evaluation line:
-  print STDERR "TSV-$type\t$auto_range\t$auto_text\t$ann_range\t$ann_text\t$sentence\n";
+  mylog(0, "TSV-$type\t$auto_range\t$auto_text\t$ann_range\t$ann_text\t$sentence\n");
   # now produce the HTML evaluation line:
   my $color = 'green'; # default for HIT
   if ($type =~ /NEGATIVE/) {
@@ -2365,10 +2367,10 @@ sub print_eval {
       $event_color = '#ef6109';
       $hit = 'MISS';
     }
-    print STDERR "TSV-SOURCETYPE-$exactness-$hit\t$auto_range\t$auto_text\t$auto_event\t$ann_range\t$ann_text\t$ann_event\t$sentence\n";
+    mylog(0, "TSV-SOURCETYPE-$exactness-$hit\t$auto_range\t$auto_text\t$auto_event\t$ann_range\t$ann_text\t$ann_event\t$sentence\n");
   }
   
-  print STDERR "<tr style=\"color: $color; background-color: $background\"><td>HTML-$type</td><td><b>$auto_text</b></td><td style=\"color: $event_color\">$auto_event</td><td><u>$ann_text</u></td><td style=\"color: $event_color\">$ann_event</td><td>$sentence</td></tr>\n";
+  mylog(0, "<tr style=\"color: $color; background-color: $background\"><td>HTML-$type</td><td><b>$auto_text</b></td><td style=\"color: $event_color\">$auto_event</td><td><u>$ann_text</u></td><td style=\"color: $event_color\">$ann_event</td><td>$sentence</td></tr>\n");
 }
 
 
@@ -2529,7 +2531,7 @@ sub evaluate_single_event {
       if ($h_ann_phrase_range2text{$range}) {
         print_eval('EVALUATION-EXACT-PHRASE-HIT', $range, $text, '-', $range, $text, '-');
         print_eval('EVALUATION-PARTIAL-PHRASE-HIT', $range, $text, '-', $range, $text, '-');
-        print STDERR "RELIABILITY_COUNT\t$lemma\t$constraint\tHIT\n";
+        mylog(0, "RELIABILITY_COUNT\t$lemma\t$constraint\tHIT\n");
       }
       else {
         print_eval('EVALUATION-EXACT-PHRASE-FALSE-POSITIVE', $range, $text, '-', 'N/A', 'N/A', '-');
@@ -2537,11 +2539,11 @@ sub evaluate_single_event {
         if ($partial_phrase_range) {
           my $partial_text = $h_ann_phrase_range2text{$partial_phrase_range};
           print_eval('EVALUATION-PARTIAL-PHRASE-HIT', $range, $text, '-', $partial_phrase_range, $partial_text, '-');
-          print STDERR "RELIABILITY_COUNT\t$lemma\t$constraint\tHIT_PARTIAL\n";
+          mylog(0, "RELIABILITY_COUNT\t$lemma\t$constraint\tHIT_PARTIAL\n");
         }
         else {
           print_eval('EVALUATION-PARTIAL-PHRASE-FALSE-POSITIVE', $range, $text, '-', 'N/A', 'N/A', '-');
-          print STDERR "RELIABILITY_COUNT\t$lemma\t$constraint\tFALSE_POSITIVE\n";
+          mylog(0, "RELIABILITY_COUNT\t$lemma\t$constraint\tFALSE_POSITIVE\n");
         }
       }
     }
