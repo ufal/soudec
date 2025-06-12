@@ -28,7 +28,7 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER_en = '1.4 (20250610)'; # version of the program
+my $VER_en = '1.5 (20250612)'; # version of the program
 my $VER_cs = $VER_en; # version of the program
 
 my @features_cs = ('detekce citačních zdrojů',
@@ -592,15 +592,13 @@ my %h_ann_phrase_range2text; # '1354:1359' => 'podle' or '7:9;20:27' => 'si mysl
 my %h_ann_source_range2text; # '1360:1365' => 'vědců'
 my %h_ann_source_range2type; # '1360:1365' => 'anonymous-partial'
 
-=item possible values for source type
-
-        anonymous
-        anonymous-partial
-        unofficial
-        official-political
-        official-non-political
-        
-=cut
+# possible values for source type (used to determine order of the TSV stats results)
+my @source_type_classes = ('anonymous',
+                           'anonymous-partial',
+                           'unofficial',
+                           'official-political',
+                           'official-non-political'
+                          );
 
 # similar hashes to later collect info about automatic recognition, to be compared with manual
 my %h_phrase_range2text;
@@ -2198,99 +2196,54 @@ sub get_stats_tsv {
   my $rounded_time = sprintf("%.1f", $processing_time);
   my $rounded_time_udpipe = sprintf("%.1f", $processing_time_udpipe);
   my $rounded_time_nametag = sprintf("%.1f", $processing_time_nametag);
- 
-  $stats .= "<body>\n";
 
-  if ($ui_language eq 'cs') {
+  # SouDeC and document info
+  my $info_label = "SouDeC_doc_info_label\t"
+           . "VERSION\t"
+           . "FILENAME\t"
+           . "#SENTENCES\t"
+           . "#TOKENS\t"
+           . "TOTAL TIME\t"
+           . "UDPipe TIME\t"
+           . "NameTag TIME\t";
+  $stats .= "$info_label\n";
+           
+  my $file_name = basename($input_file); # the file name without the path
+  my $info = "SouDeC_doc_info_item\t"
+           . "$VER_en\t"
+           . "$file_name\t"
+           . "$sentences_count\t"
+           . "$tokens_count\t"
+           . "$rounded_time\t"
+           . "$rounded_time_udpipe\t"
+           . "$rounded_time_nametag\t";
+  $stats .= "$info\n";
 
-    $stats .= "<h3>SouDeC verze $VER_cs</h3>\n";
-    $stats .= "<p>Počet vět: $sentences_count\n";
-    $stats .= "<br/>Počet tokenů: $tokens_count\n";
-    $stats .= "<br/>Doba zpracování: $rounded_time s\n";
-    $stats .= "<br/> &nbsp; - UDPipe: $rounded_time_udpipe s\n";
-    $stats .= "<br/> &nbsp; - NameTag: $rounded_time_nametag s\n";
-    $stats .= "</p>\n";
-
-  }
-  else {
-
-    $stats .= "<h3>SouDeC version $VER_en</h3>\n";
-    $stats .= "<p>Number of sentences: $sentences_count\n";
-    $stats .= "<br/>Number of tokens: $tokens_count\n";
-    $stats .= "<br/>Processing time: $rounded_time s\n";
-    $stats .= "<br/> &nbsp; - UDPipe: $rounded_time_udpipe s\n";
-    $stats .= "<br/> &nbsp; - NameTag: $rounded_time_nametag s\n";
-    $stats .= "</p>\n";
-
-  }
-
-  $stats .= "<p>\n";
-  $stats .= "<table border=0><tr><td>\n";
-
-  # table with distribution of classes
-  $stats .= "<table>\n";
-  if ($ui_language eq 'cs') {
-    $stats .= "<tr><th>Třída</th><th>Počet</th></tr>\n";
-  }
-  else {
-    $stats .= "<tr><th>Class</th><th>Count</th></tr>\n";
-  }
-  foreach my $class (sort {$class2count{$b} <=> $class2count{$a}} keys(%class2count)) {
-    $stats .= "<tr><td>$class</td><td>$class2count{$class}</td></tr>\n";
-  }
-  $stats .= "</table>\n";
+  # distribution of classes
+  my $class_distr_label = "SouDeC_class_distr_label\t"
+                        . join("\t", @source_type_classes);
+  $stats .= "$class_distr_label\n";
   
-  $stats .= "</td><td style=\"padding-left: 20px;\">\n";
-
-  # chart creation
-  my @categories = qw(a ap u onp op);
-  my %hdata = (
-      'a'  => $class2count{'anonymous'} // 0,
-      'ap' => $class2count{'anonymous-partial'} // 0,
-      'u'  => $class2count{'unofficial'} // 0,
-      'onp'  => $class2count{'official-non-political'} // 0,
-      'op' => $class2count{'official-political'} // 0
-  );
-  my @values = map {$hdata{$_}} @categories;
-  my $max_value = max(@values);
-  my @percentages = map {100 * $_ / ($max_value+0.001)} @values; # to avoid division by 0
-  $stats .= "  <div class=\"bar\">\n";
-  $stats .= "      <div class=\"bar-segment bar-a\" style=\"height: $percentages[0]%;\"></div>\n";
-  $stats .= "      <div class=\"bar-segment bar-ap\" style=\"height: $percentages[1]%;\"></div>\n";
-  $stats .= "      <div class=\"bar-segment bar-u\" style=\"height: $percentages[2]%;\"></div>\n";
-  $stats .= "      <div class=\"bar-segment bar-onp\" style=\"height: $percentages[3]%;\"></div>\n";
-  $stats .= "      <div class=\"bar-segment bar-op\" style=\"height: $percentages[4]%;\"></div>\n";
-  $stats .= "  </div>\n";
-  # nadpisy sloupců
-  $stats .= "  <div>\n";
-  $stats .= "  <span class=\"bar-label\">a</span>\n";
-  $stats .= "  <span class=\"bar-label\">ap</span>\n";
-  $stats .= "  <span class=\"bar-label\">u</span>\n";
-  $stats .= "  <span class=\"bar-label\">onp</span>\n";
-  $stats .= "  <span class=\"bar-label\">op</span>\n";
-  $stats .= "  </div>\n";
-
-  $stats .= "</td></tr></table>\n";
-  
-  $stats .= "</p>\n";
-
-  # table with distribution of sources
-  $stats .= "<p>\n";
-  $stats .= "<table>\n";
-  if ($ui_language eq 'cs') {
-    $stats .= "<tr><th>Zdroj</th><th>Třída</th><th>Počet</th></tr>\n";
+  my $class_distr = "SouDeC_class_distr_item\t";
+  foreach my $class (@source_type_classes) {
+    $class_distr .= $class2count{$class} . "\t";
   }
-  else {
-    $stats .= "<tr><th>Source</th><th>Class</th><th>Count</th></tr>\n";
-  }
+  $stats .= "$class_distr\n";
+
+  # distribution of sources
+  my $source_distr_label = "SouDeC_source_distr_label\t"
+                         . "SOURCE\t"
+                         . "CLASS\t"
+                         . "COUNT";
+  $stats .= "$source_distr_label\n";
+
   foreach my $source (sort {$source2count{$b} <=> $source2count{$a}} grep {$source2count{$_}} keys(%source2class)) {
-    $stats .= "<tr><td>$source</td><td>$source2class{$source}</td><td>$source2count{$source}</td></tr>\n";
+    my $source_class_count = "SouDeC_source_distr_item\t"
+                           . "$source\t"
+                           . $source2class{$source} . "\t"
+                           . $source2count{$source};
+    $stats .= "$source_class_count\n";
   }
-  $stats .= "</table>\n";
-  $stats .= "</p>\n";
-
-  $stats .= "</body>\n";
-  $stats .= "</html>\n";
 
   return $stats;
 }
