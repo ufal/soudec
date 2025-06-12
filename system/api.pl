@@ -106,15 +106,31 @@ any '/api/detect' => sub {
     my $text = $c->param('text'); # input text
     my $input_format = $c->param('input'); # input format
     my $output_format = $c->param('output'); # output format
-    my $output_statistics = $c->param('stats'); # output statistics format
+    my $output_statistics = $c->param('stats') // 'html'; # output statistics format
     my $uilang = $c->param('uilang') // ''; # UI language
 
-    # Získání URL refereru
-    my $referer = $c->req->headers->referer // 'unknown'; # URL, odkud požadavek přišel, nebo 'unknown' pokud chybí
+    # Získání hlaviček pro původní informace
+    my $referer = $c->req->headers->referer // 'unknown'; # Standardní referer
+    my $forwarded_for = $c->req->headers->header('X-Forwarded-For') // 'unknown'; # Původní IP klienta
+    my $forwarded_host = $c->req->headers->header('X-Forwarded-Host') // 'unknown'; # Původní hostitel
+    my $forwarded_proto = $c->req->headers->header('X-Forwarded-Proto') // 'unknown'; # Původní protokol
+    my $forwarded = $c->req->headers->header('Forwarded') // 'unknown'; # Standardizovaná hlavička Forwarded
 
     # Zápis do syslogu
     syslog(LOG_INFO, 'SouDeC: Request "detect" from: %s, method: %s, input format: %s, output format: %s, UI language: %s',
            $referer, $method, $input_format, $output_format, $uilang);
+
+    # Pokus o rekonstrukci původního URL
+    my $original_url = 'unknown';
+    if ($forwarded_proto ne 'unknown' && $forwarded_host ne 'unknown') {
+        $original_url = "$forwarded_proto://$forwarded_host" . $c->req->url->path;
+    } elsif ($referer ne 'unknown') {
+        $original_url = $referer; # Fallback na referer, pokud forwarded hlavičky chybí
+    }
+
+    # Zápis do syslogu
+    syslog(LOG_INFO, 'Request came from: referer=%s, X-Forwarded-For=%s, X-Forwarded-Host=%s, X-Forwarded-Proto=%s, Forwarded=%s, reconstructed_url=%s, method=%s',
+           $referer, $forwarded_for, $forwarded_host, $forwarded_proto, $forwarded, $original_url, $method);
 
     # Spuštění skriptu soudec.pl s předáním parametrů a standardního vstupu
     my @cmd = ('/usr/bin/perl', "$script_dir/soudec.pl",
