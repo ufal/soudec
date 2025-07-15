@@ -1,6 +1,40 @@
 package UD;
 
-our $VERSION = v1.1.0;
+our $VERSION = v1.4.1;
+
+=head1 VERSION HISTORY
+
+=over 4
+
+=item v1.4.1 (2025-07-15)
+
+- Recovering from calling C<attr> with undef node (returns undef)
+- Recovering from calling C<descendants> with undef node (returns an empty array)
+
+=item v1.4.0 (2025-05-11)
+
+- Adding parameter C<delim> to function C<add_property>
+
+=item v1.3.0 (2025-05-10)
+
+- New function C<add_attr> to add a value to a given attribute at a given node
+
+=item v1.2.0 (2025-05-09)
+
+- New functions C<set_property> and C<add_property>; C<add_property> uses a single entry for multiple-values properties
+
+=item v1.1.0 (2025-04-25)
+
+- Hash-based parameters to the C<descendants> function
+
+=item v1.0.0 (2025-04-18)
+
+- Starting sem-versioning
+
+=back
+
+=cut
+
 
 use strict;
 use warnings;
@@ -23,7 +57,10 @@ our @EXPORT = qw(parse_conllu
                  descendants
                  attr
                  set_attr
+                 add_attr
                  text
+                 set_property
+                 add_property
                  misc_property
                  feat_property
                  member_of_array
@@ -34,7 +71,7 @@ our @EXPORT = qw(parse_conllu
 
 
 
-=item
+=head2 parse_conllu
 
 Parses the CoNLL-U format into Tree::Simple tree structures (one tree per sentence).
 Returns an array of tree tree roots.
@@ -207,32 +244,28 @@ sub _create_structure {
     }
 }
 
-=item
-
 # not used from Jan Štěpánek's UD TrEd extension:
 
-sub _create_multiword {
-    my ($n, $root, $misc, $form) = @_;
-    my ($from, $to) = split /-/, $n;
-    $root->{multiword} = 'Treex::PML::Factory'->createList([
-        @{ $root->{multiword} || [] },
-        'Treex::PML::Factory'->createStructure(
-            { nodes => 'Treex::PML::Factory'->createList([ $from .. $to ]),
-              misc => $misc,
-              form => $form}
-        )
-    ]);
-}
-
-=cut
+# sub _create_multiword {
+#    my ($n, $root, $misc, $form) = @_;
+#    my ($from, $to) = split /-/, $n;
+#    $root->{multiword} = 'Treex::PML::Factory'->createList([
+#        @{ $root->{multiword} || [] },
+#        'Treex::PML::Factory'->createStructure(
+#            { nodes => 'Treex::PML::Factory'->createList([ $from .. $to ]),
+#              misc => $misc,
+#              form => $form}
+#        )
+#    ]);
+# }
 
 
 ######### Simple::Tree METHODS #########
 
 
-=item set_attr
+=head2 set_attr
 
-Set the value of the given attribute of the given node.
+Set the value of the given attribute at the given node.
 
 =cut
 
@@ -243,7 +276,23 @@ sub set_attr {
 }
 
 
-=item set_attr
+=head2 add_attr
+
+Adds the value to the given attribute at the given node. The values are separated by C<delim> (default: ';').
+
+=cut
+
+sub add_attr {
+  my ($node, $attr, $value, $delim) = @_;
+  $delim = ';' if not defined $delim;
+  my $refha_props = $node->getNodeValue();
+  my $prev_value = $$refha_props{$attr} // '';
+  $prev_value .= $delim if $prev_value;
+  $$refha_props{$attr} = "$prev_value$value";
+}
+
+
+=head2 attr
 
 Return the value of the given attribute of the given node.
 
@@ -252,22 +301,27 @@ Return the value of the given attribute of the given node.
 
 sub attr {
   my ($node, $attr) = @_;
+  return undef if !$node;
   my $refha_props = $node->getNodeValue();
   return $$refha_props{$attr};
 }
 
 
-=item descendants
+=head2 descendants
 
 Returns all descendants of the given node in the dfo.
 The hash reference as the second parameter can carry these parameters:
  sort_children: if defined and true, the children are always sorted by attribute 'ord'
  exclude_coord: if defined and true, descendants are given in the UD linguistic sense, i.e., coordination at first level is excluded
  include_root: if defined and true, the given node is included as well
+
 =cut
 
 sub descendants {
   my ($node, $haref_params) = @_;
+  
+  return () if !$node;
+  
   # Use empty hash reference if the second argument is not given (or is not a hash ref)
   $haref_params = {} unless defined $haref_params && ref($haref_params) eq 'HASH';
 
@@ -303,7 +357,7 @@ sub descendants {
 }
 
 
-=item
+=head2 root
 
 Return the root of the tree of the given node.
 
@@ -322,7 +376,7 @@ sub root {
 
 
 
-=item text
+=head2 text
 
 Given a reference to an array of nodes, give surface text they represent.
 
@@ -343,7 +397,65 @@ sub text {
 }
 
 
-=item misc_property
+=head2 set_property
+
+In the given attribute at the given node (e.g., 'misc'), it sets the value of the given property (replaces the previous one if present)
+
+=cut
+
+sub set_property {
+  my ($node, $attr, $property, $value) = @_;
+  # mylog(0, "set_property: '$attr', '$property', '$value'\n");
+  my $orig_value = attr($node, $attr) // '';
+  # mylog(0, "set_property: orig_value: '$orig_value'\n");
+  my @values = grep {$_ !~ /^$property\b/} grep {$_ ne ''} grep {defined} split('\|', $orig_value);
+  if ($value) { # if $value is empty, the property name shouldn't be mentioned at all
+    push(@values, "$property=$value");
+  }
+  my @sorted = sort @values;
+  my $new_value = join('|', @sorted);
+  set_attr($node, $attr, $new_value);
+}
+
+
+=head2 add_property
+
+In the given attribute at the given node (typically, 'misc'), it sets the value of the given property (keeps the previous one if present).
+It uses a single property name for multiple values and separates the values by a given delimiter (default: ';').
+
+=cut
+
+sub add_property {
+  my ($node, $attr, $property, $value, $delim) = @_;
+  $delim = ';' if !$delim;
+  # mylog(0, "add_property: '$attr', '$property', '$value', '$delim'\n");
+  return if !$value;
+
+  my $orig_attr_value = attr($node, $attr) // '';
+  # mylog(0, "add_property: orig_value: '$orig_attr_value'\n");
+  my @items = grep {$_ ne ''} grep {defined} split('\|', $orig_attr_value);
+  my $found = 0;
+  my @new_items = ();
+  foreach my $item (@items) { # looking for the property
+    if ($item =~ /^$property\b/) { # found the property!
+      $found = 1;
+      if ($item !~ /=.*\b$value\b/) { # the value not yet in the property
+        $item .= "$delim$value";
+      }
+    }
+    push(@new_items, $item);
+  }
+ 
+  if (!$found) { # not found - we need to add the new item and sort the items (otherwise the order did not change and we just use the changed list)
+    push(@new_items, "$property=$value");
+    @new_items = sort @new_items;
+  }
+  my $new_attr_value = join('|', @new_items);
+  set_attr($node, $attr, $new_attr_value);
+}
+
+
+=head2 misc_property
 
 Returns a value of the given property from the misc attribute. Or undef.
 
@@ -363,7 +475,7 @@ sub misc_property {
 
 
 
-=item feat_property
+=head2 feat_property
 
 Returns a value of the given property from the feats attribute. Or undef.
 
@@ -382,7 +494,7 @@ sub feat_property {
 }  
 
 
-=item print_tree
+=head2 print_tree
 
 Simple recursive printing of a subtree of a given node. If a second parameter is given, it is used as a prefix for each output line.
 
@@ -402,7 +514,7 @@ sub print_tree {
 }
 
 
-=item member_of_array
+=head2 member_of_array
 
 Checks if a given scalar is a member of a given array (passed as a reference).
 
@@ -437,7 +549,7 @@ my %lang2model = (
 );
 
 
-=item call_udpipe
+=head2 call_udpipe
 
 Calling UDPipe REST API; the input to be processed is passed in the first argument.
 The second argument gives the language of the input ('cs', 'en', 'de', 'es').
@@ -531,7 +643,7 @@ sub call_udpipe {
 ## RECOGNITION OF NAMED ENTITIES WITH NAMETAG
 ########################################################################
 
-=item call_nametag
+=head2 call_nametag
 
 Calling NameTag REST API; the text to be searched is passed in the argument in UD CONLL format
 Returns the text in UD CONLL-NE format.
@@ -569,7 +681,7 @@ sub call_nametag {
 }
 
 
-=item call_nametag_part
+=head2 call_nametag_part
 
 Now actuall calling NameTag REST API for a small part of the input (to avoid error caused by a long argument).
 Returns the text in UD CONLL-NE format.
