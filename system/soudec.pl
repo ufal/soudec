@@ -17,7 +17,7 @@ use Data::Dumper;
 use FindBin qw($Bin);  # $Bin je adresář, kde je skript
 use lib "$Bin/lib";    # Absolutní cesta k lib
 
-use UD v1.1.0;
+use UD v1.4.1;
 use mylog v1.0.0;
 $mylog::name = 'SouDeC';
 
@@ -28,14 +28,16 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER_en = '1.5 (20250612)'; # version of the program
+my $VER_en = '1.6 (20250715)'; # version of the program
 my $VER_cs = $VER_en; # version of the program
 
 my @features_cs = ('detekce citačních zdrojů',
-                   'klasifikace citačních zdrojů'
+                   'klasifikace citačních zdrojů',
+                   'detekce obsahu citací (alfa)'
                   );
 my @features_en = ('detection of citation sources',
-                   'classification of citation sources'
+                   'classification of citation sources',
+                   'detection of citation content (alpha)'
                   );
 
 my $FEATS_cs = join(' • ', @features_cs); 
@@ -736,6 +738,7 @@ my $tokens_count = 0;
 my %source2count = ();
 my %source2class = ();
 my %class2count = ();
+my %source2claims = (); # a value is a reference to an array
 
 
 foreach my $root (@trees) {
@@ -764,7 +767,7 @@ foreach my $root (@trees) {
           mylog(0, "Found a potential independent source:\n");
           my $whole_potential_source = text(\@potential_all_source_nodes);
           mylog(0, " - WHOLE POTENTIAL SOURCE: $whole_potential_source\n");
-          my $source_type = guess_source_type($root, 0, @potential_all_source_nodes);
+          my $source_type = guess_source_type($root, 0, undef, @potential_all_source_nodes);
           mylog(0, " - POTENTIAL SOURCE TYPE: $source_type\n");
         }
       }
@@ -790,7 +793,7 @@ foreach my $root (@trees) {
             my @whole_source_nodes = get_whole_source_nodes($parent);
             my $whole_source = text(\@whole_source_nodes);
             mylog(0, " - SOURCE parent: $source\n - WHOLE SOURCE: $whole_source\n");
-            my $source_type = guess_source_type($root, 1, @whole_source_nodes);
+            my $source_type = guess_source_type($root, 1, $claim_parent, @whole_source_nodes);
             mylog(0, "   - SOURCE TYPE: $source_type\n");
             evaluate_single_event($source_type, $lemma, 'N/A', $root, @whole_source_nodes);
           }
@@ -801,7 +804,7 @@ foreach my $root (@trees) {
               my @whole_source_nodes = get_whole_source_nodes($nsubj[0]);
               my $whole_source = text(\@whole_source_nodes);
               mylog(0, " - SOURCE nsubj: $subject\n - WHOLE SOURCE: $whole_source\n");
-              my $source_type = guess_source_type($root, 1, @whole_source_nodes);
+              my $source_type = guess_source_type($root, 1, $claim_parent, @whole_source_nodes);
               mylog(0, "   - SOURCE TYPE: $source_type\n");
               evaluate_single_event($source_type, $lemma, 'N/A', $root, @whole_source_nodes);
             }
@@ -1172,7 +1175,14 @@ Guesses and returns the type of the source, i.e. one of these values:
         official-political
         official-non-political
 
-Uses global hashes %surname2class and %surname2full to keep track of surnames that have already been classified (possibly as a part of a longer (full) source, e.g. "mluvčí cestovní kanceláře Jiří Nekvapil"), so that they are not misclassified later when mentioned just by themselves (e.g., just "Nekvapil")
+Uses global hashes %surname2class and %surname2full to keep track of surnames that have already been classified (possibly as a part of a longer (full) source, e.g. "mluvčí cestovní kanceláře Jiří Nekvapil"), so that they are not misclassified later when mentioned just by themselves (e.g., just "Nekvapil").
+
+Fills global hashes to keep info for statistics:
+ - %source2count;
+ - %source2class;
+ - %class2count;
+ - %source2claims;
+
 
 NameTag offers these values:
 
@@ -1250,16 +1260,19 @@ ty - years
 =cut
 
 sub guess_source_type {
-  my ($root, $should_be_counted, @whole_source_nodes) = @_;
+  my ($root, $should_be_counted, $claim_parent, @whole_source_nodes) = @_;
 
   my $surname = undef; # We will set this if there is a surname found among the source nodes
   
-  mylog(0, "guess_source_type: Entered the function; should_be_counted=$should_be_counted, source nodes: '" . join(' ', map {attr($_, 'form')} @whole_source_nodes) . "'\n");
+  mylog(0, "guess_source_type: Entered the function; should_be_counted=$should_be_counted, claim_parent=" . (attr($claim_parent, 'form') // '') . ", source nodes: '" . join(' ', map {attr($_, 'form')} @whole_source_nodes) . "'\n");
 
   my @whole_source_nodes_dfo = sort_nodes_dfo(@whole_source_nodes);
   my $source_root = $whole_source_nodes_dfo[0];
   my $source_root_NE_marks = ''; # will be set in the following cycle
   my $source_root_lemma = attr($source_root, 'lemma') // '';
+
+  my @claim_nodes = descendants($claim_parent, {include_root => 1});
+  my $claim_text = text(\@claim_nodes);
   
   # Collect NameTag marks for all source nodes
   my @source_named_entity_marks = ();
@@ -1281,6 +1294,7 @@ sub guess_source_type {
         if ($should_be_counted) {
           $class2count{$class}++;
           $source2count{$antecedent}++;
+          push @{ $source2claims{$antecedent} ||= [] }, $claim_text;
         }
 
         # storing the antecedent for pronouns
@@ -1345,6 +1359,7 @@ sub guess_source_type {
               if ($should_be_counted) {
                 $class2count{$class}++;
                 $source2count{$antecedent}++;
+                push @{ $source2claims{$antecedent} ||= [] }, $claim_text;
               }
               if ($add_antecedent) {
                 $class .= '_' . $antecedent;
@@ -1373,6 +1388,7 @@ sub guess_source_type {
         if ($should_be_counted) {
           $class2count{$class}++;
           $source2count{$antecedent}++;
+          push @{ $source2claims{$antecedent} ||= [] }, $claim_text;
         }
         if ($add_antecedent) {
           $class .= '_' . $antecedent;
@@ -1423,6 +1439,7 @@ sub guess_source_type {
     if ($should_be_counted) {
       $source2count{$full}++; # =1 would do the same
       $class2count{$class}++;
+      push @{ $source2claims{$full} ||= [] }, $claim_text;
     }
     
     # storing the antecedent for pronouns
@@ -1444,6 +1461,7 @@ sub guess_source_type {
     if ($should_be_counted) {
       $source2count{$full}++;
       $class2count{$class}++;
+      push @{ $source2claims{$full} ||= [] }, $claim_text;
     }
     # storing the antecedent for pronouns
     my ($gender, $number) = get_gender_number_of_animate_source(@whole_source_nodes);
@@ -1459,6 +1477,7 @@ sub guess_source_type {
     if ($should_be_counted) {
       $source2count{$full}++;
       $class2count{$class}++;
+      push @{ $source2claims{$full} ||= [] }, $claim_text;
     }
   }
 
@@ -2001,6 +2020,7 @@ Produces an html document with statistics about the detection, using info from t
  - %source2count;
  - %source2class;
  - %class2count;
+ - %source2claims;
 
 =cut
 
@@ -2187,6 +2207,7 @@ Produces an html document with statistics about the detection, using info from t
  - %source2count;
  - %source2class;
  - %class2count;
+ - %source2claims;
 
 =cut
 
@@ -2230,10 +2251,10 @@ sub get_stats_tsv {
   }
   $stats .= "$class_distr\n";
 
-  # distribution of sources
+  # distribution of sources (and claims)
   my $source_distr_label = "SouDeC_source_distr_label\t"
                          . "SOURCE\t"
-                         . "CLASS\t"
+                         . "CLASS/CLAIM\t"
                          . "COUNT";
   $stats .= "$source_distr_label\n";
 
@@ -2243,6 +2264,12 @@ sub get_stats_tsv {
                            . $source2class{$source} . "\t"
                            . $source2count{$source};
     $stats .= "$source_class_count\n";
+    foreach my $claim (@{$source2claims{$source}}) {
+      my $source_claim = "SouDeC_source_claim\t"
+                       . "\t"
+                       . "$claim";
+      $stats .= "$source_claim\n";
+    }
   }
 
   return $stats;
