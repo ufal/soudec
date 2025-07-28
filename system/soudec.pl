@@ -28,7 +28,7 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER_en = '1.6 (20250715)'; # version of the program
+my $VER_en = '1.7 (20250728)'; # version of the program
 my $VER_cs = $VER_en; # version of the program
 
 my @features_cs = ('detekce citačních zdrojů',
@@ -2174,17 +2174,20 @@ END_HEAD
   
   $stats .= "</p>\n";
 
-  # table with distribution of sources
+  # table with distribution of sources and claims
   $stats .= "<p>\n";
   $stats .= "<table>\n";
   if ($ui_language eq 'cs') {
-    $stats .= "<tr><th>Zdroj</th><th>Třída</th><th>Počet</th></tr>\n";
+    $stats .= "<tr><th>Zdroj</th><th>Třída/Tvrzení</th><th>Počet</th></tr>\n";
   }
   else {
-    $stats .= "<tr><th>Source</th><th>Class</th><th>Count</th></tr>\n";
+    $stats .= "<tr><th>Source</th><th>Class/Claim</th><th>Count</th></tr>\n";
   }
   foreach my $source (sort {$source2count{$b} <=> $source2count{$a}} grep {$source2count{$_}} keys(%source2class)) {
     $stats .= "<tr><td>$source</td><td>$source2class{$source}</td><td>$source2count{$source}</td></tr>\n";
+    foreach my $claim (@{$source2claims{$source}}) {
+      $stats .= "<tr><td></td><td>$claim</td><td></td></tr>\n";
+    }
   }
   $stats .= "</table>\n";
   $stats .= "</p>\n";
