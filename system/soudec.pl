@@ -728,13 +728,38 @@ my $start_time_udpipe = [gettimeofday];
 my $conll_data = call_udpipe($input_content, 'cs', $input_format, 'all');
 
 # Store the result to a file (just to have it, not needed for further processing)
-  open(OUT, '>:encoding(utf8)', "$input_file.conll") or die "Cannot open file '$input_file.conll' for writing: $!";
-  print OUT $conll_data;
-  close(OUT);
+#  open(OUT, '>:encoding(utf8)', "$input_file.conll") or die "Cannot open file '$input_file.conll' for writing: $!";
+#  print OUT $conll_data;
+#  close(OUT);
 
 # Measure time spent by UDPipe 
 my $end_time_udpipe = [gettimeofday];
 $processing_time_udpipe = tv_interval($start_time_udpipe, $end_time_udpipe);
+
+my $sentence_count = 0;
+my $word_count = 0;
+
+# Rozdělíme text na řádky
+my @lines = split /\n/, $conll_data;
+
+foreach my $line (@lines) {
+    # Přeskočíme prázdné řádky a komentáře
+    next if $line =~ /^\s*$/ || $line =~ /^#/;
+
+    # Pokud řádek začíná číslem a tabulátorem, je to slovo
+    if ($line =~ /^\d+\t/) {
+        $word_count++;
+    }
+}
+
+# Počet vět zjistíme podle prázdných řádků nebo komentářů # text
+foreach my $line (@lines) {
+    if ($line =~ /^# text =/) {
+        $sentence_count++;
+    }
+}
+
+mylog(2, "input length: $word_count tokens, $sentence_count sentences\n");
 
 
 ###################################################################################
