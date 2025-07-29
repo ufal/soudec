@@ -18,7 +18,7 @@ $lang = array(
 	'run_options_input_presegmented_popup' => 'Předrozdělený vstupní formát (každá věta na samostatném řádku)',
 	'run_options_input_conllu' => 'CoNLL-U',
 	'run_options_input_conllu_popup' => 'Vstupní text ve formátu CoNLL-U',
-	'run_options_output_label' => 'Output',
+	'run_options_output_label' => 'Výstup',
 	'run_options_output_conllu' => 'CoNLL-U (<a href="http://ufal.mff.cuni.cz/soudec/users-manual#run_soudec_output" target="_blank">CoNLL-U+NE+SD</a>)',
 	'run_options_output_conllu_popup' => 'CoNLL-U se zdroji a třídami v sloucpi misc',
 	'run_options_output_txt' => 'TXT (<a href="http://ufal.mff.cuni.cz/soudec/users-manual#run_soudec_output" target="_blank">zvýraznění pomocí znaků</a>)',

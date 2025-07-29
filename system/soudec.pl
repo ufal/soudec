@@ -28,7 +28,7 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER_en = '1.7 (20250728)'; # version of the program
+my $VER_en = '1.8 (20250729)'; # version of the program
 my $VER_cs = $VER_en; # version of the program
 
 my @features_cs = ('detekce citačních zdrojů',
@@ -666,6 +666,52 @@ if ($stdin) { # the input text should be read from STDIN
 }
 
 #mylog(0, $input_content);
+
+
+my $input_length = length($input_content);
+mylog(2, "input length: $input_length characters\n");
+
+my $max_input_length = 75000;
+my $max_input_length_text = '75 thousand';
+if ($ui_language and $ui_language eq 'cs') {
+  $max_input_length_text = '75 tisíc';
+}
+
+if ($input_length > $max_input_length) { # avoid long texts
+  # 'data' (in output-format)
+  # 'stats_html' (in html, if requested)
+  # 'stats_tsv' (in TSV, if requested)
+
+  my $json_data = {
+    data  => "<font color=\"red\">The text is too long ($input_length characters, the maximum is $max_input_length_text)!</font>",
+  };
+  if ($output_statistics =~ /\bhtml\b/) {
+    $json_data->{stats_html} = "<font color=\"red\">The text is too long ($input_length characters, the maximum is $max_input_length_text)!</font>";
+  }
+  if ($output_statistics =~ /\btsv\b/) {
+    $json_data->{stats_tsv} = "The text is too long ($input_length characters, the maximum is $max_input_length_text)!";
+  }
+
+  if ($ui_language and $ui_language eq 'cs') {
+    $json_data = {
+       data  => "<font color=\"red\">Příliš dlouhý text ($input_length znaků, povolené maximum je $max_input_length_text)!</font>",
+     };
+    if ($output_statistics =~ /\bhtml\b/) {
+      $json_data->{stats_html} = "<font color=\"red\">Příliš dlouhý text ($input_length znaků, povolené maximum je $max_input_length_text)!</font>";
+    }
+    if ($output_statistics =~ /\btsv\b/) {
+      $json_data->{stats_tsv} = "Příliš dlouhý text ($input_length znaků, povolené maximum je $max_input_length_text)!";
+    }
+  }
+
+  # Encode the Perl data structure into a JSON string
+  my $json_string = encode_json($json_data);
+  # Print the JSON string to STDOUT
+  print $json_string;
+  mylog(2, "Input text too long (max allowed: $max_input_length)! Exiting!\n");
+
+  exit;
+}
 
 
 my $processing_time;
@@ -2101,7 +2147,7 @@ END_HEAD
  
   $stats .= "<body>\n";
 
-  if ($ui_language eq 'cs') {
+  if ($ui_language and $ui_language eq 'cs') {
 
     $stats .= "<h3>SouDeC verze $VER_cs</h3>\n";
     $stats .= "<p>Počet vět: $sentences_count\n";
@@ -2129,7 +2175,7 @@ END_HEAD
 
   # table with distribution of classes
   $stats .= "<table>\n";
-  if ($ui_language eq 'cs') {
+  if ($ui_language and $ui_language eq 'cs') {
     $stats .= "<tr><th>Třída</th><th>Počet</th></tr>\n";
   }
   else {
@@ -2177,7 +2223,7 @@ END_HEAD
   # table with distribution of sources and claims
   $stats .= "<p>\n";
   $stats .= "<table>\n";
-  if ($ui_language eq 'cs') {
+  if ($ui_language and $ui_language eq 'cs') {
     $stats .= "<tr><th>Zdroj</th><th>Třída/Tvrzení</th><th>Počet</th></tr>\n";
   }
   else {
