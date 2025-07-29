@@ -28,7 +28,7 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER_en = '1.8 (20250729)'; # version of the program
+my $VER_en = '1.9 (20250729)'; # version of the program
 my $VER_cs = $VER_en; # version of the program
 
 my @features_cs = ('detekce citačních zdrojů',
@@ -728,9 +728,9 @@ my $start_time_udpipe = [gettimeofday];
 my $conll_data = call_udpipe($input_content, 'cs', $input_format, 'all');
 
 # Store the result to a file (just to have it, not needed for further processing)
-#  open(OUT, '>:encoding(utf8)', "$input_file.conll") or die "Cannot open file '$input_file.conll' for writing: $!";
-#  print OUT $conll_data;
-#  close(OUT);
+  open(OUT, '>:encoding(utf8)', "$input_file.conll") or die "Cannot open file '$input_file.conll' for writing: $!";
+  print OUT $conll_data;
+  close(OUT);
 
 # Measure time spent by UDPipe 
 my $end_time_udpipe = [gettimeofday];
@@ -1923,8 +1923,12 @@ END_OUTPUT_HEAD
     
       # COLLECT INFO ABOUT THE TOKEN
       my $form = attr($node, 'form');
-      my $start = attr($node, 'start');
-      my $end = attr($node, 'end');
+      my $start = attr($node, 'start') // -1; # range missing e.g. when "kdyby" is parsed as "když by"
+      my $end = attr($node, 'end') // -1;
+      
+      if ($start == -1 or $end == -1) {
+        mylog(0,"Problém s atributy start ($start) či end ($end) u uzlu '$form'!\n");
+      }
       
       my $span_start = '';
       my $span_end = '';
