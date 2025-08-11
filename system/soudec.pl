@@ -28,16 +28,16 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER_en = '1.9 (20250729)'; # version of the program
+my $VER_en = '1.10 (20250811)'; # version of the program
 my $VER_cs = $VER_en; # version of the program
 
 my @features_cs = ('detekce citačních zdrojů',
                    'klasifikace citačních zdrojů',
-                   'detekce obsahu citací (alfa)'
+                   'detekce obsahu citací (beta)'
                   );
 my @features_en = ('detection of citation sources',
                    'classification of citation sources',
-                   'detection of citation content (alpha)'
+                   'detection of citation content (beta)'
                   );
 
 my $FEATS_cs = join(' • ', @features_cs); 
@@ -977,7 +977,9 @@ Also checks if the given phrase node is morphologically acceptable - i.e.:
  - not negative
 
 Returns undef if the constraints are not met.
-Otherwise returns the expected parent of the claim and all nodes belonging to the phrase.
+Otherwise returns:
+ - the expected parent of the claim (special case: it returns the preposition node in case of PREP ('podle', 'dle'))
+ - and all nodes belonging to the citation phrase.
 
 =cut
 
@@ -1342,6 +1344,10 @@ sub guess_source_type {
   my $source_root_NE_marks = ''; # will be set in the following cycle
   my $source_root_lemma = attr($source_root, 'lemma') // '';
 
+  my $claim_parent_form = lc(attr($claim_parent, 'form'));
+  if ($claim_parent_form eq 'podle' or $claim_parent_form eq 'dle') { # special handling of 'podle' and 'dle'
+    $claim_parent = $claim_parent->getParent->getParent;
+  }´
   my @claim_nodes = descendants($claim_parent, {include_root => 1});
   my $claim_text = text(\@claim_nodes);
   
@@ -2325,7 +2331,8 @@ sub get_stats_tsv {
   
   my $class_distr = "SouDeC_class_distr_item\t";
   foreach my $class (@source_type_classes) {
-    $class_distr .= $class2count{$class} . "\t";
+    $class_distr .= $class2count{$class} // 0;
+    $class_distr .= "\t";
   }
   $stats .= "$class_distr\n";
 
