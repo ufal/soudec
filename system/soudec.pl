@@ -1347,7 +1347,7 @@ sub guess_source_type {
   my $claim_parent_form = lc(attr($claim_parent, 'form'));
   if ($claim_parent_form eq 'podle' or $claim_parent_form eq 'dle') { # special handling of 'podle' and 'dle'
     $claim_parent = $claim_parent->getParent->getParent;
-  }´
+  }
   my @claim_nodes = descendants($claim_parent, {include_root => 1});
   my $claim_text = text(\@claim_nodes);
   
