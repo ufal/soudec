@@ -36,7 +36,7 @@ use IPC::Run qw(run);
 use JSON;
 use Encode;
 use File::Basename;
-use Net::DNS;
+use Net::DNS;  # K získání informace o zdroji požadavku API
 
 # use Data::Dumper;
 
@@ -47,6 +47,9 @@ binmode STDERR, ':encoding(UTF-8)';
 
 my $script_path = $0;  # Získá název spuštěného skriptu s cestou
 my $script_dir = dirname($script_path);  # Získá pouze adresář ze získané cesty
+
+my $soudec_log = "$script_dir/log/soudec.log";
+
 
 # Endpoint pro test
 any '/api/test' => sub {
@@ -133,8 +136,34 @@ any '/api/detect' => sub {
                 );
     my $stdin_data = $text;
     my $result_json;
-    run \@cmd, \$stdin_data, \$result_json;
+    my $stderr_output;
+
+    # Calling the main app
+    my $run_success = run \@cmd, \$stdin_data, \$result_json, \$stderr_output;
+
+    my $exit_code = $? >> 8; # Get the exit code of the command
+    my $text_size = scalar($text);
     
+    # Log to $soudec_log
+    open(my $log_fh, '>>', $soudec_log) or die "Cannot open log file $soudec_log: $!";
+    my $log_message = scalar(localtime) . "\t"
+                      . $method . "\t"
+                      . $run_success . "\t"
+                      . $exit_code . "\t"
+                      . $referer . "\t"
+                      . $forwarded_for . "\t"
+                      . $forwarded_for_name . "\t"
+                      . $text_size . "\t"
+                      . $input_format . "\t"
+                      . $output_format . "\t"
+                      . $uilang;
+                      
+    print $log_fh encode_utf8($log_message);
+    if (!$run_success) {
+        print $log_fh encode_utf8("Error: $stderr_output\n") if $stderr_output;
+    }
+    close $log_fh;
+
     # Decode the output as a JSON object
     my $json_data = decode_json($result_json);
 
