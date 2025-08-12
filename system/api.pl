@@ -48,7 +48,7 @@ binmode STDERR, ':encoding(UTF-8)';
 my $script_path = $0;  # Získá název spuštěného skriptu s cestou
 my $script_dir = dirname($script_path);  # Získá pouze adresář ze získané cesty
 
-my $soudec_log = "$script_dir/log/soudec.log";
+my $api_log = "$script_dir/log/api.log";
 
 
 # Endpoint pro test
@@ -144,8 +144,8 @@ any '/api/detect' => sub {
     my $exit_code = $? >> 8; # Get the exit code of the command
     my $text_size = length($text);
     
-    # Log to $soudec_log
-    open(my $log_fh, '>>', $soudec_log) or die "Cannot open log file $soudec_log: $!";
+    # Log to $api_log
+    open(my $log_fh, '>>', $api_log) or die "Cannot open log file $api_log: $!";
     my $log_message = scalar(localtime) . "\t"
                       . $method . "\t"
                       . $run_success . "\t"
