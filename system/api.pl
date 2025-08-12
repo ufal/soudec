@@ -142,7 +142,7 @@ any '/api/detect' => sub {
     my $run_success = run \@cmd, \$stdin_data, \$result_json, \$stderr_output;
 
     my $exit_code = $? >> 8; # Get the exit code of the command
-    my $text_size = scalar($text);
+    my $text_size = length($text);
     
     # Log to $soudec_log
     open(my $log_fh, '>>', $soudec_log) or die "Cannot open log file $soudec_log: $!";
@@ -156,7 +156,8 @@ any '/api/detect' => sub {
                       . $text_size . "\t"
                       . $input_format . "\t"
                       . $output_format . "\t"
-                      . $uilang;
+                      . $uilang
+		      . "\n";
                       
     print $log_fh encode_utf8($log_message);
     if (!$run_success) {
