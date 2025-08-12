@@ -114,7 +114,6 @@ any '/api/detect' => sub {
     # Získání hlaviček pro původní informace
     my $referer = $c->req->headers->referer // 'unknown'; # Standardní referer
     my $forwarded_for = $c->req->headers->header('X-Forwarded-For') // 'unknown'; # Původní IP klienta
-
     my $forwarded_for_name = reverse_dns($forwarded_for);
 
     # Zápis do syslogu
@@ -171,6 +170,7 @@ app->config(hypnotoad => {
 
 app->start;
 
+# Vrací název hostitele z reverzního DNS (PTR) nebo primární DNS server (SOA) pro zadanou IP adresu, preferuje veřejné IP z X-Forwarded-For.
 sub reverse_dns {
     my $ip_input = shift;
 
