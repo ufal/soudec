@@ -139,3 +139,14 @@ ul.nav-tabs-gray > li > a:focus {
   background-color: rgba(0, 0, 0, 0.05); /* Slightly darker background on hover */
 }
 
+.chart-container {
+  width: 600px;
+  height: 300px; /* Explicitní výška kontejneru */
+  margin: 20px auto;
+}
+
+canvas#accessChart {
+  width: 600px !important;
+  height: 300px !important; /* Pevná výška plátna */
+}
+

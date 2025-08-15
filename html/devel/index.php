@@ -50,6 +50,8 @@ $currentLang = $_SESSION['lang'];
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.rawgit.com/google/code-prettify/master/loader/run_prettify.js" type="text/javascript"></script>
   <script src="https://unpkg.com/turndown/dist/turndown.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 </head>
 
 <body id="lindat-services">
@@ -131,7 +133,11 @@ $currentLang = $_SESSION['lang'];
             }
             ?>
             <p><?php echo $lang[$currentLang]['run_server_info_word_limit']; ?></p>
-            <div id="error" class="alert alert-danger d-none"></div>
+	    <div id="error" class="alert alert-danger d-none"></div>
+    <div class="chart-container">
+        <canvas id="accessChart"></canvas>
+    </div>
+
           </div>
         </div>
       </div>
