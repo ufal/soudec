@@ -32,6 +32,7 @@ pro zpracování výsledků.</p>
 <tr><td>text</td><td>ano</td><td>řetězec</td><td>Vstupní text v kódování <b>UTF-8</b>.</td></tr>
 <tr><td>input</td><td>ne</td><td>řetězec</td><td>Vstupní formát; možné hodnoty: <code>txt</code> (defaultní), <code>presegmented</code> (věta na řádek), viz. <a href="http://ufal.mff.cuni.cz/soudec/users-manual#run_soudec_input" target="_blank">vstupní formát</a>.</td></tr>
 <tr><td>output</td><td>ne</td><td>řetězec</td><td>Výstupní formát; možné hodnoty: <code>txt</code> (defaultní), <code>html</code>, <code>conllu</code>, viz. <a href="http://ufal.mff.cuni.cz/soudec/users-manual#run_soudec_output" target="_blank">výstupní formát</a>.</td></tr>
+<tr><td>stats</td><td>ne</td><td>řetězec</td><td>Formát statistik; možné hodnoty: <code>html</code> (defaultní), <code>tsv</code> (hodnoty oddělené tabulátorem), nebo čárkou dělený seznam těchto možností.</td></tr>
 <tr><td>uilang</td><td>ne</td><td>řetězec</td><td>Jazyková lokalizace vrácených informací; možné hodnoty: <code>en</code> (defaultní), <code>cs</code>.</td></tr>
 </table>
 
@@ -42,14 +43,16 @@ Odpověď serveru je ve formátu <a href="http://en.wikipedia.org/wiki/JSON" tar
 {
  "message": "přehledová_zpráva"
  "result": "zpracovaný_výstup"
- "stats": "statistiky"
+ "stats_html": "statistiky_html" (pokud byl tento formát požadován parametrem stats či defaultně)
+ "stats_tsv": "statistiky_tsv" (pokud byl tento formát požadován parametrem stats)
 }
 </pre>
 
 <p>
-<code>přehledová_zpráva</code> je krátká přehledová zpráva o aktuálním volání REST API;
-<br/><code>zpracovaný_výstup</code> je výstup programu SouDeC ve zvoleném výstupním formátu;
-<br/><code>statistiky</code> je přehled ve formátu HTML obsahující detekované zdroje a jejich třídy.
+<code>přehledová_zpráva</code> je krátká přehledová zpráva o aktuálním volání REST API,
+<br/><code>zpracovaný_výstup</code> je výstup programu SouDeC ve zvoleném výstupním formátu,
+<br/><code>statistiky_html</code> je přehled ve formátu HTML obsahující detekované zdroje a jejich třídy,
+<br/><code>statistiky_tsv</code> je přehled ve formátu TSV (hodnoty oddělené tabulátorem) obsahující detekované zdroje a jejich třídy.
 </p>
 
 <h3>Metoda <a id='api-info'>info</a></h3>

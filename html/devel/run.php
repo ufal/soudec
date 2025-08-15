@@ -2,7 +2,7 @@
 <!-- Reading logs and preparation of a chart with access numbers for several past months -->
 
 <?php
-$monthsBack = 5; // Počet měsíců zpět, lze změnit
+$monthsBack = 6; // Počet měsíců zpět (vč. aktuálního), lze změnit
 $logsDir = __DIR__ . '/log'; // Cesta k adresáři s logy
 $logFilesPattern = 'api.log*'; // Vzor pro soubory (api.log, api.log.1, api.log.2.gz atd.)
 
@@ -21,9 +21,9 @@ for ($i = 0; $i < $monthsBack; $i++) {
 
 // Načtení souborů pomocí glob
 $logFiles = glob("$logsDir/$logFilesPattern");
-if (empty($logFiles)) {
-    die('Žádné logovací soubory nenalezeny.');
-}
+//if (empty($logFiles)) {
+//    die('Žádné logovací soubory nenalezeny.');
+//}
 
 // Zpracování každého souboru
 foreach ($logFiles as $file) {
@@ -112,7 +112,7 @@ $dataJson = json_encode($data);
             data: {
                 labels: <?php echo $labelsJson; ?>,
                 datasets: [{
-                    label: 'Počet přístupů',
+                    label: '<?php echo $lang[$currentLang]['run_server_access_chart_column_label']; ?> ',
                     data: <?php echo $dataJson; ?>,
                     backgroundColor: '#36A2EB',
                     borderColor: '#1E87D6',
@@ -130,31 +130,31 @@ $dataJson = json_encode($data);
                             font: { size: 12 }
                         }
                     },
-                    title: {
-                        display: true,
-                        text: 'Počet přístupů za poslední měsíce',
-                        color: '#333',
-                        font: { size: 14 }
-                    }
+                    //title: {
+                    //    display: true,
+                    //    text: 'Počet přístupů za poslední měsíce',
+                    //    color: '#333',
+                    //    font: { size: 14 }
+                    //}
                 },
                 scales: {
                     y: {
                         beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: 'Počet přístupů',
-                            color: '#333',
-                            font: { size: 12 }
-                        },
+                        //title: {
+                        //    display: true,
+                        //    text: 'Počet přístupů',
+                        //    color: '#333',
+                        //    font: { size: 12 }
+                        //},
                         ticks: { color: '#333', font: { size: 10 } }
                     },
                     x: {
-                        title: {
-                            display: true,
-                            text: 'Měsíc',
-                            color: '#333',
-                            font: { size: 12 }
-                        },
+                        //title: {
+                        //    display: true,
+                        //    text: 'Měsíc',
+                        //    color: '#333',
+                        //    font: { size: 12 }
+                        //},
                         ticks: { color: '#333', font: { size: 10 } }
                     }
                 }
@@ -162,8 +162,6 @@ $dataJson = json_encode($data);
         });
 
   }
-
-
 
 
 

@@ -120,24 +120,23 @@ $currentLang = $_SESSION['lang'];
       <div id="serverInfoContent" class="collapse mt-2" role="tabpanel" aria-labelledby="serverInfoHeading">
         <div class="card">
           <div class="card-body">
+            <div class="chart-container">
+              <canvas id="accessChart"></canvas>
+            </div>
             <div id="server_info" class="d-none"></div>
-            <?php
-            if ($currentLang == 'cs') {
-            ?>
+              <?php
+              if ($currentLang == 'cs') {
+              ?>
                 <div><?php require('licence_cs.html'); ?></div>
-            <?php
-            } else {
-            ?>
+              <?php
+              } else {
+              ?>
                 <div><?php require('licence_en.html'); ?></div>
-            <?php
-            }
-            ?>
-            <p><?php echo $lang[$currentLang]['run_server_info_word_limit']; ?></p>
+              <?php
+              }
+              ?>
+              <p><?php echo $lang[$currentLang]['run_server_info_word_limit']; ?></p>
 	    <div id="error" class="alert alert-danger d-none"></div>
-    <div class="chart-container">
-        <canvas id="accessChart"></canvas>
-    </div>
-
           </div>
         </div>
       </div>

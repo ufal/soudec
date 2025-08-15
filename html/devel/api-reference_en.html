@@ -33,6 +33,7 @@ handling.</p>
 <tr><td>text</td><td>yes</td><td>string</td><td>Input text in <b>UTF-8</b>.</td></tr>
 <tr><td>input</td><td>no</td><td>string</td><td>Input format; possible values: <code>txt</code> (default), <code>presegmented</code>, see <a href="http://ufal.mff.cuni.cz/soudec/users-manual#run_soudec_input" target="_blank">input format</a> for details.</td></tr>
 <tr><td>output</td><td>no</td><td>string</td><td>Output format; possible values: <code>txt</code> (default), <code>html</code>, <code>conllu</code>, see <a href="http://ufal.mff.cuni.cz/soudec/users-manual#run_soudec_output" target="_blank">output format</a> for details.</td></tr>
+<tr><td>stats</td><td>no</td><td>string</td><td>Format for statistics; possible values: <code>html</code> (default), <code>tsv</code> (tab-separated values), or a comma-separated list thereof.</td></tr>
 <tr><td>uilang</td><td>no</td><td>string</td><td>Language localization of the returned information; possible values: <code>en</code> (default), <code>cs</code>.</td></tr>
 </table>
 
@@ -44,14 +45,16 @@ following structure:</p>
 {
  "message": "overview_message"
  "result": "processed_output"
- "stats": "statistics"
+ "stats_html": "statistics_html" (if specified in parameter stats or by default)
+ "stats_tsv": "statistics_tsv" (if specified in parameter stats)
 }
 </pre>
 
 <p>
-The <code>overview_message</code> is a short comprehensible message of what has been called;
-<br/>the <code>processed_output</code> is the output of SouDeC in the requested output format;
-<br/>and <code>statistics</code> is an HTML overview of the detected sources and their classes.
+The <code>overview_message</code> is a short comprehensible message of what has been called,
+<br/>the <code>processed_output</code> is the output of SouDeC in the requested output format,
+<br/><code>statistics_html</code> is an HTML overview of the detected sources and their classes,
+<br/>and <code>statistics_tsv</code> is a TSV (tab-separated values) overview of the detected sources and their classes.
 </p>
 
 
