@@ -28,7 +28,7 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER_en = '1.10 (20250811)'; # version of the program
+my $VER_en = '1.11 (20250818)'; # version of the program
 my $VER_cs = $VER_en; # version of the program
 
 my @features_cs = ('detekce citačních zdrojů',
@@ -870,6 +870,22 @@ foreach my $root (@trees) {
           }
           else {
             my @nsubj = grep {attr($_, 'deprel') eq 'nsubj'} $node->getAllChildren; # looking for a subject (i.e, the source)
+            if (!@nsubj) { # no nsubj, i.e. no source; let us ad a #PersPron node
+              my $perspron = Tree::Simple->new({}); # we could use new({}, $node) to make it a child of the governing verb in the tree structure
+              set_attr($perspron, 'ord', attr($node, 'ord') - 0.5); # let us put it just before the governing verb
+              set_attr($perspron, 'gord', attr($node, 'gord') - 0.5);
+              set_attr($perspron, 'form', '#PersPron');
+              set_attr($perspron, 'lemma', '#PersPron');
+              set_attr($perspron, 'deprel', 'nsubj');
+              set_attr($perspron, 'upostag', 'PRON');
+              set_property($perspron, 'feats', 'PronType', 'Prs');
+              set_property($perspron, 'feats', 'Gender', get_feat_value($node, 'Gender'));
+              set_property($perspron, 'feats', 'Number', get_feat_value($node, 'Number'));
+              #set_attr($perspron, 'xpostag', $xpos);
+              set_attr($perspron, 'head', attr($node, 'id'));
+              mylog(0, " - No nsubj found: adding a #PersPron node.\n");
+              @nsubj = ($perspron);
+            }
             if (@nsubj) {
               my $subject = attr($nsubj[0], 'form');
               my @whole_source_nodes = get_whole_source_nodes($nsubj[0]);
