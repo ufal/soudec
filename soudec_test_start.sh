@@ -1,19 +1,24 @@
 
 echo "Searching for sources" >err
 
-for A in ../data/test/*.txt; do
+for A in ../data_ze_SiR1.0/test/*.txt; do
   echo "=========================================================="
   echo "Searching for sources in $A"
+
+  echo "==========================================================" >>err
+  echo "Searching for sources in $A" >>err
 
   B=$(echo $A | sed s/.txt$/.ann/)
   if [ -e $B ]; then
     echo "(.ann file provided)"
+    echo "(.ann file provided)" >>err
     echo "=========================================================="
-    ./system/soudec.pl --input-file $A --phrase-file system/resources/phrases_reliability.csv --ann-file $B --store-statistics --store-format conllu --named-entities --add-antecedent --output-format html 2>>err
+    ./system/soudec.pl --input-file $A --phrase-file system/resources/phrases_reliability.csv --ann-file $B --store-statistics --store-format conllu --named-entities --add-antecedent --output-format html --logging-level 0 2>>err
   else
     echo "(no .ann file)"
+    echo "(no .ann file)" >>err
     echo "=========================================================="
-    ./system/soudec.pl -i $A -p system/resources/phrases_reliability.csv -ss -sf conllu -ne -aa -of html 2>>err
+    ./system/soudec.pl -i $A -p system/resources/phrases_reliability.csv -ss -sf conllu -ne -aa -of html --logging-level 0 2>>err
   fi
 
 done

@@ -40,6 +40,8 @@ my @features_en = ('detection of citation sources',
                    'detection of citation content (beta)'
                   );
 
+my $experimental_zero_perspron = 1; # use experimental introduction of zero persprons
+
 my $FEATS_cs = join(' • ', @features_cs); 
 my $FEATS_en = join(' • ', @features_en); 
 
@@ -870,7 +872,7 @@ foreach my $root (@trees) {
           }
           else {
             my @nsubj = grep {attr($_, 'deprel') eq 'nsubj'} $node->getAllChildren; # looking for a subject (i.e, the source)
-            if (!@nsubj) { # no nsubj, i.e. no source; let us ad a #PersPron node
+            if (!@nsubj and $experimental_zero_perspron) { # no nsubj, i.e. no source; let us ad a #PersPron node
               my $perspron = Tree::Simple->new({}); # we could use new({}, $node) to make it a child of the governing verb in the tree structure
               set_attr($perspron, 'ord', attr($node, 'ord') - 0.5); # let us put it just before the governing verb
               set_attr($perspron, 'gord', attr($node, 'gord') - 0.5);
