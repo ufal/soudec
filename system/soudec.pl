@@ -41,9 +41,10 @@ my @features_en = ('detection of citation sources',
                   );
 
 my $experimental_zero_perspron = 1; # use experimental introduction of zero persprons
+my $experimental_zero_gen = 1; # use experimental introduction of #Gen node in passive 'se' construction (like in 'tvrdí se')
 
 my $FEATS_cs = join(' • ', @features_cs); 
-my $FEATS_en = join(' • ', @features_en); 
+my $FEATS_en = join(' • ', @features_en);
 
 $mylog::logging_level = 2; # default log level, can be changed using the -ll parameter (0=full, 1=limited, 2=minimal)
 
@@ -863,6 +864,7 @@ foreach my $root (@trees) {
         # Checking if there is something like a claim, i.e. a finite-verb core object 
         if (has_finite_verb_object($claim_parent)) {
           evaluate_single_event('phrase', $lemma, $constraint, $root, @phrase_nodes);
+
           if ($constraint eq 'PREP') { # special treatment of 'podle' and 'dle'
             my $parent = $node->getParent;
             my $source = attr($parent, 'form');
@@ -873,9 +875,29 @@ foreach my $root (@trees) {
             mylog(0, "   - SOURCE TYPE: $source_type\n");
             evaluate_single_event($source_type, $lemma, 'N/A', $root, @whole_source_nodes);
           }
-          else {
+
+          else { # all cases other than 'podle' and 'dle'
             my @nsubj = grep {attr($_, 'deprel') eq 'nsubj'} $node->getAllChildren; # looking for a subject (i.e, the source)
-            if (!@nsubj and $experimental_zero_perspron) { # no nsubj, i.e. no source; let us ad a #PersPron node
+	    my @passive_se = grep {attr($_, 'deprel') eq 'expl:pass' and attr($_, 'lemma') eq 'se' and lc(attr($_,'form')) eq 'se'} $node->getAllChildren; # e.g. in "tvrdí se"
+            
+	    if (!@nsubj and $experimental_zero_gen and @passive_se) { # no nsubj but passive 'se', as in 'tvrdí se'; let us ad a #Gen node
+              my $perspron = Tree::Simple->new({}); # we could use new({}, $node) to make it a child of the governing verb in the tree structure
+              set_attr($perspron, 'ord', attr($node, 'ord') - 0.5); # let us put it just before the governing verb
+              set_attr($perspron, 'gord', attr($node, 'gord') - 0.5);
+              set_attr($perspron, 'form', '#Gen');
+              set_attr($perspron, 'lemma', '#Gen');
+              set_attr($perspron, 'deprel', 'nsubj');
+              set_attr($perspron, 'upostag', 'PRON');
+              set_property($perspron, 'feats', 'PronType', 'Prs');
+	      set_property($perspron, 'feats', 'Gender', 'Neut');
+	      set_property($perspron, 'feats', 'Number', 'Sing');
+              #set_attr($perspron, 'xpostag', $xpos);
+              set_attr($perspron, 'head', attr($node, 'id'));
+              mylog(0, " - No nsubj found but passive 'se' present: adding a #Gen node.\n");
+              @nsubj = ($perspron);
+            }
+
+            elsif (!@nsubj and $experimental_zero_perspron) { # no nsubj, i.e. no source; let us ad a #PersPron node
               my $perspron = Tree::Simple->new({}); # we could use new({}, $node) to make it a child of the governing verb in the tree structure
               set_attr($perspron, 'ord', attr($node, 'ord') - 0.5); # let us put it just before the governing verb
               set_attr($perspron, 'gord', attr($node, 'gord') - 0.5);
@@ -1625,6 +1647,10 @@ sub get_extra_NE_for_node {
   my ($node, $number_of_nodes) = @_;
   my $lemma = attr($node, 'lemma');
   my $form = attr($node, 'form');
+  if ($lemma eq '#Gen') {
+    # mylog(0, "get_extra_NE_for_node: #Gen\n";
+    return 'sa'; # "source - anonymous"
+  }
   if ($lemma =~ /^(mluvčí|velitel(ka)?|ředitel(ka)?|vedoucí|šéf(ka)?|soudce|soudkyně|soud|obžaloba|obhajoba|obhájce|obhájkyně|prokurátor(ka)?|obžalovaný|obžalovaná)$/) {
     # mylog(0, "get_extra_NE_for_node: found 'mluvčí etc.'\n");
     return 'im'; # "institution - mluvčí"
