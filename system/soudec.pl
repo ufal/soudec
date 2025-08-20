@@ -293,6 +293,8 @@ my %keywords_anonymous = ('zdroj' => 1,
                           'mnohý' => 1
                          );
 
+my %keywords_single_anonymous = ('všechen' => 1);
+
 my %keywords_anonymous_partial = ('část' => 1,
                                   'některý' => 1,
                                   'většina' => 1,
@@ -834,8 +836,9 @@ foreach my $root (@trees) {
       if (attr($node, 'upostag') eq 'NOUN' and attr($node, 'deprel') =~ /^(nsubj|obj|obl)/) { # it might be a root of a source
         mylog(0, " - it is a noun (nsubj, obj, obl).\n");
         my @potential_all_source_nodes = get_whole_source_nodes($node);
+	my $potential_all_source_nodes_count = scalar(@potential_all_source_nodes);
         my @NE_nodes = grep {get_misc_value($_, 'NE')} @potential_all_source_nodes;
-        my @extraNE_nodes = grep {get_extra_NE_for_node($node)} @potential_all_source_nodes;
+        my @extraNE_nodes = grep {get_extra_NE_for_node($node, $potential_all_source_nodes_count)} @potential_all_source_nodes;
         if (scalar(@NE_nodes) or scalar(@extraNE_nodes)) { # any Named Entity or extra Named Entity assigned to any of the nodes?
           mylog(0, "Found a potential independent source:\n");
           my $whole_potential_source = text(\@potential_all_source_nodes);
@@ -1358,6 +1361,7 @@ sub guess_source_type {
   mylog(0, "guess_source_type: Entered the function; should_be_counted=$should_be_counted, claim_parent=" . (attr($claim_parent, 'form') // '') . ", source nodes: '" . join(' ', map {attr($_, 'form')} @whole_source_nodes) . "'\n");
 
   my @whole_source_nodes_dfo = sort_nodes_dfo(@whole_source_nodes);
+  my $whole_source_nodes_count = scalar(@whole_source_nodes_dfo);
   my $source_root = $whole_source_nodes_dfo[0];
   my $source_root_NE_marks = ''; # will be set in the following cycle
   my $source_root_lemma = attr($source_root, 'lemma') // '';
@@ -1372,7 +1376,7 @@ sub guess_source_type {
   # Collect NameTag marks for all source nodes
   my @source_named_entity_marks = ();
   foreach my $source_node (@whole_source_nodes_dfo) {
-    my $named_entity_marks = get_NameTag_and_extra_NE_marks($source_node);
+    my $named_entity_marks = get_NameTag_and_extra_NE_marks($source_node, $whole_source_nodes_count);
     mylog(0, "guess_source_type: node=" . attr($source_node, 'lemma') . ", named_entity_marks=$named_entity_marks\n");
     next if !$named_entity_marks;
     # mylog(0, "guess_source_type: " . attr($source_node, 'lemma') . ": '$named_entity_marks'\n");
@@ -1598,9 +1602,9 @@ sub get_NameTag_marks {
 
 
 sub get_NameTag_and_extra_NE_marks {
-  my $node = shift;
+  my ($node, $count_of_nodes) = @_;
   my $named_entity_marks = get_NameTag_marks($node);
-  my $named_entity_extra_marks = get_extra_NE_for_node($node);
+  my $named_entity_extra_marks = get_extra_NE_for_node($node, $count_of_nodes);
   if ($named_entity_marks and $named_entity_extra_marks) {
     return $named_entity_marks . '~' . $named_entity_extra_marks;
   }
@@ -1617,34 +1621,16 @@ sub get_NameTag_and_extra_NE_marks {
 }
 
 
-=item get_extra_NE
-
-Checks children of a given node and returns a fake NE value for some obvious words, such as 'mluvčí', 'premiér' etc.
-Also gives fake NE value for significantly anonymous words (zdroj, pozorovatel, informace).
-
-
-sub get_extra_NE {
-  my $node = shift;
-  my $lemma = attr($node, 'lemma');
-  my @children = $node->getAllChildren;
-  foreach my $child (@children) {
-    my $extra_NE = get_extra_NE_for_node($child);
-    if ($extra_NE) {
-      return $extra_NE;
-    }
-  }  
-}
-
-=cut
-
-
 sub get_extra_NE_for_node {
-  my $node = shift;
+  my ($node, $number_of_nodes) = @_;
   my $lemma = attr($node, 'lemma');
   my $form = attr($node, 'form');
   if ($lemma =~ /^(mluvčí|velitel(ka)?|ředitel(ka)?|vedoucí|šéf(ka)?|soudce|soudkyně|soud|obžaloba|obhajoba|obhájce|obhájkyně|prokurátor(ka)?|obžalovaný|obžalovaná)$/) {
     # mylog(0, "get_extra_NE_for_node: found 'mluvčí etc.'\n");
     return 'im'; # "institution - mluvčí"
+  }
+  if ($number_of_nodes == 1 and $keywords_single_anonymous{$lemma}) {
+    return 'sa' # "source - anonymous"
   }
   if ($keywords_anonymous{$lemma}) {
     return 'sa' # "source - anonymous"
