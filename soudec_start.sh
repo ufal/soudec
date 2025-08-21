@@ -7,7 +7,7 @@ export LC_ALL=cs_CZ.UTF-8
 echo "Searching for sources" > err
 
 # Run the command and capture JSON output
-json_output=$(echo "Soudci se jich bojí a odsoudí raději místní obyvatele." | \
+json_output=$(echo "Soudci se jich bojí, odsoudí raději místní obyvatele." | \
 ./system/soudec.pl --stdin --ll 0 --output-format txt --output-statistics=tsv 2>>err)
 
 # Extract and print the 'data' field

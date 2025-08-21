@@ -567,10 +567,10 @@ while (<PHRASES>) {
     my $reliability = $used_as_citation_phrase / $all_occurrences;
     my $reliability_percent = 100 * sprintf("%.2f", $reliability);
     $phrase_lemma_constraint2reliability{$lemma . '_' . $constraint} = $reliability_percent;
-    mylog(0, "Phrase $lemma (with constraint $constraint) and reliability $reliability_percent\n");
+    # mylog(0, "Phrase $lemma (with constraint $constraint) and reliability $reliability_percent\n");
     $phrases_count++;
     if ($phrase_lemma2constraints{$lemma}) { # if there already was a constraint for this lemma
-      mylog(0, "Note: multiple constraints for lemma $lemma.\n");
+      # mylog(0, "Note: multiple constraints for lemma $lemma.\n");
       $phrase_lemma2constraints{$lemma} .= "_";
     }
     $phrase_lemma2constraints{$lemma} .= $constraint;
@@ -1072,6 +1072,12 @@ sub check_constraint {
       if ($deprel ne 'conj') {
         mylog(0, " - constraint POSTPOS but deprel is not 'conj'; returning undef\n");
         return undef;
+      }
+      my @cc_children = grep {attr($_, 'deprel') eq 'cc'} @children;
+      if (@cc_children) {
+        mylog(0, " - constraint POSTPOS but 'cc' children; returning undef\n");
+        return undef;
+	# Still, there remain homonymous expressions such as: (Politici jsou k místním kritičtí.) Soudci se jich bojí, odsuzují místní obyvatele. There is no way telling if it is a coordintation with a common subject or if it is a post-position with 'Politici' being subject of the second clause.
       }
       # check the order
       my $phrase_ord = attr($node, 'ord');
