@@ -28,7 +28,7 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER_en = '1.11 (20250818)'; # version of the program
+my $VER_en = '1.13 (20250821)'; # version of the program
 my $VER_cs = $VER_en; # version of the program
 
 my @features_cs = ('detekce citačních zdrojů',
@@ -878,8 +878,13 @@ foreach my $root (@trees) {
 
           else { # all cases other than 'podle' and 'dle'
             my @nsubj = grep {attr($_, 'deprel') eq 'nsubj'} $node->getAllChildren; # looking for a subject (i.e, the source)
+
+	    if (!@nsubj and attr($node, 'deprel') eq 'conj') { # no subject? Maybe we have a common subject in a conjunction of clauses - let us search for the subject at the parent node (not doing it recursively for now)
+              mylog(0, "'conj' verb with no source. Looking for a source at the parent.\n");
+              @nsubj = grep {attr($_, 'deprel') eq 'nsubj'} $node->getParent->getAllChildren;
+            }
+
 	    my @passive_se = grep {attr($_, 'deprel') eq 'expl:pass' and attr($_, 'lemma') eq 'se' and lc(attr($_,'form')) eq 'se'} $node->getAllChildren; # e.g. in "tvrdí se"
-            
 	    if (!@nsubj and $experimental_zero_gen and @passive_se) { # no nsubj but passive 'se', as in 'tvrdí se'; let us ad a #Gen node
               my $perspron = Tree::Simple->new({}); # we could use new({}, $node) to make it a child of the governing verb in the tree structure
               set_attr($perspron, 'ord', attr($node, 'ord') - 0.5); # let us put it just before the governing verb
