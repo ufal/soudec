@@ -62,7 +62,9 @@
 1	1	oponovat	
 15	13	označit	
 73	73	oznámit	
+2	1	oznámit        POSTPOS
 4	1	plánovat	
+2	1	podělit	se|názor!-o
 2	1	podělit	se|názor-o|POSTPOS
 2	2	podezírat	
 842	656	podle	PREP
@@ -153,10 +155,11 @@
 1	1	vyčinit	
 1	1	vydat	
 4	2	vyjádřit	
+2	1	vyjádřit	se|smyslu!-ve
+2	1	vyjadřovat	se|smyslu!-ve
 2	2	vyjmenovávat	
 1	1	vylíčit	
 3	3	vyloučit	
-4	4	vyplývat	
 2	2	vypočítávat	
 8	8	vyprávět	
 2	2	vyslovit	
@@ -184,3 +187,4 @@
 1	1	zveřejnit	
 10	5	žádat	
 1	1	žasnout	
+2	1	žertovat	POSTPOS
