@@ -40,7 +40,7 @@ my @features_en = ('detection of citation sources',
                    'detection of citation content (beta)'
                   );
 
-my $experimental_zero_perspron = 1; # use experimental introduction of zero persprons
+my $experimental_zero_perspron = 0; # use experimental introduction of zero persprons
 my $experimental_zero_gen = 1; # use experimental introduction of #Gen node in passive 'se' construction (like in 'tvrdí se')
 
 my $FEATS_cs = join(' • ', @features_cs); 
@@ -1530,7 +1530,7 @@ sub guess_source_type {
     }
   }
   
-  my $class = 'anonymous-partial'; # default
+  my $class = 'unofficial'; # default
 
   # mylog(0, "guess_source_type: whole source joined marks='$joined', source root marks='$source_root_NE_marks'\n");
   if ($source_root_NE_marks =~ /\bgc\b/) { # gc - state
