@@ -28,7 +28,7 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER_en = '1.14 (20250822)'; # version of the program
+my $VER_en = '1.15 (20250825)'; # version of the program
 my $VER_cs = $VER_en; # version of the program
 
 my @features_cs = ('detekce citačních zdrojů',
@@ -289,17 +289,19 @@ mylog(0, "\n");
 
 # lists of keywords to classify a source
 my %keywords_anonymous = ('zdroj' => 1,
-                          'pozorovatel' => 1,
-                          'informace' => 1,
-                          'mnohý' => 1
+                          'pozorovatel' => 1
                          );
 
-my %keywords_single_anonymous = ('všechen' => 1);
+my %keywords_single_anonymous = ('všechen' => 1,
+                                 'každý' => 1,
+			         'mnohý' => 1
+                                );
 
 my %keywords_anonymous_partial = ('část' => 1,
                                   'některý' => 1,
                                   'většina' => 1,
                                   'řada' => 1,
+				  'informace' => 1
                          );
 
 my %keywords_unofficial = ('slovník' => 1,
@@ -881,7 +883,14 @@ foreach my $root (@trees) {
 
 	    if (!@nsubj and attr($node, 'deprel') eq 'conj') { # no subject? Maybe we have a common subject in a conjunction of clauses - let us search for the subject at the parent node (not doing it recursively for now)
               mylog(0, "'conj' verb with no source. Looking for a source at the parent.\n");
-              @nsubj = grep {attr($_, 'deprel') eq 'nsubj'} $node->getParent->getAllChildren;
+	      my $gender = get_feat_value($node, 'Gender');
+	      my $number = get_feat_value($node, 'Number');
+	      my $parent = $node->getParent;
+	      my $parent_gender = get_feat_value($parent, 'Gender');
+	      my $parent_number = get_feat_value($parent, 'Number');
+	      if ($gender eq $parent_gender and $number eq $parent_number) { # I take common subject only if both verbs have same gender and number
+                @nsubj = grep {attr($_, 'deprel') eq 'nsubj'} $parent->getAllChildren;
+              }     
             }
 
 	    my @passive_se = grep {attr($_, 'deprel') eq 'expl:pass' and attr($_, 'lemma') eq 'se' and lc(attr($_,'form')) eq 'se'} $node->getAllChildren; # e.g. in "tvrdí se"
@@ -1183,8 +1192,9 @@ sub is_finite {
   }  
   # It may be a reference to a verbal phrase, such as "potvrzuje to i ..." or "jeho slova potvrzuje i ..."
   my $form = attr($node, 'form');
-  if ($form =~ /^(slova|to|tom)$/) {
-    return 1;
+  my $deprel = attr($node, 'deprel');
+  if ($form =~ /^(slova|to)$/ and $deprel eq 'obj') { # tady bylo i 'tom', ale proč?
+    return 1; # musí to být 'obj', aby se vyloučilo např. "na to odpověděl..."
   }
   # It may be a yes/no response, e.g. "ano" or "on ne" (deprel = dep)
   if ($form =~ /^(ano|ne)$/) {
@@ -1684,6 +1694,9 @@ sub get_extra_NE_for_node {
   }
 
   if ($lemma =~ /^premiér(ka)?$/) {
+    return 'io'; # "institution - goverment, political"
+  }
+  if ($lemma =~ /^vláda$/) {
     return 'io'; # "institution - goverment, political"
   }
   if ($lemma =~ /^poslan(ec|kyně)$/) {
