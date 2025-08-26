@@ -28,7 +28,7 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER_en = '1.15 (20250825)'; # version of the program
+my $VER_en = '1.16 (20250826)'; # version of the program
 my $VER_cs = $VER_en; # version of the program
 
 my @features_cs = ('detekce citačních zdrojů',
@@ -1172,21 +1172,26 @@ Checks if the given node represents a finite verb or something similer, e.g. "an
 sub is_finite {
   my $node = shift;
   my $VerbForm = get_feat_value($node, 'VerbForm') // '';
-  # mylog(0, "is_finite: VerbForm = '$VerbForm'\n");
-  if ($VerbForm and $VerbForm ne 'Inf') {
+  my $upostag = attr($node, 'upostag') // '';
+  my $form = attr($node, 'form') // '';
+  mylog(0, "is_finite: form = '$form', upostag = '$upostag', VerbForm = '$VerbForm'\n");
+  if ($upostag eq 'VERB' and $VerbForm ne 'Inf') {
+    mylog(0, "is_finite: a finite verb\n");
     return 1;
   }
   # It may also be a copula ("je konzervativní")
   my @cop_children = grep {attr($_, 'deprel') eq 'cop'} $node->getAllChildren;
   if (@cop_children) {
     if (is_finite($cop_children[0])) {
+      mylog(0, "is_finite: a copula\n");
       return 1;
     }
   }
   # It may be a complex verb ("bude potřebovat")
   my @finverb_children = grep {get_feat_value($_, 'VerbForm') and get_feat_value($_, 'VerbForm') ne 'Inf'} $node->getAllChildren;
-  if ($VerbForm and @finverb_children) {
+  if ($upostag eq 'VERB' and @finverb_children) {
     if (is_finite($finverb_children[0])) {
+      mylog(0, "is_finite: a complex verb form\n");
       return 1;
     }
   }  
@@ -1194,16 +1199,19 @@ sub is_finite {
   my $form = attr($node, 'form');
   my $deprel = attr($node, 'deprel');
   if ($form =~ /^(slova|to)$/ and $deprel eq 'obj') { # tady bylo i 'tom', ale proč?
+    mylog(0, "is_finite: a reference object such as 'to'\n");
     return 1; # musí to být 'obj', aby se vyloučilo např. "na to odpověděl..."
   }
   # It may be a yes/no response, e.g. "ano" or "on ne" (deprel = dep)
   if ($form =~ /^(ano|ne)$/) {
+    mylog(0, "is_finite: ano/ne'\n");
     return 1;
   }
   my $deprel = attr($node, 'deprel') // '';
   if ($deprel eq 'dep') {
     my @ano_ne_children = grep {attr($_, 'lemma') and attr($_, 'lemma') =~ /(ano|ne)/} $node->getAllChildren;
     if (@ano_ne_children) {
+      mylog(0, "is_finite: ano/ne grandchild'\n");
       return 1;
     }
   }
