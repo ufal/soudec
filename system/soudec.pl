@@ -1174,7 +1174,7 @@ sub check_constraint {
 
 =item is_finite
 
-Checks if the given node represents a finite verb or something similer, e.g. "ano", "ne".
+Checks if the given node represents a finite verb or something similar, e.g. 'to' as direct object, "ano", "ne".
 
 =cut
 
@@ -1207,12 +1207,12 @@ sub is_finite {
   # It may be a reference to a verbal phrase, such as "potvrzuje to i ..." or "jeho slova potvrzuje i ..."
   my $form = attr($node, 'form');
   my $deprel = attr($node, 'deprel');
-  if ($form =~ /^(slova|to)$/ and $deprel eq 'obj') { # tady bylo i 'tom', ale proč?
+  if (lc($form) =~ /^(slova|to)$/ and $deprel eq 'obj') { # tady bylo i 'tom', ale proč?
     mylog(0, "is_finite: a reference object such as 'to'\n");
     return 1; # musí to být 'obj', aby se vyloučilo např. "na to odpověděl..."
   }
   # It may be a yes/no response, e.g. "ano" or "on ne" (deprel = dep)
-  if ($form =~ /^(ano|ne)$/) {
+  if (lc($form) =~ /^(ano|ne)$/) {
     mylog(0, "is_finite: ano/ne'\n");
     return 1;
   }
@@ -1258,6 +1258,7 @@ sub has_finite_verb_object {
     mylog(0, " - has_finite_verb_object: case 'podle' - no claim found\n");
     return 0;
   }
+
   # Second, let us search for a claim among the children
   my @finite_verb_object_children = grep {attr($_, 'deprel') =~ /^(obj|iobj|ccomp|xcomp|obl:arg|acl|root|csubj:pass|dep)$/}
                                     grep {is_finite($_)}
@@ -1280,6 +1281,7 @@ sub has_finite_verb_object {
       return 1;
     }
   }
+
   # Fourth, "informovat o (cokoli)" or "přinesl zprávu o (cokoli), e.g. "O rozsudku informoval ..." or "Zprávu o zmizení XY přinesl ..."
   if ($lemma eq 'informovat' or $lemma eq 'zpráva') {
     my @children_with_o = grep {has_child_with_lemma($_, 'o')}
@@ -1289,6 +1291,7 @@ sub has_finite_verb_object {
       return 1;
     }    
   }
+
   # Fifth, "Čest jeho památce!, uvedl městys na facebooku k úmrtí"
   my @children_with_excl = grep {has_child_with_lemma($_, '!')}
                            $node->getAllChildren;

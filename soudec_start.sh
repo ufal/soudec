@@ -7,7 +7,7 @@ export LC_ALL=cs_CZ.UTF-8
 echo "Searching for sources" > err
 
 # Run the command and capture JSON output
-json_output=$(echo "Vláda musí dodržovat proces, aby prokázala, že jejich kroky jsou vhodné, nazývané Oakesův test." | \
+json_output=$(echo "To potvrzuje i mluvčí portálů Jobs.cz a Práce." | \
 ./system/soudec.pl --stdin --ll 0 --output-format txt --output-statistics=tsv 2>>err)
 
 # Extract and print the 'data' field
