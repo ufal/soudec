@@ -866,6 +866,14 @@ foreach my $root (@trees) {
         mylog(0, " - reliability of lemma '$lemma' with constraint '$constraint' is greater than threshold $min_phrase_reliability\n");
         # Checking if there is something like a claim, i.e. a finite-verb core object 
         if (has_finite_verb_object($claim_parent)) {
+
+          # Check if the clause is conditional ('Je důležité, aby ministr řekl, že ...')
+	  # (How is it with cases with 'podle' and 'dle'? Not solving it here.)
+          my @conditions = grep {attr($_, 'lemma') =~ /^(by|aby|kdyby|pokud|jestliže|jestli)$/} $node->getAllChildren;
+	  if (@conditions) {
+            mylog(0, "- a conditional clause, giving up.\n");
+            next;
+          }     
           evaluate_single_event('phrase', $lemma, $constraint, $root, @phrase_nodes);
 
           if ($constraint eq 'PREP') { # special treatment of 'podle' and 'dle'
@@ -880,12 +888,6 @@ foreach my $root (@trees) {
           }
 
           else { # all cases other than 'podle' and 'dle'
-            # Check if the clause is conditional ('Je důležité, aby ministr řekl, že ...')
-            my @conditions = grep {attr($_, 'lemma') =~ /^(by|aby|kdyby)$/} $node->getAllChildren;
-	    if (@conditions) {
-              mylog(0, "- a conditional clause, giving up.\n");
-              next;
-            }     
             my @nsubj = grep {attr($_, 'deprel') eq 'nsubj'} $node->getAllChildren; # looking for a subject (i.e, the source)
 
 	    if (!@nsubj and attr($node, 'deprel') eq 'conj') { # no subject? Maybe we have a common subject in a conjunction of clauses - let us search for the subject at the parent node (not doing it recursively for now)
@@ -1687,7 +1689,7 @@ sub get_extra_NE_for_node {
     # mylog(0, "get_extra_NE_for_node: #Gen\n";
     return 'sa'; # "source - anonymous"
   }
-  if ($lemma =~ /^(mluvčí|velitel(ka)?|ředitel(ka)?|vedoucí|šéf(ka)?|soudce|soudkyně|soud|obžaloba|obhajoba|obhájce|obhájkyně|prokurátor(ka)?|obžalovaný|obžalovaná)$/) {
+  if ($lemma =~ /^(mluvčí|velitel(ka)?|ředitel(ka)?|vedoucí|šéf(ka)?|soudce|soudkyně|soud|obžaloba|obhajoba|obhájce|obhájkyně|prokurátor(ka)?|obžalovaný|obžalovaná|zákon|zákoník)$/) {
     # mylog(0, "get_extra_NE_for_node: found 'mluvčí etc.'\n");
     return 'im'; # "institution - mluvčí"
   }
