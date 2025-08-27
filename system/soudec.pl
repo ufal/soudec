@@ -1713,6 +1713,9 @@ sub get_extra_NE_for_node {
     return 'gc'; # "states"
   }
 
+  if ($lemma =~ /^primátor(ka)?$/) {
+    return 'io'; # "institution - goverment, political"
+  }
   if ($lemma =~ /^premiér(ka)?$/) {
     return 'io'; # "institution - goverment, political"
   }
