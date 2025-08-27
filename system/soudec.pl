@@ -40,8 +40,8 @@ my @features_en = ('detection of citation sources',
                    'detection of citation content (beta)'
                   );
 
-my $experimental_zero_perspron = 0; # use experimental introduction of zero persprons
-my $experimental_zero_gen = 0; # use experimental introduction of #Gen node in passive 'se' construction (like in 'tvrdí se')
+my $experimental_zero_perspron = 1; # use experimental introduction of zero persprons
+my $experimental_zero_gen = 1; # use experimental introduction of #Gen node in passive 'se' construction (like in 'tvrdí se')
 
 my $FEATS_cs = join(' • ', @features_cs); 
 my $FEATS_en = join(' • ', @features_en);
@@ -1192,7 +1192,7 @@ sub is_finite {
   }
 
   # It may be a finite form from 'být' in a copula (which is AUX, not VERB)
-  if ($lemma eq 'být' and $VerbForm eq 'Fin') {
+  if ($lemma eq 'být' and $VerbForm ne 'Inf') {
     mylog(0, "is_finite: a finite form of 'být'\n");
     return 1;
   };
