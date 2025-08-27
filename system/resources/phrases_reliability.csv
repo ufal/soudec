@@ -70,7 +70,7 @@
 842	656	podle	PREP
 7	7	podotknout	
 6	6	podotýkat	
-2	1	podporovat	
+2	1	podporovat	POSTPOS
 2	2	pohrozit	
 2	1	pochválit	POSTPOS
 1	1	pochvalovat	si
@@ -85,7 +85,6 @@
 8	7	potvrzovat	
 2	2	poukazovat	
 2	1	pousmát	se|POSTPOS
-12	6	považovat	
 1	1	povídat	
 2	1	povídat	se|co|ANTEPOS
 12	11	poznamenat	
@@ -185,6 +184,6 @@
 1	1	znít	
 4	4	zopakovat	
 1	1	zveřejnit	
-10	5	žádat	
+2	1	žádat	POSTPOS	
 1	1	žasnout	
 2	1	žertovat	POSTPOS

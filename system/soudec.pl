@@ -28,7 +28,7 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER_en = '1.14 (20250822)'; # version of the program
+my $VER_en = '1.17 (20250827)'; # version of the program
 my $VER_cs = $VER_en; # version of the program
 
 my @features_cs = ('detekce citačních zdrojů',
@@ -289,17 +289,20 @@ mylog(0, "\n");
 
 # lists of keywords to classify a source
 my %keywords_anonymous = ('zdroj' => 1,
-                          'pozorovatel' => 1,
-                          'informace' => 1,
-                          'mnohý' => 1
+                          'pozorovatel' => 1
                          );
 
-my %keywords_single_anonymous = ('všechen' => 1);
+my %keywords_single_anonymous = ('všechen' => 1,
+                                 'každý' => 1,
+			         'mnohý' => 1,
+				 'nikdo' => 1
+                                );
 
 my %keywords_anonymous_partial = ('část' => 1,
                                   'některý' => 1,
                                   'většina' => 1,
                                   'řada' => 1,
+				  'informace' => 1
                          );
 
 my %keywords_unofficial = ('slovník' => 1,
@@ -863,6 +866,14 @@ foreach my $root (@trees) {
         mylog(0, " - reliability of lemma '$lemma' with constraint '$constraint' is greater than threshold $min_phrase_reliability\n");
         # Checking if there is something like a claim, i.e. a finite-verb core object 
         if (has_finite_verb_object($claim_parent)) {
+
+          # Check if the clause is conditional ('Je důležité, aby ministr řekl, že ...')
+	  # (How is it with cases with 'podle' and 'dle'? Not solving it here.)
+          my @conditions = grep {attr($_, 'lemma') =~ /^(by|aby|kdyby|pokud|jestliže|jestli)$/} $node->getAllChildren;
+	  if (@conditions) {
+            mylog(0, "- a conditional clause, giving up.\n");
+            next;
+          }     
           evaluate_single_event('phrase', $lemma, $constraint, $root, @phrase_nodes);
 
           if ($constraint eq 'PREP') { # special treatment of 'podle' and 'dle'
@@ -881,7 +892,14 @@ foreach my $root (@trees) {
 
 	    if (!@nsubj and attr($node, 'deprel') eq 'conj') { # no subject? Maybe we have a common subject in a conjunction of clauses - let us search for the subject at the parent node (not doing it recursively for now)
               mylog(0, "'conj' verb with no source. Looking for a source at the parent.\n");
-              @nsubj = grep {attr($_, 'deprel') eq 'nsubj'} $node->getParent->getAllChildren;
+	      my $gender = get_feat_value($node, 'Gender');
+	      my $number = get_feat_value($node, 'Number');
+	      my $parent = $node->getParent;
+	      my $parent_gender = get_feat_value($parent, 'Gender');
+	      my $parent_number = get_feat_value($parent, 'Number');
+	      if ($gender eq $parent_gender and $number eq $parent_number) { # I take common subject only if both verbs have same gender and number
+                @nsubj = grep {attr($_, 'deprel') eq 'nsubj'} $parent->getAllChildren;
+              }     
             }
 
 	    my @passive_se = grep {attr($_, 'deprel') eq 'expl:pass' and attr($_, 'lemma') eq 'se' and lc(attr($_,'form')) eq 'se'} $node->getAllChildren; # e.g. in "tvrdí se"
@@ -1163,37 +1181,46 @@ Checks if the given node represents a finite verb or something similer, e.g. "an
 sub is_finite {
   my $node = shift;
   my $VerbForm = get_feat_value($node, 'VerbForm') // '';
-  # mylog(0, "is_finite: VerbForm = '$VerbForm'\n");
-  if ($VerbForm and $VerbForm ne 'Inf') {
+  my $upostag = attr($node, 'upostag') // '';
+  my $form = attr($node, 'form') // '';
+  mylog(0, "is_finite: form = '$form', upostag = '$upostag', VerbForm = '$VerbForm'\n");
+  if ($upostag eq 'VERB' and $VerbForm ne 'Inf') {
+    mylog(0, "is_finite: a finite verb\n");
     return 1;
   }
   # It may also be a copula ("je konzervativní")
   my @cop_children = grep {attr($_, 'deprel') eq 'cop'} $node->getAllChildren;
   if (@cop_children) {
     if (is_finite($cop_children[0])) {
+      mylog(0, "is_finite: a copula\n");
       return 1;
     }
   }
   # It may be a complex verb ("bude potřebovat")
   my @finverb_children = grep {get_feat_value($_, 'VerbForm') and get_feat_value($_, 'VerbForm') ne 'Inf'} $node->getAllChildren;
-  if ($VerbForm and @finverb_children) {
+  if ($upostag eq 'VERB' and @finverb_children) {
     if (is_finite($finverb_children[0])) {
+      mylog(0, "is_finite: a complex verb form\n");
       return 1;
     }
   }  
   # It may be a reference to a verbal phrase, such as "potvrzuje to i ..." or "jeho slova potvrzuje i ..."
   my $form = attr($node, 'form');
-  if ($form =~ /^(slova|to|tom)$/) {
-    return 1;
+  my $deprel = attr($node, 'deprel');
+  if ($form =~ /^(slova|to)$/ and $deprel eq 'obj') { # tady bylo i 'tom', ale proč?
+    mylog(0, "is_finite: a reference object such as 'to'\n");
+    return 1; # musí to být 'obj', aby se vyloučilo např. "na to odpověděl..."
   }
   # It may be a yes/no response, e.g. "ano" or "on ne" (deprel = dep)
   if ($form =~ /^(ano|ne)$/) {
+    mylog(0, "is_finite: ano/ne'\n");
     return 1;
   }
   my $deprel = attr($node, 'deprel') // '';
   if ($deprel eq 'dep') {
     my @ano_ne_children = grep {attr($_, 'lemma') and attr($_, 'lemma') =~ /(ano|ne)/} $node->getAllChildren;
     if (@ano_ne_children) {
+      mylog(0, "is_finite: ano/ne grandchild'\n");
       return 1;
     }
   }
@@ -1662,7 +1689,7 @@ sub get_extra_NE_for_node {
     # mylog(0, "get_extra_NE_for_node: #Gen\n";
     return 'sa'; # "source - anonymous"
   }
-  if ($lemma =~ /^(mluvčí|velitel(ka)?|ředitel(ka)?|vedoucí|šéf(ka)?|soudce|soudkyně|soud|obžaloba|obhajoba|obhájce|obhájkyně|prokurátor(ka)?|obžalovaný|obžalovaná)$/) {
+  if ($lemma =~ /^(mluvčí|velitel(ka)?|ředitel(ka)?|vedoucí|šéf(ka)?|soudce|soudkyně|soud|obžaloba|obhajoba|obhájce|obhájkyně|prokurátor(ka)?|obžalovaný|obžalovaná|zákon|zákoník)$/) {
     # mylog(0, "get_extra_NE_for_node: found 'mluvčí etc.'\n");
     return 'im'; # "institution - mluvčí"
   }
@@ -1684,6 +1711,9 @@ sub get_extra_NE_for_node {
   }
 
   if ($lemma =~ /^premiér(ka)?$/) {
+    return 'io'; # "institution - goverment, political"
+  }
+  if ($lemma =~ /^vláda$/) {
     return 'io'; # "institution - goverment, political"
   }
   if ($lemma =~ /^poslan(ec|kyně)$/) {
