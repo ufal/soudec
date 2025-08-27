@@ -862,6 +862,7 @@ foreach my $root (@trees) {
         mylog(0, "- the constraint '$constraint' for lemma '$lemma' is not met.\n");
         next;
       }
+      mylog(0, "- constraint '$constraint' matched: claim_parent = '" . attr($claim_parent, 'form') . "'\n");
       if ($reliability >= $min_phrase_reliability) {
         mylog(0, " - reliability of lemma '$lemma' with constraint '$constraint' is greater than threshold $min_phrase_reliability\n");
         # Checking if there is something like a claim, i.e. a finite-verb core object 
@@ -1183,12 +1184,20 @@ sub is_finite {
   my $VerbForm = get_feat_value($node, 'VerbForm') // '';
   my $upostag = attr($node, 'upostag') // '';
   my $form = attr($node, 'form') // '';
-  mylog(0, "is_finite: form = '$form', upostag = '$upostag', VerbForm = '$VerbForm'\n");
+  my $lemma = attr($node, 'lemma') // '';
+  mylog(0, "is_finite: form = '$form', lemma = '$lemma', upostag = '$upostag', VerbForm = '$VerbForm'\n");
   if ($upostag eq 'VERB' and $VerbForm ne 'Inf') {
     mylog(0, "is_finite: a finite verb\n");
     return 1;
   }
-  # It may also be a copula ("je konzervativní")
+
+  # It may be a finite form from 'být' in a copula (which is AUX, not VERB)
+  if ($lemma eq 'být' and $VerbForm eq 'Fin') {
+    mylog(0, "is_finite: a finite form of 'být'\n");
+    return 1;
+  };
+
+  # It may also be a nominal part of the copula ("je konzervativní")
   my @cop_children = grep {attr($_, 'deprel') eq 'cop'} $node->getAllChildren;
   if (@cop_children) {
     if (is_finite($cop_children[0])) {
@@ -1241,6 +1250,7 @@ sub has_finite_verb_object {
   my $lemma = attr($node, 'lemma') // '';
   my $parent = $node->getParent;
 
+  mylog(0, "has_finite_verb_object: Checking for node '$form_lc'\n");
   # First, let us solve 'podle'
   # 'podle' needs to have a grandparent (finite-verb of the claim)
   # The parent of 'podle' (the source) should not be the last child of the grandparent (to avoid constructions such ad "udělal jsem to podle příručky");
@@ -1267,6 +1277,7 @@ sub has_finite_verb_object {
     mylog(0, " - has_finite_verb_object: OK (a finite claim found among children: " . attr($finite_verb_object_children[0], 'form') . ")\n");
     return 1;
   }
+  
   my @clausal_object_children = grep {attr($_, 'deprel') =~ /^(ccomp)$/}
                                     $node->getAllChildren;
   if (@clausal_object_children) {
