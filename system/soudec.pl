@@ -28,7 +28,7 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER_en = '1.16 (20250826)'; # version of the program
+my $VER_en = '1.17 (20250827)'; # version of the program
 my $VER_cs = $VER_en; # version of the program
 
 my @features_cs = ('detekce citačních zdrojů',
@@ -294,7 +294,8 @@ my %keywords_anonymous = ('zdroj' => 1,
 
 my %keywords_single_anonymous = ('všechen' => 1,
                                  'každý' => 1,
-			         'mnohý' => 1
+			         'mnohý' => 1,
+				 'nikdo' => 1
                                 );
 
 my %keywords_anonymous_partial = ('část' => 1,
@@ -879,6 +880,12 @@ foreach my $root (@trees) {
           }
 
           else { # all cases other than 'podle' and 'dle'
+            # Check if the clause is conditional ('Je důležité, aby ministr řekl, že ...')
+            my @conditions = grep {attr($_, 'lemma') =~ /^(by|aby|kdyby)$/} $node->getAllChildren;
+	    if (@conditions) {
+              mylog(0, "- a conditional clause, giving up.\n");
+              next;
+            }     
             my @nsubj = grep {attr($_, 'deprel') eq 'nsubj'} $node->getAllChildren; # looking for a subject (i.e, the source)
 
 	    if (!@nsubj and attr($node, 'deprel') eq 'conj') { # no subject? Maybe we have a common subject in a conjunction of clauses - let us search for the subject at the parent node (not doing it recursively for now)
