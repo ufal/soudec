@@ -41,7 +41,7 @@ my @features_en = ('detection of citation sources',
                   );
 
 my $experimental_zero_perspron = 0; # use experimental introduction of zero persprons
-my $experimental_zero_gen = 1; # use experimental introduction of #Gen node in passive 'se' construction (like in 'tvrdí se')
+my $experimental_zero_gen = 0; # use experimental introduction of #Gen node in passive 'se' construction (like in 'tvrdí se')
 
 my $FEATS_cs = join(' • ', @features_cs); 
 my $FEATS_en = join(' • ', @features_en);

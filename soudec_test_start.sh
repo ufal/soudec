@@ -13,7 +13,7 @@ for A in ../data_ze_SiR1.0/test/*.txt; do
     echo "(.ann file provided)"
     echo "(.ann file provided)" >>err
     echo "=========================================================="
-    ./system/soudec.pl --input-file $A --phrase-file system/resources/phrases_reliability.csv --ann-file $B --store-statistics --store-format conllu --named-entities --add-antecedent --output-format html --logging-level 0 2>>err
+    ./system/soudec.pl --input-file $A --reliability 20 --phrase-file system/resources/phrases_reliability.csv --ann-file $B --store-statistics --store-format conllu --named-entities --add-antecedent --output-format html --logging-level 0 2>>err
   else
     echo "(no .ann file)"
     echo "(no .ann file)" >>err
