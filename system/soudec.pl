@@ -28,7 +28,7 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER_en = '1.17 (20250827)'; # version of the program
+my $VER_en = '1.18 (20250909)'; # version of the program
 my $VER_cs = $VER_en; # version of the program
 
 my @features_cs = ('detekce citačních zdrojů',
@@ -287,22 +287,30 @@ mylog(0, "\n");
 
 ###################################################################################
 
-# lists of keywords to classify a source
+# lists of keywords to classify a source ('jazyk' -> 'zlé jazyky')
 my %keywords_anonymous = ('zdroj' => 1,
-                          'pozorovatel' => 1
+                          'pozorovatel' => 1,
+			  'jazyk' => 1
                          );
 
 my %keywords_single_anonymous = ('všechen' => 1,
                                  'každý' => 1,
 			         'mnohý' => 1,
-				 'nikdo' => 1
+				 'nikdo' => 1,
+				 'někdo' => 1
                                 );
 
 my %keywords_anonymous_partial = ('část' => 1,
                                   'některý' => 1,
                                   'většina' => 1,
                                   'řada' => 1,
-				  'informace' => 1
+				  'informace' => 1,
+				  'čtenář' => 1,
+				  'lidé' => 1,
+				  'osobnost' => 1,
+				  'někdo' => 1,
+				  'jeden' => 1,
+				  'whistleblower' => 1
                          );
 
 my %keywords_unofficial = ('slovník' => 1,
@@ -1251,6 +1259,7 @@ sub has_finite_verb_object {
   my $parent = $node->getParent;
 
   mylog(0, "has_finite_verb_object: Checking for node '$form_lc'\n");
+
   # First, let us solve 'podle'
   # 'podle' needs to have a grandparent (finite-verb of the claim)
   # The parent of 'podle' (the source) should not be the last child of the grandparent (to avoid constructions such ad "udělal jsem to podle příručky");
@@ -1580,6 +1589,9 @@ sub guess_source_type {
   elsif ($source_root_lemma eq 'firma') {
     $class = 'official-non-political';
   }
+  elsif ($source_root_lemma =~ /^majitel(ka)?$/) {
+    $class = 'official-non-political';
+  }
   elsif ($joined =~ /~sp/) { # sp - source anonymous-partial (fake NE class)
     $class = 'anonymous-partial';
   }
@@ -1775,6 +1787,13 @@ sub get_extra_NE_for_node {
       return 'io'; # "institution - goverment, political"
     }
     if (grep {is_state($_)} @children) {
+      return 'io'; # "institution - goverment, political"
+    }
+    return 'im'; # "institution - mluvčí"
+  }
+
+  if ($lemma =~ /^smlouva$/) {
+    if (grep {/^(koaliční|opoziční|vládní)$/} @children_lemmas) {
       return 'io'; # "institution - goverment, political"
     }
     return 'im'; # "institution - mluvčí"
