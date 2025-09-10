@@ -28,7 +28,7 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER_en = '1.18 (20250909)'; # version of the program
+my $VER_en = '1.19 (20250910)'; # version of the program
 my $VER_cs = $VER_en; # version of the program
 
 my @features_cs = ('detekce citačních zdrojů',
@@ -861,6 +861,7 @@ foreach my $root (@trees) {
       }
       next; 
     }
+
     foreach my $constraint (split(/_/, $constraints)) { # split the constraints by separator '_' and work with one constraint at a time
       my $reliability = $phrase_lemma_constraint2reliability{$lemma . '_' . $constraint} // 0;
       mylog(0, "Testing phrase lemma (constraint) '$lemma ($constraint)' with reliability $reliability\n");
@@ -946,13 +947,19 @@ foreach my $root (@trees) {
               @nsubj = ($perspron);
             }
             if (@nsubj) {
-              my $subject = attr($nsubj[0], 'form');
-              my @whole_source_nodes = get_whole_source_nodes($nsubj[0]);
-              my $whole_source = text(\@whole_source_nodes);
-              mylog(0, " - SOURCE nsubj: $subject\n - WHOLE SOURCE: $whole_source\n");
-              my $source_type = guess_source_type($root, 1, $claim_parent, @whole_source_nodes);
-              mylog(0, "   - SOURCE TYPE: $source_type\n");
-              evaluate_single_event($source_type, $lemma, 'N/A', $root, @whole_source_nodes);
+              if (scalar(@nsubj) == 1 and attr($nsubj[0], 'lemma') eq 'kdo') {
+                # Cases such as "Kdo si myslí, že vyhraje levice, mýlí se."
+                mylog(0, " - 'kdo' not considered a source\n");
+              }
+	      else {
+                my $subject = attr($nsubj[0], 'form');
+                my @whole_source_nodes = get_whole_source_nodes($nsubj[0]);
+                my $whole_source = text(\@whole_source_nodes);
+                mylog(0, " - SOURCE nsubj: $subject\n - WHOLE SOURCE: $whole_source\n");
+                my $source_type = guess_source_type($root, 1, $claim_parent, @whole_source_nodes);
+                mylog(0, "   - SOURCE TYPE: $source_type\n");
+                evaluate_single_event($source_type, $lemma, 'N/A', $root, @whole_source_nodes);
+              }
             }
           }
         }
@@ -1444,6 +1451,7 @@ sub guess_source_type {
   mylog(0, "guess_source_type: Entered the function; should_be_counted=$should_be_counted, claim_parent=" . (attr($claim_parent, 'form') // '') . ", source nodes: '" . join(' ', map {attr($_, 'form')} @whole_source_nodes) . "'\n");
 
   my @whole_source_nodes_dfo = sort_nodes_dfo(@whole_source_nodes);
+  # my @whole_source_nodes_ord = sort {attr($a, 'ord') <=> attr($b, 'ord')} @whole_source_nodes;
   my $whole_source_nodes_count = scalar(@whole_source_nodes_dfo);
   my $source_root = $whole_source_nodes_dfo[0];
   my $source_root_NE_marks = ''; # will be set in the following cycle
@@ -1505,6 +1513,13 @@ sub guess_source_type {
     push(@source_named_entity_marks, $named_entity_marks);
   }
   
+  # Check if 'bývalý' is among the children of the source root - anything 'bývalý' is unofficial
+  my @source_root_children = $source_root->getAllChildren;
+  my @byvaly_children = grep {attr($_, 'lemma') eq 'bývalý'} @source_root_children;
+  if (@byvaly_children) {
+    return 'unofficial';
+  }
+    
   my $joined = '~' . join('~', @source_named_entity_marks);
 
   # maybe we will keep info about this source (if it contains nouns and has been recognized also by NameTag)  
