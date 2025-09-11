@@ -132,7 +132,8 @@ any '/api/detect' => sub {
                 '--input-format', $input_format, 
                 '--output-format', $output_format,
                 '--ui-language', $uilang,
-                '--output-statistics', $output_statistics
+                '--output-statistics', $output_statistics,
+		'--experimental', 'perspron,gen'
                 );
     my $stdin_data = $text;
     my $result_json;

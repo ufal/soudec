@@ -28,7 +28,7 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER_en = '1.19 (20250910)'; # version of the program
+my $VER_en = '1.29 (20250911)'; # version of the program
 my $VER_cs = $VER_en; # version of the program
 
 my @features_cs = ('detekce citačních zdrojů',
@@ -40,8 +40,9 @@ my @features_en = ('detection of citation sources',
                    'detection of citation content (beta)'
                   );
 
-my $experimental_zero_perspron = 1; # use experimental introduction of zero persprons
-my $experimental_zero_gen = 1; # use experimental introduction of #Gen node in passive 'se' construction (like in 'tvrdí se')
+# the following two options have been replaced with the '-e|--experimental' argument
+#my $experimental_zero_perspron = 1; # use experimental introduction of zero persprons
+#my $experimental_zero_gen = 1; # use experimental introduction of #Gen node in passive 'se' construction (like in 'tvrdí se')
 
 my $FEATS_cs = join(' • ', @features_cs); 
 my $FEATS_en = join(' • ', @features_en);
@@ -78,6 +79,7 @@ my $add_antecedent;
 my $store_format;
 my $store_statistics;
 my $logging_level_override;
+my $experimental;
 my $version;
 my $info;
 my $help;
@@ -98,6 +100,7 @@ GetOptions(
     'sf|store-format=s'      => \$store_format, # log the result in the given format: txt, html, conllu
     'ss|store-statistics=s'  => \$store_statistics, # log statistics in the given format (html, tsv, or a comma-separated list thereof)
     'll|logging-level=s'     => \$logging_level_override, # override the default (minimal) logging level (0=full, 1=limited, 2=minimal)
+    'e|experimental=s'       => \$experimental, # use the listed experimental features (perspron, gen, or a comma-separated list thereof)
     'v|version'              => \$version, # print the version of the program and exit
     'n|info'                 => \$info, # print the info (program version and supported features) as JSON and exit
     'h|help'                 => \$help, # print a short help and exit
@@ -162,6 +165,7 @@ options:  -i|--input-file [input text file name]
          -sf|--store-format [format: log the output in the given format: txt, html, conllu]
          -ss|--store-statistics (format: log statistics in the given format ('html', 'tsv', or a comma-separated list thereof))
          -ll|--logging-level (override the default (minimal) logging level (0=full, 1=limited, 2=minimal))
+          -e|--experimental (use the listed experimental features ('perspron', 'gen', or a comma-separated list thereof))
           -v|--version (prints the version of the program and ends)
           -h|--help (prints a short help and ends)
 END_TEXT
@@ -283,6 +287,19 @@ if (defined($logging_level_override)) {
 }
 
 mylog(0, "\n");
+
+
+$experimental = $experimental // '';
+$experimental = lc($experimental);
+if ($experimental) {
+  if ($experimental =~ /^(perspron|gen)(,(perspron|gen))*$/) {
+    mylog(0, " - use experimental features '$experimental'\n");
+  }
+  else {
+    mylog(0, " - unknown format for experimental features ($experimental); no experimental features will be used\n");
+    $experimental = '';
+  }
+}
 
 
 ###################################################################################
@@ -913,7 +930,7 @@ foreach my $root (@trees) {
             }
 
 	    my @passive_se = grep {attr($_, 'deprel') eq 'expl:pass' and attr($_, 'lemma') eq 'se' and lc(attr($_,'form')) eq 'se'} $node->getAllChildren; # e.g. in "tvrdí se"
-	    if (!@nsubj and $experimental_zero_gen and @passive_se) { # no nsubj but passive 'se', as in 'tvrdí se'; let us ad a #Gen node
+	    if (!@nsubj and $experimental =~ /\bgen\b/ and @passive_se) { # no nsubj but passive 'se', as in 'tvrdí se'; let us ad a #Gen node
               my $perspron = Tree::Simple->new({}); # we could use new({}, $node) to make it a child of the governing verb in the tree structure
               set_attr($perspron, 'ord', attr($node, 'ord') - 0.5); # let us put it just before the governing verb
               set_attr($perspron, 'gord', attr($node, 'gord') - 0.5);
@@ -930,7 +947,7 @@ foreach my $root (@trees) {
               @nsubj = ($perspron);
             }
 
-            elsif (!@nsubj and $experimental_zero_perspron) { # no nsubj, i.e. no source; let us ad a #PersPron node
+            elsif (!@nsubj and $experimental =~ /\bperspron\b/) { # no nsubj, i.e. no source; let us add a #PersPron node
               my $perspron = Tree::Simple->new({}); # we could use new({}, $node) to make it a child of the governing verb in the tree structure
               set_attr($perspron, 'ord', attr($node, 'ord') - 0.5); # let us put it just before the governing verb
               set_attr($perspron, 'gord', attr($node, 'gord') - 0.5);
@@ -1596,6 +1613,9 @@ sub guess_source_type {
   }
   
   my $class = 'unofficial'; # default
+  if ($joined eq '~') {
+    $class = 'anonymous-partial'; # default for sources without any recognized named entity
+  }
 
   # mylog(0, "guess_source_type: whole source joined marks='$joined', source root marks='$source_root_NE_marks'\n");
   if ($source_root_NE_marks =~ /\bgc\b/) { # gc - state
