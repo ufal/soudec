@@ -28,7 +28,7 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER_en = '1.29 (20250911)'; # version of the program
+my $VER_en = '1.30 (20250912)'; # version of the program
 my $VER_cs = $VER_en; # version of the program
 
 my @features_cs = ('detekce citačních zdrojů',
@@ -877,6 +877,13 @@ foreach my $root (@trees) {
         }
       }
       next; 
+    }
+
+    # Test if the clause rooted in $node is a question
+    my @question_marks = grep {attr($_, 'lemma') eq '?'} $node->getAllChildren;
+    if (@question_marks) {
+      mylog(0, " - question mark among the node sons, skipping the node\n");
+      next;
     }
 
     foreach my $constraint (split(/_/, $constraints)) { # split the constraints by separator '_' and work with one constraint at a time
