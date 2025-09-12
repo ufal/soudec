@@ -1825,7 +1825,7 @@ sub get_extra_NE_for_node {
   }
   
   if ($lemma =~ /^prezident(ka)?$/) {
-    if (grep {/^(republika|stát|země)$/} @children_lemmas) {
+    if (grep {/^(republika|stát|země|Zeman|Klaus|Havel|Pavel)$/} @children_lemmas) {
       return 'io'; # "institution - goverment, political"
     }
     if (grep {is_state($_)} @children) {
