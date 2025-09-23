@@ -28,7 +28,7 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER_en = '1.30 (20250912)'; # version of the program
+my $VER_en = '1.32 (20250923)'; # version of the program
 my $VER_cs = $VER_en; # version of the program
 
 my @features_cs = ('detekce citačních zdrojů',
@@ -1537,9 +1537,9 @@ sub guess_source_type {
     push(@source_named_entity_marks, $named_entity_marks);
   }
   
-  # Check if 'bývalý' is among the children of the source root - anything 'bývalý' is unofficial
+  # Check if 'bývalý', 'budoucí' etc. is among the children of the source root - anything 'bývalý', 'budoucí' etc. is unofficial
   my @source_root_children = $source_root->getAllChildren;
-  my @byvaly_children = grep {attr($_, 'lemma') eq 'bývalý'} @source_root_children;
+  my @byvaly_children = grep {attr($_, 'lemma') =~ /^(bývalý|budoucí|někdejší)$/} @source_root_children;
   if (@byvaly_children) {
     return 'unofficial';
   }
