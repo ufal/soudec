@@ -82,3 +82,67 @@ cat err | grep "HTML-EVALUATION-PARTIAL" >>evaluation-partial.html
 
 echo -e "</body>\n</html>\n" >>evaluation-exact.html
 echo -e "</body>\n</html>\n" >>evaluation-partial.html
+
+# Generate the confusion matrix:
+
+# Define the classes
+classes=("anonymous" "anonymous-partial" "unofficial" "official-non-political" "official-political" )
+
+# Initialize a 2D associative array for the confusion matrix
+declare -A matrix
+for actual in "${classes[@]}"; do
+    for predicted in "${classes[@]}"; do
+        matrix["$actual,$predicted"]=0
+    done
+done
+
+# Print header for debugging output
+#echo "Debug: Extracted predicted and actual classes from input lines:"
+#echo "---------------------------------------------------------------"
+
+# Process the input
+while IFS= read -r line; do
+    # Use awk to split by tab and extract 4th and 7th columns
+    auto_event=$(echo "$line" | awk -F '\t' '{print $4}')
+    ann_event=$(echo "$line" | awk -F '\t' '{print $7}')
+    
+    # Extract predicted: take everything after the last :, or the whole if no :
+    predicted=$(echo "$auto_event" | sed 's/.*://')
+    
+    # Clean up any _<span...> suffix
+    predicted=$(echo "$predicted" | sed 's/_<span.*//')
+    
+    # Trim any leading/trailing whitespace
+    predicted=$(echo "$predicted" | sed 's/^[ \t]*//;s/[ \t]*$//')
+    
+    # Actual is directly the 7th column
+    actual="$ann_event"
+    
+    # Debugging: Print the line and extracted values
+    #echo "Line: $line"
+    #echo "  Predicted: '$predicted'"
+    #echo "  Actual: '$actual'"
+    #echo "  ---"
+    
+    # If both are found, non-empty, and match valid classes
+    if [[ -n "$predicted" && -n "$actual" && " ${classes[*]} " =~ " $predicted " && " ${classes[*]} " =~ " $actual " ]]; then
+        # Increment the count
+        ((matrix["$actual,$predicted"]++))
+    fi
+done < <(grep 'TSV-SOURCETYPE-PARTIAL' err)
+
+# Output the confusion matrix
+echo -e "\nConfusion Matrix for partial match:"
+echo -n "Actual \ Predicted     | "
+for pred in "${classes[@]}"; do
+    printf "%-24s " "$pred"
+done
+echo
+#echo "----------------------|$(printf '%-24s' "${classes[@]/#/-}" | tr -d '\n')"
+for actual in "${classes[@]}"; do
+    printf "%-22s | " "$actual"
+    for predicted in "${classes[@]}"; do
+        printf "%-24s " "${matrix["$actual,$predicted"]}"
+    done
+    echo
+done
