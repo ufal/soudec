@@ -1,5 +1,5 @@
 
-R=40
+R=20
 echo "Searching for sources" >err
 
 for A in ../data_ze_SiR1.0/test/*.txt; do
