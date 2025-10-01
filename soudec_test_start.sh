@@ -1,5 +1,5 @@
 
-R=20
+R=50
 echo "Searching for sources" >err
 
 for A in ../data_ze_SiR1.0/test/*.txt; do
@@ -98,8 +98,8 @@ for actual in "${classes[@]}"; do
 done
 
 # Print header for debugging output
-#echo "Debug: Extracted predicted and actual classes from input lines:"
-#echo "---------------------------------------------------------------"
+echo "Debug: Extracted predicted and actual classes from input lines:"
+echo "---------------------------------------------------------------"
 
 # Process the input
 while IFS= read -r line; do
@@ -110,8 +110,8 @@ while IFS= read -r line; do
     # Extract predicted: take everything after the last :, or the whole if no :
     predicted=$(echo "$auto_event" | sed 's/.*://')
     
-    # Clean up any _<span...> suffix
-    predicted=$(echo "$predicted" | sed 's/_<span.*//')
+    # Clean up any _ suffix
+    predicted=$(echo "$predicted" | sed 's/_.*//')
     
     # Trim any leading/trailing whitespace
     predicted=$(echo "$predicted" | sed 's/^[ \t]*//;s/[ \t]*$//')
@@ -120,10 +120,10 @@ while IFS= read -r line; do
     actual="$ann_event"
     
     # Debugging: Print the line and extracted values
-    #echo "Line: $line"
-    #echo "  Predicted: '$predicted'"
-    #echo "  Actual: '$actual'"
-    #echo "  ---"
+    echo "Line: $line"
+    echo "  Predicted: '$predicted'"
+    echo "  Actual: '$actual'"
+    echo "  ---"
     
     # If both are found, non-empty, and match valid classes
     if [[ -n "$predicted" && -n "$actual" && " ${classes[*]} " =~ " $predicted " && " ${classes[*]} " =~ " $actual " ]]; then
