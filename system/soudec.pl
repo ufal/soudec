@@ -89,7 +89,7 @@ GetOptions(
     'i|input-file=s'         => \$input_file, # the name of the input file
     'a|ann-file=s'           => \$ann_file, # the name of the file with manual annotation
     'si|stdin'               => \$stdin, # should the input be read from STDIN?
-    'if|input-format=s'      => \$input_format, # input format, possible values: txt, presegmented
+    'if|input-format=s'      => \$input_format, # input format, possible values: txt, presegmented, conllu
     'p|phrase-file=s'        => \$phrase_reliability_file, # the name of the file with a list of citation phrases and their reliability
     'r|reliability=i'        => \$min_phrase_reliability, # minimal required phrase reliability
     'of|output-format=s'     => \$output_format, # output format, possible values: txt, html, conllu
@@ -154,7 +154,7 @@ Usage: soudec.pl [options]
 options:  -i|--input-file [input text file name]
           -a|--ann-file [manual annotation file name]
          -si|--stdin (input text provided via stdin)
-         -if|--input-format [input format: txt (default) or presegmented]
+         -if|--input-format [input format: txt (default), presegmented, conllu]
           -p|--phrase-file [phrases reliability file name]
           -r|--reliability [minimal required phrase reliability]
          -of|--output-format [output format: txt (default), html, conllu]
@@ -772,6 +772,7 @@ my $conll_data_ne;
 
 if($input_format eq 'conllu'){
   $conll_data_ne = $input_content;
+  mylog(2, "skipping UDPipe and NameTag annotations - using conllu input\n");
 } else {
   ###################################################################################
   # Let us parse the file using UDPipe REST API
