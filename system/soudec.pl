@@ -28,7 +28,7 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER_en = '1.33 (20250930)'; # version of the program
+my $VER_en = '1.34 (20251011)'; # version of the program
 my $VER_cs = $VER_en; # version of the program
 
 my @features_cs = ('detekce citačních zdrojů',
@@ -640,6 +640,10 @@ my %h_phrase_range2text;
 my %h_source_range2text;
 my %h_source_range2type;
 
+# the following two hashes will keep a link (via a generated id) between the phrases and sources; the id will be used in the output
+my %h_phrase_range2id;
+my %h_source_range2id;
+
 
 if ($ann_file) {
   mylog(1, "Reading manual annotation from $ann_file\n");
@@ -844,6 +848,7 @@ my %source2class = ();
 my %class2count = ();
 my %source2claims = (); # a value is a reference to an array
 
+my $event_id = 0; # id to link source with a phrase; used in the output
 
 foreach my $root (@trees) {
   mylog(0, "\n");
@@ -865,7 +870,7 @@ foreach my $root (@trees) {
       if (attr($node, 'upostag') eq 'NOUN' and attr($node, 'deprel') =~ /^(nsubj|obj|obl)/) { # it might be a root of a source
         mylog(0, " - it is a noun (nsubj, obj, obl).\n");
         my @potential_all_source_nodes = get_whole_source_nodes($node);
-	my $potential_all_source_nodes_count = scalar(@potential_all_source_nodes);
+        my $potential_all_source_nodes_count = scalar(@potential_all_source_nodes);
         my @NE_nodes = grep {get_misc_value($_, 'NE')} @potential_all_source_nodes;
         my @extraNE_nodes = grep {get_extra_NE_for_node($node, $potential_all_source_nodes_count)} @potential_all_source_nodes;
         if (scalar(@NE_nodes) or scalar(@extraNE_nodes)) { # any Named Entity or extra Named Entity assigned to any of the nodes?
@@ -902,13 +907,16 @@ foreach my $root (@trees) {
         if (has_finite_verb_object($claim_parent)) {
 
           # Check if the clause is conditional ('Je důležité, aby ministr řekl, že ...')
-	  # (How is it with cases with 'podle' and 'dle'? Not solving it here.)
+          # (How is it with cases with 'podle' and 'dle'? Not solving it here.)
           my @conditions = grep {attr($_, 'lemma') =~ /^(by|aby|kdyby|pokud|jestliže|jestli)$/} $node->getAllChildren;
-	  if (@conditions) {
+          if (@conditions) {
             mylog(0, "- a conditional clause, giving up.\n");
             next;
-          }     
-          evaluate_single_event('phrase', $lemma, $constraint, $root, @phrase_nodes);
+          }
+          
+          $event_id++; # generate an id of the event
+          
+          evaluate_single_event($event_id, 'phrase', $lemma, $constraint, $root, @phrase_nodes);
 
           if ($constraint eq 'PREP') { # special treatment of 'podle' and 'dle'
             my $parent = $node->getParent;
@@ -918,26 +926,26 @@ foreach my $root (@trees) {
             mylog(0, " - SOURCE parent: $source\n - WHOLE SOURCE: $whole_source\n");
             my $source_type = guess_source_type($root, 1, $claim_parent, @whole_source_nodes);
             mylog(0, "   - SOURCE TYPE: $source_type\n");
-            evaluate_single_event($source_type, $lemma, 'N/A', $root, @whole_source_nodes);
+            evaluate_single_event($event_id, $source_type, $lemma, 'N/A', $root, @whole_source_nodes);
           }
 
           else { # all cases other than 'podle' and 'dle'
             my @nsubj = grep {attr($_, 'deprel') eq 'nsubj'} $node->getAllChildren; # looking for a subject (i.e, the source)
 
-	    if (!@nsubj and attr($node, 'deprel') eq 'conj') { # no subject? Maybe we have a common subject in a conjunction of clauses - let us search for the subject at the parent node (not doing it recursively for now)
+            if (!@nsubj and attr($node, 'deprel') eq 'conj') { # no subject? Maybe we have a common subject in a conjunction of clauses - let us search for the subject at the parent node (not doing it recursively for now)
               mylog(0, "'conj' verb with no source. Looking for a source at the parent.\n");
-	      my $gender = get_feat_value($node, 'Gender');
-	      my $number = get_feat_value($node, 'Number');
-	      my $parent = $node->getParent;
-	      my $parent_gender = get_feat_value($parent, 'Gender');
-	      my $parent_number = get_feat_value($parent, 'Number');
-	      if ($gender eq $parent_gender and $number eq $parent_number) { # I take common subject only if both verbs have same gender and number
+              my $gender = get_feat_value($node, 'Gender');
+              my $number = get_feat_value($node, 'Number');
+              my $parent = $node->getParent;
+              my $parent_gender = get_feat_value($parent, 'Gender');
+              my $parent_number = get_feat_value($parent, 'Number');
+              if ($gender eq $parent_gender and $number eq $parent_number) { # I take common subject only if both verbs have same gender and number
                 @nsubj = grep {attr($_, 'deprel') eq 'nsubj'} $parent->getAllChildren;
               }     
             }
 
-	    my @passive_se = grep {attr($_, 'deprel') eq 'expl:pass' and attr($_, 'lemma') eq 'se' and lc(attr($_,'form')) eq 'se'} $node->getAllChildren; # e.g. in "tvrdí se"
-	    if (!@nsubj and $experimental =~ /\bgen\b/ and @passive_se) { # no nsubj but passive 'se', as in 'tvrdí se'; let us ad a #Gen node
+            my @passive_se = grep {attr($_, 'deprel') eq 'expl:pass' and attr($_, 'lemma') eq 'se' and lc(attr($_,'form')) eq 'se'} $node->getAllChildren; # e.g. in "tvrdí se"
+            if (!@nsubj and $experimental =~ /\bgen\b/ and @passive_se) { # no nsubj but passive 'se', as in 'tvrdí se'; let us ad a #Gen node
               my $perspron = Tree::Simple->new({}); # we could use new({}, $node) to make it a child of the governing verb in the tree structure
               set_attr($perspron, 'ord', attr($node, 'ord') - 0.5); # let us put it just before the governing verb
               set_attr($perspron, 'gord', attr($node, 'gord') - 0.5);
@@ -946,8 +954,8 @@ foreach my $root (@trees) {
               set_attr($perspron, 'deprel', 'nsubj');
               set_attr($perspron, 'upostag', 'PRON');
               set_property($perspron, 'feats', 'PronType', 'Prs');
-	      set_property($perspron, 'feats', 'Gender', 'Neut');
-	      set_property($perspron, 'feats', 'Number', 'Sing');
+              set_property($perspron, 'feats', 'Gender', 'Neut');
+              set_property($perspron, 'feats', 'Number', 'Sing');
               #set_attr($perspron, 'xpostag', $xpos);
               set_attr($perspron, 'head', attr($node, 'id'));
               mylog(0, " - No nsubj found but passive 'se' present: adding a #Gen node.\n");
@@ -975,14 +983,14 @@ foreach my $root (@trees) {
                 # Cases such as "Kdo si myslí, že vyhraje levice, mýlí se."
                 mylog(0, " - 'kdo' not considered a source\n");
               }
-	      else {
+              else {
                 my $subject = attr($nsubj[0], 'form');
                 my @whole_source_nodes = get_whole_source_nodes($nsubj[0]);
                 my $whole_source = text(\@whole_source_nodes);
                 mylog(0, " - SOURCE nsubj: $subject\n - WHOLE SOURCE: $whole_source\n");
                 my $source_type = guess_source_type($root, 1, $claim_parent, @whole_source_nodes);
                 mylog(0, "   - SOURCE TYPE: $source_type\n");
-                evaluate_single_event($source_type, $lemma, 'N/A', $root, @whole_source_nodes);
+                evaluate_single_event($event_id, $source_type, $lemma, 'N/A', $root, @whole_source_nodes);
               }
             }
           }
@@ -1253,8 +1261,7 @@ sub is_finite {
     }
   }  
   # It may be a reference to a verbal phrase, such as "potvrzuje to i ..." or "jeho slova potvrzuje i ..."
-  my $form = attr($node, 'form');
-  my $deprel = attr($node, 'deprel');
+  my $deprel = attr($node, 'deprel') // '';
   if (lc($form) =~ /^(slova|to)$/ and $deprel eq 'obj') { # tady bylo i 'tom', ale proč?
     mylog(0, "is_finite: a reference object such as 'to'\n");
     return 1; # musí to být 'obj', aby se vyloučilo např. "na to odpověděl..."
@@ -1264,7 +1271,6 @@ sub is_finite {
     mylog(0, "is_finite: ano/ne'\n");
     return 1;
   }
-  my $deprel = attr($node, 'deprel') // '';
   if ($deprel eq 'dep') {
     my @ano_ne_children = grep {attr($_, 'lemma') and attr($_, 'lemma') =~ /(ano|ne)/} $node->getAllChildren;
     if (@ano_ne_children) {
@@ -2044,7 +2050,7 @@ END_OUTPUT_HEAD
   # for conllu:
   my $SD_phrase_count = 0; # counting citation phrases
   my $SD_source_count = 0; # counting citation sources
-  my $SD_count; # for keeping the number of the current event
+  my $SD_count; # event count (retreived from %h_phrase_range2id and %h_source_range2id)
   my $inside_SD = 0; # for dealing with multi-token events
   my $end_of_SD = 0; # dtto
   my $SD_type = ''; # type of the event - P for phrases, S for sources
@@ -2116,10 +2122,7 @@ END_OUTPUT_HEAD
 
       my $source_range = partial_match("$start:$end", \%h_source_range2text) // ''; # is this token a part of a source?
       if ($source_range) {
-        if ($source_range =~ /^$start:/) { # first token in this source
-          $SD_source_count++;
-          $SD_count = $SD_source_count;
-        }
+        $SD_count = $h_source_range2id{$source_range} // 'NA';
         if ($source_range =~ /\b$start:/) { # first token in one of contiguous parts of the source
           $span_start = $format eq 'html' ? '<span class="source-text">' : '>>';
           $inside_SD = 1;
@@ -2148,10 +2151,7 @@ END_OUTPUT_HEAD
       
       else { # it is not a part of a source, maybe it is a part of a phrase?
         my $phrase_range = partial_match("$start:$end", \%h_phrase_range2text) // ''; # is this token a part of a citation phrase?
-        if ($phrase_range =~ /^$start:/) { # first token in this phrase
-          $SD_phrase_count++;
-          $SD_count = $SD_phrase_count;
-        }
+        $SD_count = $h_phrase_range2id{$phrase_range} // 'NA';
         if ($phrase_range =~ /\b$start:/) { # first token in one of contiguous parts of the phrase
           $span_start = $format eq 'html' ? '<span class="phrase-text">' : '@';
           $inside_SD = 1;
@@ -2680,7 +2680,7 @@ sub get_sentence_html {
 
 =item partial_match
 
-Returns range (in the form "start:end", or a sequence of these separated by ';') from keys of given hash that at least partially overlaps with the given range.
+Returns range (in the form "start:end", or a sequence of these separated by ';') from keys of given hash that at least partially overlap with the given range.
 Otherwise returns undef.
 
 =cut
@@ -2729,17 +2729,21 @@ my %h_phrase_range2text;
 my %h_source_range2text;
 my %h_source_range2type;
 
+my %h_phrase_range2id;
+my %h_source_range2id;
+
 The log going to STDERR is used to counting the reliability of phrases (that's why $lemma and $constraint are among arguments).
 
 =cut
 
 sub evaluate_single_event {
-  my ($event, $lemma, $constraint, $root, @nodes) = @_;
+  my ($event_id, $event, $lemma, $constraint, $root, @nodes) = @_;
   
   my $range = get_range(@nodes);
   my $text = text(\@nodes);
   
   if ($event eq 'phrase') {
+    $h_phrase_range2id{$range} = $event_id;
     $h_phrase_range2text{$range} = text(\@nodes);
     if ($ann_file) { # evaluate the event against manual annotation
       if ($h_ann_phrase_range2text{$range}) {
@@ -2763,6 +2767,7 @@ sub evaluate_single_event {
     }
   }
   else { # source
+    $h_source_range2id{$range} = $event_id;
     $h_source_range2text{$range} = text(\@nodes);
     $h_source_range2type{$range} = $event;
     if ($ann_file) { # evaluate the event against manual annotation
