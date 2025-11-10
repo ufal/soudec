@@ -89,7 +89,7 @@ GetOptions(
     'i|input-file=s'         => \$input_file, # the name of the input file
     'a|ann-file=s'           => \$ann_file, # the name of the file with manual annotation
     'si|stdin'               => \$stdin, # should the input be read from STDIN?
-    'if|input-format=s'      => \$input_format, # input format, possible values: txt, presegmented
+    'if|input-format=s'      => \$input_format, # input format, possible values: txt, presegmented, conllu
     'p|phrase-file=s'        => \$phrase_reliability_file, # the name of the file with a list of citation phrases and their reliability
     'r|reliability=i'        => \$min_phrase_reliability, # minimal required phrase reliability
     'of|output-format=s'     => \$output_format, # output format, possible values: txt, html, conllu
@@ -154,7 +154,7 @@ Usage: soudec.pl [options]
 options:  -i|--input-file [input text file name]
           -a|--ann-file [manual annotation file name]
          -si|--stdin (input text provided via stdin)
-         -if|--input-format [input format: txt (default) or presegmented]
+         -if|--input-format [input format: txt (default), presegmented, conllu]
           -p|--phrase-file [phrases reliability file name]
           -r|--reliability [minimal required phrase reliability]
          -of|--output-format [output format: txt (default), html, conllu]
@@ -194,7 +194,7 @@ if (!defined $input_format) {
   mylog(0, " - input format: not specified, set to default $INPUT_FORMAT_DEFAULT\n");
   $input_format = $INPUT_FORMAT_DEFAULT;
 }
-elsif ($input_format !~ /^(txt|presegmented)$/) {
+elsif ($input_format !~ /^(txt|presegmented|conllu)$/) {
   mylog(0, " - input format: unknown ($input_format), set to default $INPUT_FORMAT_DEFAULT\n");
   $input_format = $INPUT_FORMAT_DEFAULT;
 }
@@ -714,30 +714,47 @@ if ($ui_language and $ui_language eq 'cs') {
   $max_input_length_text = '75 tisíc';
 }
 
-if ($input_length > $max_input_length) { # avoid long texts
+my $input_lines_cnt = (() = $input_content =~ /\n/g) + (($input_content !~ /\n$/ && length $) ? 1 : 0));
+mylog(2, "input length: $input_lines_cnt lines\n");
+
+my $max_input_lines_cnt = 10000;
+my $max_input_lines_cnt_text = '10 thousand';
+if ($ui_language and $ui_language eq 'cs') {
+  $max_input_lines_cnt_text = '10 tisíc';
+}
+
+if (
+    ($input_format ne 'conllu' && $input_length > $max_input_length)
+    || ($input_format eq 'conllu' && $input_lines_cnt > $max_input_lines_cnt)
+    ) { # avoid long texts
   # 'data' (in output-format)
   # 'stats_html' (in html, if requested)
   # 'stats_tsv' (in TSV, if requested)
-
+  my $text_limit = "The text is too long ($input_length characters, the maximum is $max_input_length_text)!";
+  my $text_limit_cs = "Příliš dlouhý text ($input_length znaků, povolené maximum je $max_input_length_text)!";
+  if ($input_format eq 'conllu') {
+    $text_limit = "The text is too long ($input_lines_cnt lines, the maximum is $max_input_lines_cnt)!";
+    $text_limit_cs = "Příliš dlouhý text ($input_lines_cnt znaků, povolené maximum je $max_input_lines_cnt)!";
+  }
   my $json_data = {
-    data  => "<font color=\"red\">The text is too long ($input_length characters, the maximum is $max_input_length_text)!</font>",
+    data  => "<font color=\"red\">$text_limit</font>",
   };
   if ($output_statistics =~ /\bhtml\b/) {
-    $json_data->{stats_html} = "<font color=\"red\">The text is too long ($input_length characters, the maximum is $max_input_length_text)!</font>";
+    $json_data->{stats_html} = "<font color=\"red\">$text_limit</font>";
   }
   if ($output_statistics =~ /\btsv\b/) {
-    $json_data->{stats_tsv} = "The text is too long ($input_length characters, the maximum is $max_input_length_text)!";
+    $json_data->{stats_tsv} = "$text_limit";
   }
 
   if ($ui_language and $ui_language eq 'cs') {
     $json_data = {
-       data  => "<font color=\"red\">Příliš dlouhý text ($input_length znaků, povolené maximum je $max_input_length_text)!</font>",
+       data  => "<font color=\"red\">$text_limit_cs</font>",
      };
     if ($output_statistics =~ /\bhtml\b/) {
-      $json_data->{stats_html} = "<font color=\"red\">Příliš dlouhý text ($input_length znaků, povolené maximum je $max_input_length_text)!</font>";
+      $json_data->{stats_html} = "<font color=\"red\">$text_limit_cs</font>";
     }
     if ($output_statistics =~ /\btsv\b/) {
-      $json_data->{stats_tsv} = "Příliš dlouhý text ($input_length znaků, povolené maximum je $max_input_length_text)!";
+      $json_data->{stats_tsv} = "$text_limit_cs";
     }
   }
 
@@ -755,31 +772,36 @@ my $processing_time;
 my $processing_time_udpipe;
 my $processing_time_nametag;
 
+my $conll_data_ne;
 
-###################################################################################
-# Let us parse the file using UDPipe REST API
-###################################################################################
+if($input_format eq 'conllu'){
+  $conll_data_ne = $input_content;
+  mylog(2, "skipping UDPipe and NameTag annotations - using conllu input\n");
+} else {
+  ###################################################################################
+  # Let us parse the file using UDPipe REST API
+  ###################################################################################
 
-my $start_time_udpipe = [gettimeofday];
+  my $start_time_udpipe = [gettimeofday];
 
-my $conll_data = call_udpipe($input_content, 'cs', $input_format, 'all');
+  my $conll_data = call_udpipe($input_content, 'cs', $input_format, 'all');
 
-# Store the result to a file (just to have it, not needed for further processing)
-#  open(OUT, '>:encoding(utf8)', "$input_file.conll") or die "Cannot open file '$input_file.conll' for writing: $!";
-#  print OUT $conll_data;
-#  close(OUT);
+  # Store the result to a file (just to have it, not needed for further processing)
+  #  open(OUT, '>:encoding(utf8)', "$input_file.conll") or die "Cannot open file '$input_file.conll' for writing: $!";
+  #  print OUT $conll_data;
+  #  close(OUT);
 
-# Measure time spent by UDPipe 
-my $end_time_udpipe = [gettimeofday];
-$processing_time_udpipe = tv_interval($start_time_udpipe, $end_time_udpipe);
+  # Measure time spent by UDPipe 
+  my $end_time_udpipe = [gettimeofday];
+  $processing_time_udpipe = tv_interval($start_time_udpipe, $end_time_udpipe);
 
-my $sentence_count = 0;
-my $word_count = 0;
+  my $sentence_count = 0;
+  my $word_count = 0;
 
-# Rozdělíme text na řádky
-my @lines = split /\n/, $conll_data;
+  # Rozdělíme text na řádky
+  my @lines = split /\n/, $conll_data;
 
-foreach my $line (@lines) {
+  foreach my $line (@lines) {
     # Přeskočíme prázdné řádky a komentáře
     next if $line =~ /^\s*$/ || $line =~ /^#/;
 
@@ -787,35 +809,35 @@ foreach my $line (@lines) {
     if ($line =~ /^\d+\t/) {
         $word_count++;
     }
-}
+  }
 
-# Počet vět zjistíme podle prázdných řádků nebo komentářů # text
-foreach my $line (@lines) {
+  # Počet vět zjistíme podle prázdných řádků nebo komentářů # text
+  foreach my $line (@lines) {
     if ($line =~ /^# text =/) {
         $sentence_count++;
     }
+  }
+
+  mylog(2, "input length: $word_count tokens, $sentence_count sentences\n");
+
+
+  ###################################################################################
+  # Now let us add info about named entities using NameTag REST API
+  ###################################################################################
+
+  my $start_time_nametag = [gettimeofday];
+
+  $conll_data_ne = call_nametag($conll_data);
+
+  # Store the result to a file (just to have it, not needed for further processing)
+  #  open(OUT, '>:encoding(utf8)', "$input_file.conllne") or die "Cannot open file '$input_file.conllne' for writing: $!";
+  #  print OUT $conll_data_ne;
+  #  close(OUT);
+
+  # Measure time spent by NameTag 
+  my $end_time_nametag = [gettimeofday];
+  $processing_time_nametag = tv_interval($start_time_nametag, $end_time_nametag);
 }
-
-mylog(2, "input length: $word_count tokens, $sentence_count sentences\n");
-
-
-###################################################################################
-# Now let us add info about named entities using NameTag REST API
-###################################################################################
-
-my $start_time_nametag = [gettimeofday];
-
-my $conll_data_ne = call_nametag($conll_data);
-
-# Store the result to a file (just to have it, not needed for further processing)
-#  open(OUT, '>:encoding(utf8)', "$input_file.conllne") or die "Cannot open file '$input_file.conllne' for writing: $!";
-#  print OUT $conll_data_ne;
-#  close(OUT);
-
-# Measure time spent by NameTag 
-my $end_time_nametag = [gettimeofday];
-$processing_time_nametag = tv_interval($start_time_nametag, $end_time_nametag);
-
 
 ###################################################################################
 # Let us parse the CONLL format into Tree::Simple tree structures (one tree per sentence)
