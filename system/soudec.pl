@@ -1852,6 +1852,15 @@ sub get_extra_NE_for_node {
     }
   }
 
+  if ($lemma =~ /^náměst(ek|kyně)$/) {
+    if (grep {/^(ministr|ministerstvo)/} @children_lemmas) {
+      return 'io'; # "institution - goverment, political"
+    }
+    else {
+      return 'im'; # "institution - mluvčí"
+    }
+  }
+
   if ($lemma =~ /^mana[gž]er(ka)?$/) {
     return 'im'; # "institution - mluvčí"
   }
