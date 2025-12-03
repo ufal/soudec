@@ -332,6 +332,7 @@ my %keywords_anonymous_partial = ('část' => 1,
 
 my %keywords_unofficial = ('slovník' => 1,
                            'encyklopedie' => 1,
+			   'agentura' => 1
                          );
 
 # List of one-word states
