@@ -28,7 +28,7 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER_en = '1.34 (20251011)'; # version of the program
+my $VER_en = '1.35 (20251203)'; # version of the program
 my $VER_cs = $VER_en; # version of the program
 
 my @features_cs = ('detekce citačních zdrojů',
@@ -1851,8 +1851,12 @@ sub get_extra_NE_for_node {
       return 'im'; # "institution - mluvčí"
     }
   }
+
+  if ($lemma =~ /^mana[gž]er(ka)?$/) {
+    return 'im'; # "institution - mluvčí"
+  }
   
-  if ($lemma =~ /^prezident(ka)?$/) {
+  if ($lemma =~ /^(vice)?pre[zs]ident(ka)?$/) {
     if (grep {/^(republika|stát|země|Zeman|Klaus|Havel|Pavel)$/} @children_lemmas) {
       return 'io'; # "institution - goverment, political"
     }
