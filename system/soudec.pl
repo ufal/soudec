@@ -2205,14 +2205,18 @@ END_OUTPUT_HEAD
 
         my $SpaceAfter = get_misc_value($node, 'SpaceAfter') // '';
 
-        # Check if this is the first (or another) part of a multiword - use the original form and ignore the other parts
+	# Check if this is the first (or another) part of a multiword - use the original form and ignore the other parts
         my $multiword = attr($node, 'multiword');
         my $multiword_part = attr($node, 'multiword_part');
         if ($multiword) {
-          my ($n, $form_orig, $rest) = split (/\t/, $multiword);
-          $form = $form_orig; # use the original multiword form
+          my ($n_multi, $form_multi, $lemma_multi, $upos_multi, $xpos_multi, $feats_multi, $head_multi, $deprel_multi,
+              $deps_multi, $misc_multi) = split (/\t/, $multiword);
+          $form = $form_multi; # use the original multiword form
+	  if ($misc_multi =~ /SpaceAfter=No/) {
+            $SpaceAfter = 'No'; # use SpaceAfter from the multiword line
+          }
         }
-        elsif ($multiword_part) { # if this is the second or a further part of a multiword - ignore (only the SpaceAfter is already stored)
+        elsif ($multiword_part) { # if this is the second or a further part of a multiword - ignore
           next;
         }
       
