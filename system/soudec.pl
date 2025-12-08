@@ -17,7 +17,7 @@ use Data::Dumper;
 use FindBin qw($Bin);  # $Bin je adresář, kde je skript
 use lib "$Bin/lib";    # Absolutní cesta k lib
 
-use UD v1.4.1;
+use UD v1.5.0;
 use mylog v1.0.0;
 $mylog::name = 'SouDeC';
 
@@ -28,7 +28,7 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER_en = '1.35 (20251203)'; # version of the program
+my $VER_en = '1.36 (20251208)'; # version of the program
 my $VER_cs = $VER_en; # version of the program
 
 my @features_cs = ('detekce citačních zdrojů',
