@@ -2145,6 +2145,7 @@ END_OUTPUT_HEAD
     
       # COLLECT INFO ABOUT THE TOKEN
       my $form = attr($node, 'form');
+            
       my $start = attr($node, 'start') // -1; # range missing e.g. when "kdyby" is parsed as "když by"
       my $end = attr($node, 'end') // -1;
       
@@ -2201,7 +2202,20 @@ END_OUTPUT_HEAD
       
       # PRINT THE TOKEN
       if ($format =~ /^(txt|html)$/) {
+
         my $SpaceAfter = get_misc_value($node, 'SpaceAfter') // '';
+
+        # Check if this is the first (or another) part of a multiword - use the original form and ignore the other parts
+        my $multiword = attr($node, 'multiword');
+        my $multiword_part = attr($node, 'multiword_part');
+        if ($multiword) {
+          my ($n, $form_orig, $rest) = split (/\t/, $multiword);
+          $form = $form_orig; # use the original multiword form
+        }
+        elsif ($multiword_part) { # if this is the second or a further part of a multiword - ignore (only the SpaceAfter is already stored)
+          next;
+        }
+      
         $output .= "$space_before$span_start$form$span_end$type_span";
         $space_before = $SpaceAfter eq 'No' ? '' : ' '; # this way there will not be space after the last token of the sentence
       }
