@@ -6,6 +6,10 @@ our $VERSION = v1.4.1;
 
 =over 4
 
+=item v1.5.0 (2025-12-08)
+
+- Keeping info about being a part of a multiword at each member
+
 =item v1.4.1 (2025-07-15)
 
 - Recovering from calling C<attr> with undef node (returns undef)
@@ -91,6 +95,8 @@ sub parse_conllu {
   my $max_end = 0;
 
   my $multiword = ''; # store a multiword line to keep with the following token
+  my $multiword_ord = ''; # token number range of the current multiword (e.g., '5-6')
+  my $multiword_end = ''; # last token number of the current multiword (e.g., 6)
 
   my $gord = 0; # global ord of a token in the document
   # the following cycle for reading UD CONLL is modified from Jan Štěpánek's UD TrEd extension
@@ -142,6 +148,9 @@ sub parse_conllu {
           #}
           if ($n =~ /-/) { # a multiword line, store it to keep with the next token
             $multiword = $line;
+            $multiword_ord = $n;
+            my ($start, $end) = split('-', $n);
+            $multiword_end = $end;
             next;
           }
           
@@ -169,6 +178,13 @@ sub parse_conllu {
           if ($multiword) { # the previous line was a multiword, store it at the current token
             set_attr($node, 'multiword', $multiword);
             $multiword = '';
+          }
+          if ($multiword_end and $n<=$multiword_end) { # a part of the current multiword
+            set_attr($node, 'multiword_part', $multiword_ord);
+            if ($n == $multiword_end) {
+              $multiword_ord = '';
+              $multiword_end = '';
+            }
           }
           
           if ($misc and $misc =~ /TokenRange=(\d+):(\d+)\b/) {
