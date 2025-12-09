@@ -1,10 +1,14 @@
 package UD;
 
-our $VERSION = v1.5.0;
+our $VERSION = v1.6.0;
 
 =head1 VERSION HISTORY
 
 =over 4
+
+=item v1.6.0 (2025-12-09)
+
+- New function C<property> to retrieve a value of a property of a given attribute at a given node (opposite to C<set_property>) 
 
 =item v1.5.0 (2025-12-08)
 
@@ -63,6 +67,7 @@ our @EXPORT = qw(parse_conllu
                  set_attr
                  add_attr
                  text
+                 property
                  set_property
                  add_property
                  misc_property
@@ -72,7 +77,6 @@ our @EXPORT = qw(parse_conllu
                  call_nametag
                  call_udpipe
                 );
-
 
 
 =head2 parse_conllu
@@ -413,6 +417,29 @@ sub text {
 }
 
 
+=head2 property
+
+From the given attribute at the given node (e.g., 'misc'), it gets the value of the given property (or undef if not set).
+
+=cut
+
+sub property {
+  my ($node, $attr, $property) = @_;
+  # mylog(0, "property: '$attr', '$property', '$value'\n");
+  my $attr_value = attr($node, $attr);
+  return undef if !$attr_value;
+  # mylog(0, "property: attr_value: '$attr_value'\n");
+  my @attr_properties = grep {$_ =~ /^$property\b/} grep {$_ ne ''} grep {defined} split('\|', $attr_value);
+  return undef if !scalar(@attr_properties);
+  my $attr_property = $attr_properties[0]; # expect each property to appear only once
+  if ($attr_property =~ /$property=(.+)/) {
+    my $value = $1;
+    return $value;
+  }
+  return undef;
+}
+
+
 =head2 set_property
 
 In the given attribute at the given node (e.g., 'misc'), it sets the value of the given property (replaces the previous one if present)
@@ -673,7 +700,7 @@ sub call_nametag {
     my $result = '';
     
     # Let us call NameTag api for each X sentences separately, as too large input produces an error.
-    my $max_sentences = 100; # 5 was too large at first attempt, so let us hope 1 is safe enough.
+    my $max_sentences = 1000;
     
     my $conll_part = '';
     my $sent_count = 0;
@@ -699,7 +726,7 @@ sub call_nametag {
 
 =head2 call_nametag_part
 
-Now actuall calling NameTag REST API for a small part of the input (to avoid error caused by a long argument).
+Now actually calling NameTag REST API for a small part of the input (to avoid error caused by a long argument).
 Returns the text in UD CONLL-NE format.
 If an error occurs, the function just returns the input conll text unchanged.
 
