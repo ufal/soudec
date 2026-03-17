@@ -28,7 +28,7 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER_en = '1.36 (20251208)'; # version of the program
+my $VER_en = '1.37 (20260317)'; # version of the program
 my $VER_cs = $VER_en; # version of the program
 
 my @features_cs = ('detekce citačních zdrojů',
@@ -1786,10 +1786,6 @@ sub get_extra_NE_for_node {
     # mylog(0, "get_extra_NE_for_node: #Gen\n";
     return 'sa'; # "source - anonymous"
   }
-  if ($lemma =~ /^(mluvčí|velitel(ka)?|ředitel(ka)?|vedoucí|šéf(ka)?|soudce|soudkyně|soud|obžaloba|obhajoba|obhájce|obhájkyně|prokurátor(ka)?|obžalovaný|obžalovaná|zákon|zákoník)$/) {
-    # mylog(0, "get_extra_NE_for_node: found 'mluvčí etc.'\n");
-    return 'im'; # "institution - mluvčí"
-  }
   if ($number_of_nodes == 1 and $keywords_single_anonymous{$lemma}) {
     return 'sa' # "source - anonymous"
   }
@@ -1888,6 +1884,10 @@ sub get_extra_NE_for_node {
     if (grep {/^Bíl[ýé]/} @children_forms) {
       return 'io'; # "institution - goverment, political"
     }
+  }
+  if ($lemma =~ /^(mluvčí|velitel(ka)?|ředitel(ka)?|vedoucí|šéf(ka)?|soudce|soudkyně|soud|obžaloba|obhajoba|obhájce|obhájkyně|prokurátor(ka)?|obžalovaný|obžalovaná|zákon|zákoník|producent(ka)?|režisér(ka)?|trenér(ka)?|organizátor(ka)?|správce|správkyně|zástupce|zástupkyně)$/) {
+    # mylog(0, "get_extra_NE_for_node: found 'ředitel etc.'\n");
+    return 'im'; # "institution - mluvčí"
   }
 }
 
