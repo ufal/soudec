@@ -1885,7 +1885,7 @@ sub get_extra_NE_for_node {
       return 'io'; # "institution - goverment, political"
     }
   }
-  if ($lemma =~ /^(mluvčí|velitel(ka)?|ředitel(ka)?|vedoucí|šéf(ka)?|soudce|soudkyně|soud|obžaloba|obhajoba|obhájce|obhájkyně|prokurátor(ka)?|obžalovaný|obžalovaná|zákon|zákoník|producent(ka)?|režisér(ka)?|trenér(ka)?|organizátor(ka)?|správce|správkyně|zástupce|zástupkyně)$/) {
+  if ($lemma =~ /^(mluvčí|velitel(ka)?|ředitel(ka)?|vedoucí|šéf(ka)?|soudce|soudkyně|soud|obžaloba|obhajoba|obhájce|obhájkyně|prokurátor(ka)?|obžalovaný|obžalovaná|zákon|zákoník|producent(ka)?|režisér(ka)?|trenér(ka)?|organizátor(ka)?|správce|správkyně|zástupce|zástupkyně|pořadatel)$/) {
     # mylog(0, "get_extra_NE_for_node: found 'ředitel etc.'\n");
     return 'im'; # "institution - mluvčí"
   }
