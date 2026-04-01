@@ -28,7 +28,7 @@ binmode STDOUT, ':encoding(UTF-8)';
 
 my $start_time = [gettimeofday];
 
-my $VER_en = '1.37 (20260317)'; # version of the program
+my $VER_en = '1.38 (20260401)'; # version of the program
 my $VER_cs = $VER_en; # version of the program
 
 my @features_cs = ('detekce citačních zdrojů',
@@ -967,6 +967,11 @@ foreach my $root (@trees) {
               }     
             }
 
+	    # "znít z Prahy 1" - Praha is 'obl'
+	    if (!@nsubj and $lemma =~ /^(znít)$/) {
+              @nsubj = grep {attr($_, 'deprel') eq 'obl'} $node->getAllChildren;
+            }
+
             my @passive_se = grep {attr($_, 'deprel') eq 'expl:pass' and attr($_, 'lemma') eq 'se' and lc(attr($_,'form')) eq 'se'} $node->getAllChildren; # e.g. in "tvrdí se"
             if (!@nsubj and $experimental =~ /\bgen\b/ and @passive_se) { # no nsubj but passive 'se', as in 'tvrdí se'; let us ad a #Gen node
               my $perspron = Tree::Simple->new({}); # we could use new({}, $node) to make it a child of the governing verb in the tree structure
@@ -1001,6 +1006,7 @@ foreach my $root (@trees) {
               mylog(0, " - No nsubj found: adding a #PersPron node.\n");
               @nsubj = ($perspron);
             }
+
             if (@nsubj) {
               if (scalar(@nsubj) == 1 and attr($nsubj[0], 'lemma') eq 'kdo') {
                 # Cases such as "Kdo si myslí, že vyhraje levice, mýlí se."
@@ -1179,9 +1185,16 @@ sub check_constraint {
       $claim_parent = $node->getParent->getParent;
     }
     elsif ($required_child_form_lc eq 'ANTEPOS') { # the attribution is in ante position, i.e. the claim is the parent (i.e. a child of the grandparent)
-      if ($deprel ne 'csubj' and $deprel ne 'csubj:pass') {
-        mylog(0, " - constraint ANTEPOS but deprel is not 'csubj' or 'csubj:pass'; returning undef\n");
+      if ($deprel ne 'csubj' and $deprel ne 'csubj:pass' and $deprel ne 'advcl') {
+        mylog(0, " - constraint ANTEPOS but deprel is not 'csubj' or 'csubj:pass' or 'advcl'; returning undef\n");
         return undef;
+      }
+      if ($deprel eq 'advcl') { # only allow this if there is 'jak', e.g. "jak přiznává, by v té době doma"
+        my @jak_sons = grep {attr($_, 'lemma') eq 'jak'} $node->getAllChildren;
+	if (!@jak_sons) {
+          mylog(0, " - constraint ANTEPOS but deprel is 'advcl' without 'jak' among children; returning undef\n");
+          return undef;
+        }
       }
       # check the order
       my $phrase_ord = attr($node, 'ord');
@@ -2975,7 +2988,7 @@ sub get_whole_source_nodes {
 
 =item get_source_nodes
 
-It recursively adds sons whith deprel nmod, amod, flat (and flat:foreign), case (with exception of 'podle') and acl:relcl (acl:relcl with the whole subtree right away)
+It recursively adds sons whith deprel nmod, amod, nummod, flat (and flat:foreign), case (with exception of 'podle') and acl:relcl (acl:relcl with the whole subtree right away)
 
 =cut
 
@@ -2987,7 +3000,7 @@ sub get_source_nodes {
   }
   
   my @source_sons = grep {attr($_, 'lemma') !~ /^(po)?dle$/}
-                    grep {attr($_, 'deprel') =~ /^(nmod|amod|flat|flat:foreign|case|acl:relcl|appos|punct)$/}
+                    grep {attr($_, 'deprel') =~ /^(nmod|amod|nummod|flat|flat:foreign|case|acl:relcl|appos|punct)$/}
                     $node->getAllChildren;
   my @whole_source_nodes = @source_sons;
   foreach my $son (@source_sons) {

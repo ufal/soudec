@@ -10,7 +10,7 @@ echo "Searching for sources" > err
 #json_output=$(echo "Tvrdí se, že ano. Říká, že ne. Ministr prohlásil, že přijde." | \
 #./system/soudec.pl --stdin --ll 0 --output-format conllu --experimental=gen,perspron 2>>err)
 
-echo "Tvrdí se, že ano. Říká, že ne. Ministr prohlásil, že přijde. Rovněž řekl, že nebude sám." | \
+echo "Ale jak přiznává na dálku z hotelového pokoje, cestovatelská touha ho přešla rychle. Arenberger pravidla neporušil, zní z Prahy 1. Tvrdí se, že ano. Říká, že ne. Ministr prohlásil, že přijde. Rovněž řekl, že nebude sám." | \
 ./system/soudec.pl --stdin --ll 0 --output-format conllu --experimental=gen,perspron 2>>err
 
 # Extract and print the 'data' field

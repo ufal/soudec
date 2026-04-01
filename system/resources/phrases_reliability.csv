@@ -113,6 +113,7 @@
 2	1	přitakávat	
 11	9	přiznat	
 10	10	přiznávat	
+1	1	přiznávat	jak|ANTEPOS
 5	4	psát	se
 44	40	psát	
 4	3	radit	
@@ -182,8 +183,8 @@
 4	4	zmínit	
 2	2	zmiňovat	
 1	1	znít	
+1	1	znít	POSTPOS
 4	4	zopakovat	
 1	1	zveřejnit	
-2	1	žádat	POSTPOS
 1	1	žasnout	
 2	1	žertovat	POSTPOS
